@@ -579,27 +579,55 @@
 .badge-default { background: var(--color-surface-hover); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
 
 /* Forms */
-.form-group { display: flex; flex-direction: column; gap: var(--spacing-md); }
-.form-control {
-    display: flex; flex-direction: column; gap: 4px;
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: var(--spacing-md);
 }
-.form-control label {
-    font-size: 0.85rem; font-weight: 500; color: var(--color-text-secondary);
+
+.form-label, label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+    display: inline-block;
+    font-family: 'Inter', system-ui, sans-serif;
 }
-.form-control input, .form-control select, .form-control textarea {
+
+.form-control,
+input.form-control,
+select.form-control,
+textarea.form-control,
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+    width: 100%;
+    box-sizing: border-box;
     padding: 10px 14px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: rgba(15, 23, 42, 0.5);
+    background-color: var(--color-surface);
     color: var(--color-text);
-    font-family: 'Inter', sans-serif;
-    transition: all var(--transition-fast);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.form-control input:focus, .form-control select:focus, .form-control textarea:focus {
+
+.form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px var(--color-primary-light);
-    background: rgba(15, 23, 42, 0.8);
 }
 
 /* Empty State */
@@ -617,10 +645,43 @@
 .empty-state i {
     font-size: 48px; color: var(--color-border); margin-bottom: var(--spacing-md);
 }
+
+/* FIX HARDCODED COLORS & LIGHT MODE CONTRAST */
+.data-table tbody tr { background-color: transparent; }
+.data-table tbody tr:nth-child(even) { background-color: var(--color-surface-hover); }
+.data-table tbody tr:hover { background-color: var(--color-primary-light); }
+
+[data-theme="light"] .modal-content {
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* FIX HARDCODED COLORS FOR LIGHT MODE */
-.data-table tbody tr { background-color: transparent !important; }
-.data-table tbody tr:nth-child(even) { background-color: var(--color-surface-hover) !important; }
-.data-table tbody tr:hover { background-color: var(--color-primary-light) !important; }
-.form-control input, .form-control select, .form-control textarea { background-color: var(--color-surface) !important; color: var(--color-text) !important; }
+[data-theme="light"] .form-control,
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .form-control:focus,
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+    border-color: #10B981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
+}
+
+[data-theme="light"] .modal-header h2,
+[data-theme="light"] .modal-header h3,
+[data-theme="light"] .modal-header h4 {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .text-secondary,
+[data-theme="light"] label,
+[data-theme="light"] .form-label {
+    color: #334155 !important;
+}

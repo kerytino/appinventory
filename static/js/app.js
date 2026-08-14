@@ -1,9 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     const DEVICE_TYPES = ["Switch", "Cámara", "Sensor", "Antena Wi-Fi", "Controladora", "Cableado", "Otro"];
     let stockLimits = {};
+    let currentWarehouseFilter = null;
     // --- Auth & Roles ---
     let currentUser = null;
     
+    // Check URL parameters for warehouse filter
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlWh = urlParams.get('warehouse');
+    if (urlWh && urlWh !== 'all') {
+        currentWarehouseFilter = urlWh;
+    }
+
     async function checkAuth() {
         try {
             const res = await fetch('/api/me');
@@ -14,7 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
-                initApp();
+                await fetchInactivitySettings();
+                await populateSidebarWarehouses();
+                await fetchDevices();
+                await fetchDecommissions();
+                try { loadOperationalTasks(); } catch(e){}
                 resetInactivityTimer();
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
@@ -693,13 +705,43 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseModal.addEventListener('click', closeModal);
     btnCancel.addEventListener('click', closeModal);
 
-    // --- Data Fetching & Rendering ---
     let allDevices = [];
     let allDecommissions = [];
     let allWarehouses = [];
     let allHotels = [];
     let allTechnicians = [];
     let equipmentCatalog = [];
+
+    async function populateSidebarWarehouses() {
+        const container = document.getElementById('sidebar-sub-items');
+        if (!container) return;
+        try {
+            const res = await fetch('/api/settings/warehouses');
+            if (!res.ok) return;
+            allWarehouses = await res.json();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeWh = urlParams.get('warehouse') || 'all';
+
+            let html = `
+                <a href="/inventario?warehouse=all" class="nav-sub-item ${activeWh === 'all' ? 'active' : ''}" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    <span style="width: 6px; height: 6px; background: ${activeWh === 'all' ? 'var(--color-primary)' : 'currentColor'}; border-radius: 50%;"></span> Todos
+                </a>
+            `;
+
+            allWarehouses.forEach(w => {
+                const isSelected = activeWh === w.name;
+                html += `
+                    <a href="/inventario?warehouse=${encodeURIComponent(w.name)}" class="nav-sub-item ${isSelected ? 'active' : ''}" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 6px; height: 6px; background: ${isSelected ? 'var(--color-primary)' : 'currentColor'}; border-radius: 50%;"></span> ${escapeHtml(w.name)}
+                    </a>
+                `;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            console.error('Error populating sidebar warehouses:', e);
+        }
+    }
 
     async function fetchCatalog() {
         try {
@@ -2482,15 +2524,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Inactivity Timeout Configuration ---
-    const INACTIVITY_LIMIT = 4 * 60 * 1000; // 4 minutes (in milliseconds)
+    let inactivityMinutes = 5;
     const COUNTDOWN_LIMIT = 60; // 60 seconds
     
     let inactivityTimer = null;
     let countdownTimer = null;
     let countdownValue = COUNTDOWN_LIMIT;
     
+    async function fetchInactivitySettings() {
+        try {
+            const res = await fetch('/api/settings/inactivity-timeout');
+            if (res.ok) {
+                const data = await res.json();
+                inactivityMinutes = parseInt(data.timeout_minutes);
+                if (isNaN(inactivityMinutes)) inactivityMinutes = 5;
+                const selectEl = document.getElementById('inactivity-minutes-select');
+                if (selectEl) selectEl.value = inactivityMinutes.toString();
+            }
+        } catch(e) {
+            console.error('Error fetching inactivity settings:', e);
+        }
+    }
+
+    document.getElementById('form-inactivity-settings')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const selectEl = document.getElementById('inactivity-minutes-select');
+        if (!selectEl) return;
+        const mins = parseInt(selectEl.value);
+        try {
+            const res = await fetch('/api/settings/inactivity-timeout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timeout_minutes: mins })
+            });
+            if (res.ok) {
+                inactivityMinutes = mins;
+                resetInactivityTimer();
+                showToast(`Tiempo de inactividad actualizado a ${mins === 0 ? 'Desactivado' : mins + ' minutos'}`, 'success');
+            } else {
+                showToast('Error al guardar configuración de inactividad', 'error');
+            }
+        } catch(err) {
+            showToast('Error de red al guardar inactividad', 'error');
+        }
+    });
+
     function resetInactivityTimer() {
-        if (!currentUser) return; // Only run if user is logged in
+        if (!currentUser || inactivityMinutes <= 0) {
+            clearTimeout(inactivityTimer);
+            return; // Desactivado o no autenticado
+        }
         
         // If warning modal is active, don't reset timer automatically by background movement
         const inactivityModal = document.getElementById('inactivity-modal');
@@ -2498,8 +2581,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        const limitMs = inactivityMinutes * 60 * 1000;
         clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(showInactivityWarning, INACTIVITY_LIMIT);
+        inactivityTimer = setTimeout(showInactivityWarning, limitMs);
     }
     
     function showInactivityWarning() {

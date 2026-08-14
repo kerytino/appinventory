@@ -17,11 +17,8 @@
                 </div>
                 <i class="fa-solid fa-chevron-down" style="font-size: 12px; width: auto;"></i>
             </a>
-            <div class="nav-sub-items" style="display: flex; flex-direction: column; gap: 8px; padding-left: 40px; margin-top: 8px;">
-                <a href="#" class="nav-sub-item active" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: var(--color-primary); border-radius: 50%;"></span> Todos</a>
-                <a href="#" class="nav-sub-item" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: currentColor; border-radius: 50%;"></span> Almacén Parqueo</a>
-                <a href="#" class="nav-sub-item" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: currentColor; border-radius: 50%;"></span> Almacén Administración</a>
-                <a href="#" class="nav-sub-item" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: currentColor; border-radius: 50%;"></span> Almacén Oficina XPC</a>
+            <div class="nav-sub-items" id="sidebar-sub-items" style="display: flex; flex-direction: column; gap: 8px; padding-left: 40px; margin-top: 8px;">
+                <a href="{{ url_for('inventario') }}" class="nav-sub-item data-wh-link" data-warehouse="all" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; background: var(--color-primary); border-radius: 50%;"></span> Todos</a>
             </div>
         </div>
         

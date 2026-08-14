@@ -12,40 +12,54 @@
     
     <!-- Status KPIs -->
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
-        {{ kpi_card('Total Pendientes', '<span id="optask-total-count">0</span>', 'fa-list-check') }}
-        {{ kpi_card('Sin Iniciar', '<span id="optask-pending-count">0</span>', 'fa-clock', '', true) }}
-        {{ kpi_card('En Proceso', '<span id="optask-process-count">0</span>', 'fa-spinner') }}
-        {{ kpi_card('Completados', '<span id="optask-completed-count">0</span>', 'fa-check-double') }}
+        {{ kpi_card('Total Pendientes', '<span id="task-stat-total">0</span>', 'fa-list-check') }}
+        {{ kpi_card('Sin Iniciar', '<span id="task-stat-pending">0</span>', 'fa-clock', '', true) }}
+        {{ kpi_card('En Proceso', '<span id="task-stat-progress">0</span>', 'fa-spinner') }}
+        {{ kpi_card('Completados', '<span id="task-stat-completed">0</span>', 'fa-check-double') }}
     </div>
 
     <!-- Toolbar -->
     <div class="table-container" style="padding: var(--spacing-md); background: var(--color-surface); margin-bottom: var(--spacing-lg);">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md);">
-            <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
-                <!-- Category Tabs -->
-                <div class="optask-tabs" style="display: flex; background: var(--color-background); padding: 4px; border-radius: var(--radius-md);">
-                    <button class="optask-tab active" data-category="all" style="padding: 6px 12px; border: none; background: var(--color-surface); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500;">Todos</button>
-                    <button class="optask-tab" data-category="Tarea" style="padding: 6px 12px; border: none; background: transparent; cursor: pointer; color: var(--color-text-secondary);">Tareas</button>
-                    <button class="optask-tab" data-category="Proyecto" style="padding: 6px 12px; border: none; background: transparent; cursor: pointer; color: var(--color-text-secondary);">Proyectos</button>
+            <div style="display: flex; gap: var(--spacing-sm); align-items: center; flex-wrap: wrap;">
+                <!-- Search input -->
+                <div style="position: relative; width: 220px;">
+                    <i class="fa-solid fa-search" style="position: absolute; left: 10px; top: 10px; color: var(--color-text-secondary); font-size: 13px;"></i>
+                    <input type="text" id="task-search-input" placeholder="Buscar pendiente..." class="form-control" style="padding-left: 32px; font-size: 13px;">
                 </div>
                 
-                <!-- Filters -->
-                <select id="optask-filter-tech" class="form-control" style="width: auto;">
-                    <option value="all">Todos los Técnicos</option>
+                <!-- Category Select -->
+                <select id="task-filter-category" class="form-control" style="width: auto; font-size: 13px;">
+                    <option value="">Todas las Categorías</option>
+                    <option value="Pendiente">Pendientes</option>
+                    <option value="Proyecto">Proyectos</option>
                 </select>
-                <select id="optask-filter-hotel" class="form-control" style="width: auto;">
-                    <option value="all">Todos los Hoteles</option>
+
+                <!-- Status Select -->
+                <select id="task-filter-status" class="form-control" style="width: auto; font-size: 13px;">
+                    <option value="">Todos los Estados</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="En Proceso">En Proceso</option>
+                    <option value="Completado">Completado</option>
+                </select>
+                
+                <!-- Filters -->
+                <select id="task-filter-tech" class="form-control" style="width: auto; font-size: 13px;">
+                    <option value="">Todos los Técnicos</option>
+                </select>
+                <select id="task-filter-hotel" class="form-control" style="width: auto; font-size: 13px;">
+                    <option value="">Todos los Hoteles</option>
                 </select>
             </div>
             
-            <button class="btn btn-primary" id="btn-new-optask">
+            <button class="btn btn-primary" id="btn-new-task">
                 <i class="fa-solid fa-plus"></i> Nuevo Pendiente
             </button>
         </div>
     </div>
 
-    <!-- Kanban Board Style -->
-    <div class="kanban-board" id="optasks-container">
+    <!-- Task Cards Container -->
+    <div id="tasks-cards-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--spacing-lg);">
         <!-- JS Injects cards here -->
     </div>
 </div>

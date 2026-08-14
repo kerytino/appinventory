@@ -1492,6 +1492,35 @@ def delete_catalog_entry():
 # ENDPOINTS PENDIENTES Y SEGUIMIENTO OPERATIVO
 # ==========================================
 
+INACTIVITY_SETTINGS_FILE = os.path.join(basedir, 'inactivity_settings.json')
+
+def load_inactivity_settings():
+    if os.path.exists(INACTIVITY_SETTINGS_FILE):
+        try:
+            with open(INACTIVITY_SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {'timeout_minutes': 5}
+
+@app.route('/api/settings/inactivity-timeout', methods=['GET'])
+def get_inactivity_settings():
+    return jsonify(load_inactivity_settings())
+
+@app.route('/api/settings/inactivity-timeout', methods=['POST'])
+def save_inactivity_settings():
+    if session.get('role') != 'Admin':
+        return jsonify({'error': 'No autorizado'}), 403
+    try:
+        data = request.json
+        mins = int(data.get('timeout_minutes', 5))
+        with open(INACTIVITY_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'timeout_minutes': mins}, f, indent=4)
+        log_activity(current_username(), 'Configuración Inactividad', f'Se actualizó el tiempo de inactividad a {mins} minutos.')
+        return jsonify({'message': 'Configuración de inactividad guardada correctamente', 'timeout_minutes': mins})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/settings/email', methods=['GET'])
 def get_email_settings():
     return jsonify(load_email_settings())

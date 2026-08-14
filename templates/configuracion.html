@@ -17,6 +17,7 @@
         <button class="tab-btn btn btn-outline" data-target="stock-limits" style="border: none;">Stock Mínimo</button>
         <button class="tab-btn btn btn-outline" data-target="catalog" style="border: none;">Catálogo</button>
         <button class="tab-btn btn btn-outline" data-target="email" style="border: none;">Correo SMTP</button>
+        <button class="tab-btn btn btn-outline" data-target="inactivity" style="border: none;">Inactividad / Auto-Logout</button>
         <button class="tab-btn btn btn-outline" data-target="logs" id="tab-btn-logs" style="display:none; border: none;">Actividad</button>
     </div>
     
@@ -139,6 +140,26 @@
                      </div>
                  </div>
                  <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+             </form>
+        </div>
+
+        <div id="settings-tab-inactivity" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);"><i class="fa-solid fa-user-clock" style="color: var(--color-primary); margin-right: 8px;"></i>Tiempo de Inactividad (Auto-Logout)</h3>
+             <p class="text-secondary" style="font-size: 14px; margin-bottom: var(--spacing-lg);">Configura el tiempo sin interacción antes de cerrar la sesión automáticamente por seguridad.</p>
+             <form id="form-inactivity-settings" style="max-width: 450px; display: flex; flex-direction: column; gap: 16px;">
+                 <div class="form-group">
+                     <label class="form-label" for="inactivity-minutes-select">Tiempo de Inactividad Permitido</label>
+                     <select id="inactivity-minutes-select" class="form-control">
+                         <option value="2">2 Minutos (Prueba)</option>
+                         <option value="5" selected>5 Minutos (Recomendado)</option>
+                         <option value="10">10 Minutos</option>
+                         <option value="15">15 Minutos</option>
+                         <option value="30">30 Minutos</option>
+                         <option value="60">60 Minutos (1 Hora)</option>
+                         <option value="0">Desactivado (Sin auto-cierre)</option>
+                     </select>
+                 </div>
+                 <button type="submit" class="btn btn-primary" style="align-self: flex-start;"><i class="fa-solid fa-floppy-disk"></i> Guardar Tiempo</button>
              </form>
         </div>
 
