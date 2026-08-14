@@ -1560,6 +1560,80 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Decommission Export & Archive ---
+    const pdfModal = document.getElementById('decommission-pdf-modal');
+    const btnExportPdf = document.getElementById('btn-export-decommission-pdf');
+    const btnClosePdfModal = document.getElementById('btn-close-pdf-modal');
+    const btnCancelPdfModal = document.getElementById('btn-cancel-pdf-modal');
+    const pdfForm = document.getElementById('decommission-pdf-form');
+
+    btnExportPdf?.addEventListener('click', () => {
+        let toExport = allDecommissions;
+        if (currentDecommissionHotelFilter !== 'all') {
+            toExport = allDecommissions.filter(d => d.hotel === currentDecommissionHotelFilter);
+        }
+        if (toExport.length === 0) {
+            showToast('No hay registros para exportar a PDF con este filtro', 'error');
+            return;
+        }
+        if (pdfModal) {
+            pdfModal.classList.add('active');
+        }
+    });
+
+    const closePdfModal = () => {
+        if (pdfModal) {
+            pdfModal.classList.remove('active');
+        }
+    };
+
+    btnClosePdfModal?.addEventListener('click', closePdfModal);
+    btnCancelPdfModal?.addEventListener('click', closePdfModal);
+
+    pdfForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            hotel: currentDecommissionHotelFilter,
+            no_control: document.getElementById('pdf-no-control')?.value || '',
+            department: document.getElementById('pdf-department')?.value || 'SISTEMAS',
+            decommission_type: document.getElementById('pdf-type')?.value || 'BAJA DE EQUIPO',
+            applicant: document.getElementById('pdf-applicant')?.value || '',
+            reason: document.getElementById('pdf-reason')?.value || 'Artículos de baja por término de vida útil o avería',
+            other_notes: document.getElementById('pdf-other-notes')?.value || ''
+        };
+
+        try {
+            showToast('Generando Hoja de Decomiso en PDF...', 'info');
+            const response = await fetch('/api/decommission/export/pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al generar el archivo PDF');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            let filterName = currentDecommissionHotelFilter === 'all' ? 'todos' : currentDecommissionHotelFilter.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            a.download = `Hoja_Decomiso_${filterName}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            showToast('PDF descargado correctamente', 'success');
+            closePdfModal();
+        } catch (err) {
+            console.error(err);
+            showToast('Error al descargar el PDF de decomiso', 'error');
+        }
+    });
+
     document.getElementById('btn-export-decommission')?.addEventListener('click', () => {
         let toExport = allDecommissions;
         if (currentDecommissionHotelFilter !== 'all') {

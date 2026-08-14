@@ -1,12 +1,21 @@
 # pyrefly: ignore [missing-import]
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 # pyrefly: ignore [missing-import]
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import json
+from io import BytesIO
 from dotenv import load_dotenv
+
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether, HRFlowable
+)
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
@@ -792,6 +801,374 @@ def archive_decommissions():
     db.session.commit()
     
     return jsonify(archive.to_dict()), 201
+
+def format_spanish_date(dt=None):
+    if not dt:
+        dt = datetime.now()
+    days = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+    months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    day_name = days[dt.weekday()]
+    month_name = months[dt.month - 1]
+    return f"{day_name} {dt.day:02d} {month_name} {dt.year}"
+
+def create_decommission_pdf_buffer(data_list, params):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=28,
+        rightMargin=28,
+        topMargin=20,
+        bottomMargin=20
+    )
+    
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=12,
+        alignment=TA_CENTER
+    )
+    
+    label_style = ParagraphStyle(
+        'LabelStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10
+    )
+    
+    val_style = ParagraphStyle(
+        'ValStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10
+    )
+    
+    cell_style = ParagraphStyle(
+        'CellStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7,
+        leading=8.5
+    )
+
+    cell_center = ParagraphStyle(
+        'CellCenter',
+        parent=cell_style,
+        alignment=TA_CENTER
+    )
+
+    cell_right = ParagraphStyle(
+        'CellRight',
+        parent=cell_style,
+        alignment=TA_RIGHT
+    )
+
+    cell_bold_right = ParagraphStyle(
+        'CellBoldRight',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        alignment=TA_RIGHT
+    )
+
+    story = []
+    
+    # 1. ENCABEZADO (LOGO E INFORMACIÓN DE CONTROL)
+    logo_path = os.path.join(basedir, 'static', 'img', 'logo.png')
+    if os.path.exists(logo_path):
+        img_logo = Image(logo_path, width=170, height=45)
+    else:
+        img_logo = Paragraph("<b>LOGO DE LA EMPRESA</b>", title_style)
+        
+    no_control = params.get('no_control', '').strip()
+    selected_type = (params.get('decommission_type') or 'BAJA DE EQUIPO').strip().upper()
+    
+    types_list = [
+        "BAJA DE PRODUCTO",
+        "BAJA DE ACTIVO",
+        "BAJA DE EQUIPO",
+        "DEVOLUCIÓN DE MERCANCIA AL PROVEEDOR",
+        "RESGUARDO DE EQUIPO",
+        "OTROS"
+    ]
+    
+    type_lines = []
+    for t in types_list:
+        mark = "[X]" if t == selected_type else "[  ]"
+        type_lines.append(f"<font size=7 color='#111111'><b>{mark}</b> {t}</font>")
+    
+    types_html = "<br/>".join(type_lines)
+    
+    control_str = f"<u>{no_control}</u>" if no_control else "________________________"
+    control_box_html = f"<b>No. Control:</b> {control_str}<br/><br/>{types_html}"
+    p_control = Paragraph(control_box_html, val_style)
+    
+    header_table = Table([[img_logo, p_control]], colWidths=[280, 275])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOX', (0,0), (0,0), 1, colors.black),
+        ('ALIGN', (0,0), (0,0), 'CENTER'),
+        ('LEFTPADDING', (1,0), (1,0), 10),
+    ]))
+    
+    story.append(header_table)
+    story.append(Spacer(1, 8))
+    
+    # 2. DATOS GENERALES
+    dept = params.get('department', 'SISTEMAS')
+    location = params.get('location', 'EXCELLENCE PUNTA CANA')
+    date_str = params.get('date_str') or format_spanish_date()
+    applicant = params.get('applicant', '')
+    
+    meta_data = [
+        [Paragraph("<b>Departamento:</b>", label_style), Paragraph(dept, val_style)],
+        [Paragraph("<b>Ubicación:</b>", label_style), Paragraph(location, val_style)],
+        [Paragraph("<b>Fecha:</b>", label_style), Paragraph(date_str, val_style)],
+        [Paragraph("<b>Nombre que solicita:</b>", label_style), Paragraph(applicant, val_style)]
+    ]
+    
+    meta_table = Table(meta_data, colWidths=[120, 435])
+    meta_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('LINEBELOW', (1,0), (1,-1), 0.5, colors.black),
+    ]))
+    
+    story.append(meta_table)
+    story.append(Spacer(1, 8))
+    
+    # 3. TABLA DE ARTÍCULOS
+    table_headers = [
+        Paragraph("<b>No</b>", cell_center),
+        Paragraph("<b>Código/Artículo</b>", cell_center),
+        Paragraph("<b>Cantidad</b>", cell_center),
+        Paragraph("<b>Unidad</b>", cell_center),
+        Paragraph("<b>Descripción</b>", cell_center),
+        Paragraph("<b>Observación</b>", cell_center),
+        Paragraph("<b>Costo Unitario</b>", cell_center),
+        Paragraph("<b>Total $</b>", cell_center)
+    ]
+    
+    table_data = [table_headers]
+    total_general = 0.0
+    
+    idx = 1
+    for item in data_list:
+        qty = item.get('quantity', 1)
+        val = item.get('value', 0.0)
+        unit_cost = val / qty if qty > 0 else val
+        line_total = val
+        total_general += line_total
+        
+        serial = item.get('serial_number', '') or 'N/A'
+        desc = item.get('name', '')
+        if item.get('brand'):
+            desc += f" {item['brand']}"
+        if item.get('model'):
+            desc += f" {item['model']}"
+            
+        obs = item.get('reason', 'DAÑADO') or 'DAÑADO'
+        
+        table_data.append([
+            Paragraph(str(idx), cell_center),
+            Paragraph(serial, cell_style),
+            Paragraph(str(qty), cell_center),
+            Paragraph(str(qty), cell_center),
+            Paragraph(desc, cell_style),
+            Paragraph(obs, cell_style),
+            Paragraph(f"$ {unit_cost:,.2f}", cell_right),
+            Paragraph(f"$ {line_total:,.2f}", cell_right)
+        ])
+        idx += 1
+        
+    # Completar con filas vacías para mantener estructura visual de plantilla si son menos de 13
+    min_rows = max(13, len(data_list))
+    while len(table_data) <= min_rows:
+        table_data.append([
+            Paragraph(str(idx), cell_center),
+            Paragraph("", cell_style),
+            Paragraph("", cell_center),
+            Paragraph("", cell_center),
+            Paragraph("", cell_style),
+            Paragraph("", cell_style),
+            Paragraph("", cell_right),
+            Paragraph("", cell_right)
+        ])
+        idx += 1
+        
+    # Fila de Total
+    table_data.append([
+        Paragraph("", cell_style),
+        Paragraph("", cell_style),
+        Paragraph("", cell_style),
+        Paragraph("", cell_style),
+        Paragraph("", cell_style),
+        Paragraph("<b>Total:</b>", cell_bold_right),
+        Paragraph(f"<b>$ {total_general:,.2f}</b>", cell_bold_right),
+        Paragraph("", cell_style)
+    ])
+    
+    col_widths = [25, 95, 45, 40, 160, 75, 55, 60]
+    items_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    
+    ts = [
+        ('GRID', (0,0), (-1,-2), 0.5, colors.black),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F2F2F2')),
+        ('SPAN', (5, -1), (5, -1)),
+        ('SPAN', (6, -1), (7, -1)),
+        ('BOX', (5, -1), (7, -1), 0.5, colors.black),
+    ]
+    items_table.setStyle(TableStyle(ts))
+    
+    story.append(items_table)
+    story.append(Spacer(1, 8))
+    
+    # 4. MOTIVO DE BAJA Y OTROS
+    motivo_txt = params.get('reason', 'Artículos de baja por término de vida útil o avería')
+    otros_txt = params.get('other_notes', '')
+    
+    motivo_data = [
+        [Paragraph("<b>Motivo de Baja:</b>", label_style), Paragraph(motivo_txt, val_style)],
+        [Paragraph("<b>Otros:</b>", label_style), Paragraph(otros_txt, val_style)]
+    ]
+    motivo_table = Table(motivo_data, colWidths=[90, 465])
+    motivo_table.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    
+    story.append(motivo_table)
+    story.append(Spacer(1, 12))
+    
+    # 5. BLOQUE DE FIRMAS
+    sig_style = ParagraphStyle(
+        'SigStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7,
+        alignment=TA_CENTER
+    )
+    
+    sig_title_style = ParagraphStyle(
+        'SigTitleStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7.5,
+        alignment=TA_CENTER
+    )
+    
+    f1_col1 = [
+        Paragraph(":Solicitado por", sig_title_style),
+        Spacer(1, 18),
+        HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
+        Paragraph("Gerente de Área", sig_style)
+    ]
+    
+    f1_col2 = [
+        Paragraph(":Revisado por", sig_title_style),
+        Spacer(1, 18),
+        HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
+        Paragraph("Reporting & Accounting Assistant", sig_style)
+    ]
+    
+    f1_col3 = [
+        Paragraph(":Verificado por", sig_title_style),
+        Spacer(1, 18),
+        HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
+        Paragraph("Gerente de Prevención", sig_style)
+    ]
+    
+    table_signatures1 = Table([[f1_col1, f1_col2, f1_col3]], colWidths=[185, 185, 185])
+    table_signatures1.setStyle(TableStyle([
+        ('BOX', (0,0), (0,0), 0.5, colors.black),
+        ('BOX', (1,0), (1,0), 0.5, colors.black),
+        ('BOX', (2,0), (2,0), 0.5, colors.black),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    
+    f2_col1 = [
+        Paragraph("Aprobado por:", sig_title_style),
+        Spacer(1, 18),
+        HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
+        Paragraph("Financial Controller", sig_style)
+    ]
+    
+    f2_col2 = [
+        Paragraph("Aprobado por:", sig_title_style),
+        Spacer(1, 18),
+        HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
+        Paragraph("Director General", sig_style)
+    ]
+    
+    table_signatures2 = Table([[f2_col1, f2_col2]], colWidths=[277.5, 277.5])
+    table_signatures2.setStyle(TableStyle([
+        ('BOX', (0,0), (0,0), 0.5, colors.black),
+        ('BOX', (1,0), (1,0), 0.5, colors.black),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    
+    signatures_block = KeepTogether([
+        table_signatures1,
+        table_signatures2
+    ])
+    
+    story.append(signatures_block)
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+@app.route('/api/decommission/export/pdf', methods=['POST', 'GET'])
+def export_decommission_pdf():
+    if request.method == 'POST':
+        params = request.json or {}
+    else:
+        params = request.args.to_dict()
+        
+    hotel_filter = params.get('hotel', 'all')
+    if hotel_filter == 'all' or not hotel_filter:
+        decommissions = Decommission.query.all()
+        loc_display = "TODOS LOS HOTELES"
+    else:
+        decommissions = Decommission.query.filter_by(hotel=hotel_filter).all()
+        loc_display = hotel_filter.upper()
+        
+    data_list = [d.to_dict() for d in decommissions]
+    
+    if not params.get('location'):
+        params['location'] = loc_display
+    if not params.get('date_str'):
+        params['date_str'] = format_spanish_date()
+        
+    pdf_buffer = create_decommission_pdf_buffer(data_list, params)
+    
+    clean_hotel = hotel_filter.replace(' ', '_').lower()
+    filename = f"Hoja_Decomiso_{clean_hotel}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
 # --- Settings API: Warehouses ---
 @app.route('/api/settings/warehouses', methods=['GET'])
