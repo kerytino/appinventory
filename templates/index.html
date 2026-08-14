@@ -14,15 +14,15 @@
 </head>
 <body>
     <!-- Login View Overlay -->
-    <div id="login-overlay" style="position: fixed; inset: 0; background: var(--bg-color); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+    <div id="login-overlay" style="position: fixed; inset: 0; background: var(--color-background); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
         <div class="logo" style="margin-bottom: 32px;">
             <img src="{{ url_for('static', filename='img/logo.png') }}" alt="The Excellence Collection" style="width: 100%; max-width: 220px; object-fit: contain;">
         </div>
         <div class="glass-panel login-card" style="padding: 24px; width: 100%; max-width: 320px; border-radius: 8px;">
             <h2 style="text-align: center; margin-bottom: 24px;">Iniciar Sesión</h2>
             <form id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
-                <input type="text" id="login-username" placeholder="Usuario" required style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
-                <input type="password" id="login-password" placeholder="Contraseña" required style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                <input type="text" id="login-username" placeholder="Usuario" required style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary);">
+                <input type="password" id="login-password" placeholder="Contraseña" required style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary);">
                 <p id="login-error" style="color: var(--danger); font-size: 14px; display: none; margin: 0;"></p>
                 <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 14px; border-radius: 4px;">Entrar</button>
             </form>
@@ -89,7 +89,7 @@
             <header class="top-header">
                 <h1 id="page-title">Dashboard</h1>
                 <div style="display: flex; gap: 16px; align-items: center;">
-                    <select id="theme-selector" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color);">
+                    <select id="theme-selector" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--color-surface); color: var(--color-text-primary);">
                         <option value="light">Tema: Light</option>
                         <option value="dark">Tema: Dark Puro</option>
                         <option value="glass">Tema: Glass Dark</option>
@@ -277,7 +277,7 @@
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
                         <div style="margin-right: 8px;">
                             <label for="decommission-hotel-filter" style="font-size: 14px; font-weight: 500; margin-right: 6px; color: var(--color-text-secondary);">Lugar:</label>
-                            <select id="decommission-hotel-filter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                            <select id="decommission-hotel-filter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary); font-size: 14px;">
                                 <option value="all">Todos los Lugares</option>
                             </select>
                         </div>
@@ -359,10 +359,10 @@
                             <label for="dispatch-search-input" style="font-weight: 600; margin-bottom: 8px; display: block;">Buscar Equipo en Stock (Nombre, Modelo, S/N, MAC)</label>
                             <div style="position: relative; display: flex; align-items: center;">
                                 <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: var(--color-text-secondary);"></i>
-                                <input type="text" id="dispatch-search-input" placeholder="Ej: Cisco, SN12345, F8:E4..., Patchcord..." autocomplete="off" style="width: 100%; padding: 12px 12px 12px 40px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 15px;">
+                                <input type="text" id="dispatch-search-input" placeholder="Ej: Cisco, SN12345, F8:E4..., Patchcord..." autocomplete="off" style="width: 100%; padding: 12px 12px 12px 40px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary); font-size: 15px;">
                             </div>
                             <!-- Search results drop list -->
-                            <div id="dispatch-search-results" class="glass-panel" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 8px; padding: 8px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg); background: var(--bg-color);">
+                            <div id="dispatch-search-results" class="glass-panel" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 8px; padding: 8px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg); background: var(--color-surface);">
                                 <!-- Result items injected by JS -->
                             </div>
                         </div>
@@ -384,29 +384,29 @@
                         <input type="hidden" id="dispatch-selected-id">
 
                         <!-- Dispatch details (hidden until a device is selected) -->
-                        <div id="dispatch-details-fields" style="display: none; border-top: 1px solid var(--border-color); padding-top: 24px;">
+                        <div id="dispatch-details-fields" style="display: none; border-top: 1px solid var(--color-border); padding-top: 24px;">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="dispatch-input-quantity">Cantidad a Despachar <span style="color:var(--danger)">*</span></label>
-                                    <input type="number" id="dispatch-input-quantity" min="1" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                                    <input type="number" id="dispatch-input-quantity" min="1" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary);">
                                     <span id="dispatch-available-qty-label" style="font-size: 12px; color: var(--color-primary); margin-top: 6px; display: block; font-weight: 500;"></span>
                                 </div>
                                 <div class="form-group">
                                     <label for="dispatch-input-hotel">Destino (Hotel / Lugar) <span style="color:var(--danger)">*</span></label>
-                                    <input type="text" id="dispatch-input-hotel" list="hotel-options" required placeholder="Ej: Excellence Punta Cana" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                                    <input type="text" id="dispatch-input-hotel" list="hotel-options" required placeholder="Ej: Excellence Punta Cana" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary);">
                                 </div>
                             </div>
 
                             <div class="form-row" style="margin-top: 16px;">
                                 <div class="form-group">
                                     <label for="dispatch-input-tech">Técnico Responsable <span style="color:var(--danger)">*</span></label>
-                                    <input type="text" id="dispatch-input-tech" list="technician-options" required placeholder="Nombre del técnico..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                                    <input type="text" id="dispatch-input-tech" list="technician-options" required placeholder="Nombre del técnico..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary);">
                                 </div>
                             </div>
 
                             <div class="form-group" style="margin-top: 16px;">
                                 <label for="dispatch-input-notes">Notas / Comentarios de Entrega</label>
-                                <textarea id="dispatch-input-notes" rows="3" placeholder="Detalles sobre el despacho, ticket, etc." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); resize: vertical;"></textarea>
+                                <textarea id="dispatch-input-notes" rows="3" placeholder="Detalles sobre el despacho, ticket, etc." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-primary); resize: vertical;"></textarea>
                             </div>
 
                             <div class="form-actions" style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 16px;">

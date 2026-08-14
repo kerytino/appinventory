@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Auth & Roles ---
     let currentUser = null;
     
-    async function checkAuth() {
+    async async function checkAuth() {
         try {
             const res = await fetch('/api/me');
             if (res.ok) {
