@@ -516,27 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Theme Switcher ---
-    const themeSelector = document.getElementById('theme-selector');
-    const savedTheme = localStorage.getItem('netvault-theme') || 'glass';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    themeSelector.value = savedTheme;
-
-    function updateBackgroundElements(theme) {
-        const blobs = document.querySelector('.background-elements');
-        if (blobs) {
-            blobs.style.display = theme === 'glass' ? 'block' : 'none';
-        }
-    }
-    
-    updateBackgroundElements(savedTheme);
-
-    themeSelector.addEventListener('change', (e) => {
-        const theme = e.target.value;
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('netvault-theme', theme);
-        updateBackgroundElements(theme);
-    });
 
     // --- Modal Handling ---
     const modal = document.getElementById('device-modal');
@@ -3400,6 +3379,217 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Error de conexión', 'error');
         }
     }
+
+    // --- Theme Selector Management ---
+    const savedTheme = localStorage.getItem('app-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const themeSelect = document.getElementById('theme-selector');
+    if (themeSelect) {
+        themeSelect.value = savedTheme;
+        themeSelect.addEventListener('change', (e) => {
+            const newTheme = e.target.value;
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('app-theme', newTheme);
+        });
+    }
+
+    // --- Sidebar + Nuevo Equipo Button ---
+    document.getElementById('btn-new-device')?.addEventListener('click', () => {
+        const deviceModal = document.getElementById('device-modal');
+        if (!deviceModal) return;
+        const form = document.getElementById('device-form');
+        if (form) form.reset();
+        const idInput = document.getElementById('device-id');
+        if (idInput) idInput.value = '';
+        const title = document.getElementById('modal-title');
+        if (title) title.innerText = 'Registrar Equipo';
+        populateDeviceTypeDropdown();
+        deviceModal.classList.add('active');
+    });
+
+    document.getElementById('btn-close-modal')?.addEventListener('click', () => {
+        document.getElementById('device-modal')?.classList.remove('active');
+    });
+    document.getElementById('btn-cancel')?.addEventListener('click', () => {
+        document.getElementById('device-modal')?.classList.remove('active');
+    });
+
+    // --- Settings View: Tabs & User Management ---
+    document.querySelectorAll('.settings-tabs .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-target');
+            document.querySelectorAll('.settings-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.querySelectorAll('.settings-content-area .settings-card').forEach(card => {
+                card.style.display = 'none';
+            });
+            
+            const targetCard = document.getElementById(`settings-tab-${target}`);
+            if (targetCard) targetCard.style.display = 'block';
+            
+            if (target === 'users') fetchUsers();
+        });
+    });
+
+    // --- User Modal and Actions ---
+    const userModal = document.getElementById('user-modal');
+    document.getElementById('btn-new-user')?.addEventListener('click', () => {
+        if (!userModal) return;
+        const form = document.getElementById('user-form');
+        if (form) form.reset();
+        userModal.classList.add('active');
+    });
+
+    document.getElementById('btn-close-user-modal')?.addEventListener('click', () => {
+        if (userModal) userModal.classList.remove('active');
+    });
+    document.getElementById('btn-cancel-user')?.addEventListener('click', () => {
+        if (userModal) userModal.classList.remove('active');
+    });
+
+    document.getElementById('user-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('new-user-username').value.trim();
+        const password = document.getElementById('new-user-password').value;
+        const role = document.getElementById('new-user-role').value;
+
+        if (!username || !password) {
+            showToast('Por favor completa todos los campos requeridos', 'error');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/settings/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Usuario ${username} creado exitosamente`, 'success');
+                if (userModal) userModal.classList.remove('active');
+                document.getElementById('user-form').reset();
+                fetchUsers();
+            } else {
+                showToast(data.error || 'Error al crear usuario', 'error');
+            }
+        } catch (err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    let allUsersList = [];
+    async function fetchUsers() {
+        const listBody = document.getElementById('settings-user-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/settings/users');
+            if (res.ok) {
+                allUsersList = await res.json();
+                renderUsersTable();
+            }
+        } catch(e) {
+            console.error('Error fetching users:', e);
+        }
+    }
+
+    function renderUsersTable() {
+        const listBody = document.getElementById('settings-user-list');
+        if (!listBody) return;
+        listBody.innerHTML = '';
+
+        if (allUsersList.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay usuarios registrados</td></tr>';
+            return;
+        }
+
+        allUsersList.forEach(user => {
+            const tr = document.createElement('tr');
+            const roleBadgeClass = user.role === 'Admin' ? 'badge-danger' : (user.role === 'Tecnico' ? 'badge-info' : 'badge-success');
+            
+            tr.innerHTML = `
+                <td><strong>#${user.id}</strong></td>
+                <td><span style="font-weight: 600;">${escapeHtml(user.username)}</span></td>
+                <td><span class="badge ${roleBadgeClass}">${escapeHtml(user.role)}</span></td>
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-icon btn-reset-pass" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Restablecer Contraseña" style="color: var(--color-primary);">
+                            <i class="fa-solid fa-key"></i>
+                        </button>
+                        ${user.username !== 'admin' ? `
+                        <button class="btn-icon btn-delete-user" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Eliminar Usuario" style="color: var(--color-danger);">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-delete-user').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const uname = btn.getAttribute('data-username');
+                if (!confirm(`¿Seguro que deseas eliminar al usuario "${uname}"?`)) return;
+
+                try {
+                    const res = await fetch(`/api/settings/users/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast(`Usuario "${uname}" eliminado`, 'success');
+                        fetchUsers();
+                    } else {
+                        const err = await res.json();
+                        showToast(err.error || 'Error al eliminar usuario', 'error');
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', 'error');
+                }
+            });
+        });
+
+        const resetModal = document.getElementById('admin-reset-password-modal');
+        listBody.querySelectorAll('.btn-reset-pass').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const uname = btn.getAttribute('data-username');
+                document.getElementById('reset-user-id').value = id;
+                document.getElementById('reset-username-display').innerText = uname;
+                document.getElementById('admin-new-password').value = '';
+                if (resetModal) resetModal.classList.add('active');
+            });
+        });
+    }
+
+    document.getElementById('btn-close-admin-reset-modal')?.addEventListener('click', () => {
+        document.getElementById('admin-reset-password-modal')?.classList.remove('active');
+    });
+    document.getElementById('btn-cancel-admin-reset')?.addEventListener('click', () => {
+        document.getElementById('admin-reset-password-modal')?.classList.remove('active');
+    });
+    document.getElementById('admin-reset-password-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('reset-user-id').value;
+        const newPassword = document.getElementById('admin-new-password').value;
+
+        try {
+            const res = await fetch(`/api/settings/users/${id}/password`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_password: newPassword })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message || 'Contraseña actualizada', 'success');
+                document.getElementById('admin-reset-password-modal')?.classList.remove('active');
+            } else {
+                showToast(data.error || 'Error al restablecer contraseña', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
 
     // Initialization is handled by checkAuth() after DOM loaded
     checkAuth();

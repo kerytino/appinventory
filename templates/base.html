@@ -12,10 +12,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Design System CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=3.1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}?v=3.1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=3.1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}?v=3.1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=4.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}?v=4.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=4.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}?v=4.0.0">
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -47,36 +47,46 @@
             
             <!-- Header Partial -->
             <header class="top-header">
-    <div class="header-title-area">
-        <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
-        <span class="text-secondary">Hola, admin 👋</span>
-    </div>
-    
-    <div class="header-actions">
-        <!-- Theme Selector -->
-        <select id="theme-selector" class="form-control" style="width: auto; border-radius: 20px; padding: 6px 12px; font-size: 14px;">
-            <option value="dark">Tema: Dark (Tech)</option>
-            <option value="light">Tema: Light (Corp)</option>
-        </select>
-        
-        <!-- User Profile -->
-        <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
-            <div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--color-primary-hover); color: white; display: flex; align-items: center; justify-content: center;">
-                <i class="fa-solid fa-user"></i>
-            </div>
-            <div style="display: flex; flex-direction: column;">
-                <span id="logged-username" style="font-weight: 500; font-size: 14px;">Cargando...</span>
-            </div>
-            
-            <button id="btn-change-password" class="btn-icon" title="Cambiar Contraseña">
-                <i class="fa-solid fa-key"></i>
-            </button>
-            <button id="btn-logout" class="btn-icon" title="Cerrar Sesión" style="color: var(--color-danger);">
-                <i class="fa-solid fa-right-from-bracket"></i>
-            </button>
-        </div>
-    </div>
-</header>
+                <div class="header-title-area">
+                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <span class="page-subtitle">Hola, admin 👋</span>
+                </div>
+                
+                <div class="header-actions">
+                    <!-- Global Search -->
+                    <div class="header-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="global-search-input" placeholder="Buscar equipos, series...">
+                    </div>
+
+                    <!-- Theme Selector -->
+                    <select id="theme-selector" class="theme-pill-select">
+                        <option value="light">☀️ Modo Claro</option>
+                        <option value="dark">🌙 Modo Oscuro</option>
+                    </select>
+
+                    <!-- Notifications -->
+                    <button class="btn-icon" title="Notificaciones" id="btn-notifications-icon" style="position: relative;">
+                        <i class="fa-regular fa-bell" style="font-size: 16px;"></i>
+                        <span style="position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background-color: var(--color-danger); border-radius: 50%;"></span>
+                    </button>
+                    
+                    <!-- User Profile -->
+                    <div class="user-profile-widget">
+                        <div class="user-avatar-circle">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <span id="logged-username" class="user-profile-name">Cargando...</span>
+                        
+                        <button id="btn-change-password" class="btn-icon" title="Cambiar Contraseña" style="width: 28px; height: 28px;">
+                            <i class="fa-solid fa-key" style="font-size: 12px;"></i>
+                        </button>
+                        <button id="btn-logout" class="btn-icon" title="Cerrar Sesión" style="width: 28px; height: 28px; color: var(--color-danger);">
+                            <i class="fa-solid fa-right-from-bracket" style="font-size: 12px;"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
 
             
             <!-- Content Area -->
@@ -123,10 +133,10 @@
     <!-- Global scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=3.1.0"></script>
-    <script src="{{ url_for('static', filename='js/components.js') }}?v=3.1.0"></script>
-    <script src="{{ url_for('static', filename='js/tables.js') }}?v=3.1.0"></script>
-    <script src="{{ url_for('static', filename='js/modals.js') }}?v=3.1.0"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=4.0.0"></script>
+    <script src="{{ url_for('static', filename='js/components.js') }}?v=4.0.0"></script>
+    <script src="{{ url_for('static', filename='js/tables.js') }}?v=4.0.0"></script>
+    <script src="{{ url_for('static', filename='js/modals.js') }}?v=4.0.0"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
