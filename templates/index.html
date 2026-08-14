@@ -18,13 +18,13 @@
         <div class="logo" style="margin-bottom: 32px;">
             <img src="{{ url_for('static', filename='img/logo.png') }}" alt="The Excellence Collection" style="width: 100%; max-width: 220px; object-fit: contain;">
         </div>
-        <div class="glass-panel login-card" style="padding: 40px; width: 100%; max-width: 400px; border-radius: 16px;">
+        <div class="glass-panel login-card" style="padding: 24px; width: 100%; max-width: 320px; border-radius: 8px;">
             <h2 style="text-align: center; margin-bottom: 24px;">Iniciar Sesión</h2>
             <form id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
-                <input type="text" id="login-username" placeholder="Usuario" required style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
-                <input type="password" id="login-password" placeholder="Contraseña" required style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                <input type="text" id="login-username" placeholder="Usuario" required style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                <input type="password" id="login-password" placeholder="Contraseña" required style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
                 <p id="login-error" style="color: var(--danger); font-size: 14px; display: none; margin: 0;"></p>
-                <button type="submit" class="btn-primary" style="padding: 12px; font-size: 16px;">Entrar</button>
+                <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 14px; border-radius: 4px;">Entrar</button>
             </form>
         </div>
     </div>

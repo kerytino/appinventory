@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.getElementById('')?.addEventListener('submit', async (e) => {
+    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const u = document.getElementById('login-username').value;
         const p = document.getElementById('login-password').value;
@@ -1532,10 +1532,10 @@ document.addEventListener('DOMContentLoaded', () => {
         decommissionModal.classList.remove('active');
     });
 
-    document.getElementById('')?.addEventListener('submit', async (e) => {
+    document.getElementById(\'decommission-form\')?.addEventListener(\'submit\', async (e) => {
         e.preventDefault();
         const data = {
-            name: document.getElementById('dec-name').value,
+            name: document.getElementById(\'dec-name\').value,
             type: document.getElementById('dec-type').value,
             brand: document.getElementById('dec-brand').value,
             model: document.getElementById('dec-model').value,
