@@ -617,3 +617,10 @@
 .empty-state i {
     font-size: 48px; color: var(--color-border); margin-bottom: var(--spacing-md);
 }
+}
+
+/* FIX HARDCODED COLORS FOR LIGHT MODE */
+.data-table tbody tr { background-color: transparent !important; }
+.data-table tbody tr:nth-child(even) { background-color: var(--color-surface-hover) !important; }
+.data-table tbody tr:hover { background-color: var(--color-primary-light) !important; }
+.form-control input, .form-control select, .form-control textarea { background-color: var(--color-surface) !important; color: var(--color-text) !important; }
