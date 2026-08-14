@@ -114,7 +114,6 @@
     font-family: var(--font-family);
 }
 
-
 .btn-primary, .btn-secondary, .btn-outline {
     border-radius: var(--radius-lg);
     text-transform: none;
@@ -349,7 +348,9 @@
 .btn-secondary:hover {
     background-color: var(--color-background);
 }
-\n\n/* MODERN TECH OVERRIDES */\n
+
+/* MODERN TECH OVERRIDES */
+
 /* Dashboard Cards (Glassmorphism) */
 .dashboard-card {
     background: var(--color-surface);
@@ -685,3 +686,8 @@ textarea:focus {
 [data-theme="light"] .form-label {
     color: #334155 !important;
 }
+
+/* FIX ACTION BUTTON & MODAL TABLE */
+.action-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--color-text-secondary); transition: color 0.2s; }
+.action-btn:hover { color: var(--color-danger); }
+#critical-stock-modal .modal-content { max-width: 800px !important; width: 90% !important; }

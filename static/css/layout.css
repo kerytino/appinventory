@@ -262,7 +262,6 @@ body::after {
 /* Main Content */
 .main-content {
     flex-grow: 1;
-    margin-left: 260px;
     display: flex;
     flex-direction: column;
 }
@@ -294,4 +293,8 @@ body::after {
 
 
 /* FIX MARGIN OVERLAP */
-.main-wrapper { margin-left: 260px !important; width: calc(100% - 260px) !important; }
+.main-wrapper { margin-left: 260px !important; width: calc(100% - 260px) !important; }
+
+
+/* Fix Logo Background for Dark Mode */
+.sidebar .logo { background-color: #ffffff; padding: 12px; border-radius: 12px; margin-bottom: 32px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
