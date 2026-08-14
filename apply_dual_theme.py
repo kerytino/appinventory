@@ -1,4 +1,6 @@
-/* DESIGN SYSTEM
+import re
+
+css = """/* DESIGN SYSTEM
    Modern Corporate Enterprise SaaS (Light & Dark Tech Mode)
    Fonts: Outfit (Headers/Numbers), Inter (Body)
 */
@@ -143,3 +145,8 @@ a:hover {
 ::-webkit-scrollbar-track { background: var(--color-background); }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-sm); }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
+"""
+
+with open('static/css/design-system.css', 'w', encoding='utf-8') as f:
+    f.write(css)
+print("Updated design-system.css to support light/dark themes!")

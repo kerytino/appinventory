@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Theme Switcher ---
     const themeSelector = document.getElementById('theme-selector');
-    const savedTheme = localStorage.getItem('netvault-theme') || 'glass';
+    const savedTheme = localStorage.getItem('netvault-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     themeSelector.value = savedTheme;
 
