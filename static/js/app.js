@@ -36,6 +36,56 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(e);
         }
     }
+
+    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        const errEl = document.getElementById('login-error');
+        if (errEl) errEl.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.user;
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('main-app').style.display = 'flex';
+                document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
+                applyRolePermissions();
+                await fetchInactivitySettings();
+                await populateSidebarWarehouses();
+                await fetchDevices();
+                await fetchDecommissions();
+                try { loadOperationalTasks(); } catch(e){}
+                resetInactivityTimer();
+                if (window.showToast) showToast('Bienvenido, ' + currentUser.username, 'success');
+            } else {
+                if (errEl) {
+                    errEl.innerText = data.error || 'Credenciales inválidas';
+                    errEl.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            if (errEl) {
+                errEl.innerText = 'Error de conexión con el servidor';
+                errEl.style.display = 'block';
+            }
+        }
+    });
+
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+        try {
+            await fetch('/api/logout', { method: 'POST' });
+        } catch(e) {}
+        currentUser = null;
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('main-app').style.display = 'none';
+    });
     
     function applyRolePermissions() {
         const role = currentUser.role;
@@ -303,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Navigation & Tabs ---
-    let currentWarehouseFilter = null;
 
     function populateWarehouseSubmenu() {
         const submenu = document.getElementById('warehouse-submenu');
@@ -1086,26 +1135,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const tbody = document.getElementById('recent-devices-table');
-        tbody.innerHTML = '';
-        
-        // Show last 5
-        const recent = [...allDevices].reverse().slice(0, 5);
-        recent.forEach(d => {
-            const isRepaired = (d.repair_count && d.repair_count > 0) || d.status === 'Reparado';
-            const repairTag = isRepaired 
-                ? `<span style="font-size: 11px; margin-left: 6px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 12px;"><i class="fa-solid fa-wrench"></i> x${Math.max(d.repair_count || 1, 1)}</span>` 
-                : '';
-                
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${d.name}</strong> ${repairTag}</td>
-                <td>${d.type}</td>
-                <td>${d.brand || '-'} / ${d.model || '-'}</td>
-                <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span></td>
-                <td>${d.date_added.split(' ')[0]}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        if (tbody) {
+            tbody.innerHTML = '';
+            
+            // Show last 5
+            const recent = [...allDevices].reverse().slice(0, 5);
+            recent.forEach(d => {
+                const isRepaired = (d.repair_count && d.repair_count > 0) || d.status === 'Reparado';
+                const repairTag = isRepaired 
+                    ? `<span style="font-size: 11px; margin-left: 6px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 12px;"><i class="fa-solid fa-wrench"></i> x${Math.max(d.repair_count || 1, 1)}</span>` 
+                    : '';
+                    
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${d.name}</strong> ${repairTag}</td>
+                    <td>${d.type}</td>
+                    <td>${d.brand || '-'} / ${d.model || '-'}</td>
+                    <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span></td>
+                    <td>${d.date_added.split(' ')[0]}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
     }
 
     function getIconForType(type) {
@@ -1191,6 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         renderInventoryTypeStats(devicesToRender);
         const tbody = document.getElementById('inventory-table');
+        if (!tbody) return;
         tbody.innerHTML = '';
         const st = searchTerm.toLowerCase().trim();
         const filtered = devicesToRender.filter(d => {
@@ -3349,5 +3401,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Initialization is handled by checkAuth() -> initApp() after login validation
+    // Initialization is handled by checkAuth() after DOM loaded
+    checkAuth();
 });
