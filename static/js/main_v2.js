@@ -1,10 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const DEVICE_TYPES = ["Switch", "Cámara", "Sensor", "Antena Wi-Fi", "Controladora", "Cableado", "Otro"];
     let stockLimits = {};
+    let currentWarehouseFilter = null;
     // --- Auth & Roles ---
     let currentUser = null;
     
-    async async function checkAuth() {
+    // Check URL parameters for warehouse filter
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlWh = urlParams.get('warehouse');
+    if (urlWh && urlWh !== 'all') {
+        currentWarehouseFilter = urlWh;
+    }
+
+    async function checkAuth() {
         try {
             const res = await fetch('/api/me');
             if (res.ok) {
@@ -14,7 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
-                initApp();
+                await fetchInactivitySettings();
+                await populateSidebarWarehouses();
+                await fetchDevices();
+                await fetchDecommissions();
+                try { loadOperationalTasks(); } catch(e){}
                 resetInactivityTimer();
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
@@ -24,6 +36,56 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(e);
         }
     }
+
+    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        const errEl = document.getElementById('login-error');
+        if (errEl) errEl.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.user;
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('main-app').style.display = 'flex';
+                document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
+                applyRolePermissions();
+                await fetchInactivitySettings();
+                await populateSidebarWarehouses();
+                await fetchDevices();
+                await fetchDecommissions();
+                try { loadOperationalTasks(); } catch(e){}
+                resetInactivityTimer();
+                if (window.showToast) showToast('Bienvenido, ' + currentUser.username, 'success');
+            } else {
+                if (errEl) {
+                    errEl.innerText = data.error || 'Credenciales inválidas';
+                    errEl.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            if (errEl) {
+                errEl.innerText = 'Error de conexión con el servidor';
+                errEl.style.display = 'block';
+            }
+        }
+    });
+
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+        try {
+            await fetch('/api/logout', { method: 'POST' });
+        } catch(e) {}
+        currentUser = null;
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('main-app').style.display = 'none';
+    });
     
     function applyRolePermissions() {
         const role = currentUser.role;
@@ -79,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('')?.addEventListener('click', async () => {
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
         clearTimeout(inactivityTimer);
         clearInterval(countdownTimer);
         await fetch('/api/logout', { method: 'POST' });
@@ -280,18 +342,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function initApp() {
-        await fetchSettings();
-        await fetchCatalog();
-        await fetchStockLimits();
-        fetchDevices();
-        fetchDecommissions();
-        await loadOperationalTasks();
-        fetchEmailSettings();
-        checkInactivityTasksPopUp();
+        try { await fetchSettings(); } catch(e){}
+        try { await fetchCatalog(); } catch(e){}
+        try { await fetchStockLimits(); } catch(e){}
+        try { await fetchDevices(); } catch(e){}
+        try { await fetchDecommissions(); } catch(e){}
+        try { await loadOperationalTasks(); } catch(e){}
+        try { fetchEmailSettings(); } catch(e){}
+        try { checkInactivityTasksPopUp(); } catch(e){}
     }
 
     // --- Navigation & Tabs ---
-    let currentWarehouseFilter = null;
 
     function populateWarehouseSubmenu() {
         const submenu = document.getElementById('warehouse-submenu');
@@ -457,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Theme Switcher ---
     const themeSelector = document.getElementById('theme-selector');
-    const savedTheme = localStorage.getItem('netvault-theme') || 'dark';
+    const savedTheme = localStorage.getItem('netvault-theme') || 'glass';
     document.documentElement.setAttribute('data-theme', savedTheme);
     themeSelector.value = savedTheme;
 
@@ -635,9 +696,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.getElementById('')?.addEventListener('change', toggleDynamicFields);
+    document.getElementById('device-type')?.addEventListener('change', toggleDynamicFields);
 
-    document.getElementById('')?.addEventListener('input', () => {
+    document.getElementById('device-quantity')?.addEventListener('input', () => {
         const id = document.getElementById('device-id').value;
         const brand = brandSelect.value;
         const model = modelSelect.value;
@@ -693,13 +754,43 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseModal.addEventListener('click', closeModal);
     btnCancel.addEventListener('click', closeModal);
 
-    // --- Data Fetching & Rendering ---
     let allDevices = [];
     let allDecommissions = [];
     let allWarehouses = [];
     let allHotels = [];
     let allTechnicians = [];
     let equipmentCatalog = [];
+
+    async function populateSidebarWarehouses() {
+        const container = document.getElementById('sidebar-sub-items');
+        if (!container) return;
+        try {
+            const res = await fetch('/api/settings/warehouses');
+            if (!res.ok) return;
+            allWarehouses = await res.json();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeWh = urlParams.get('warehouse') || 'all';
+
+            let html = `
+                <a href="/inventario?warehouse=all" class="nav-sub-item ${activeWh === 'all' ? 'active' : ''}" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    <span style="width: 6px; height: 6px; background: ${activeWh === 'all' ? 'var(--color-primary)' : 'currentColor'}; border-radius: 50%;"></span> Todos
+                </a>
+            `;
+
+            allWarehouses.forEach(w => {
+                const isSelected = activeWh === w.name;
+                html += `
+                    <a href="/inventario?warehouse=${encodeURIComponent(w.name)}" class="nav-sub-item ${isSelected ? 'active' : ''}" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 6px; height: 6px; background: ${isSelected ? 'var(--color-primary)' : 'currentColor'}; border-radius: 50%;"></span> ${escapeHtml(w.name)}
+                    </a>
+                `;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            console.error('Error populating sidebar warehouses:', e);
+        }
+    }
 
     async function fetchCatalog() {
         try {
@@ -801,12 +892,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/devices');
             allDevices = await response.json();
-            renderDashboard();
-            renderInventory();
-            renderWarranties();
-            updateBrandModelSuggestions();
-            populateDeviceTypeDropdown();
-            populateCatalogTypeSuggestions();
+            try { renderDashboard(); } catch(e) { console.warn(e); }
+            try { renderInventory(); } catch(e) { console.warn(e); }
+            try { renderWarranties(); } catch(e) { console.warn(e); }
+            try { updateBrandModelSuggestions(); } catch(e) {}
+            try { populateDeviceTypeDropdown(); } catch(e) {}
+            try { populateCatalogTypeSuggestions(); } catch(e) {}
         } catch (error) {
             showToast('Error cargando equipos', 'error');
         }
@@ -816,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/decommissions');
             allDecommissions = await response.json();
-            renderDecommission();
+            try { renderDecommission(); } catch(e) {}
         } catch (error) {
             showToast('Error cargando decomisos', 'error');
         }
@@ -1044,26 +1135,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const tbody = document.getElementById('recent-devices-table');
-        tbody.innerHTML = '';
-        
-        // Show last 5
-        const recent = [...allDevices].reverse().slice(0, 5);
-        recent.forEach(d => {
-            const isRepaired = (d.repair_count && d.repair_count > 0) || d.status === 'Reparado';
-            const repairTag = isRepaired 
-                ? `<span style="font-size: 11px; margin-left: 6px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 12px;"><i class="fa-solid fa-wrench"></i> x${Math.max(d.repair_count || 1, 1)}</span>` 
-                : '';
-                
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${d.name}</strong> ${repairTag}</td>
-                <td>${d.type}</td>
-                <td>${d.brand || '-'} / ${d.model || '-'}</td>
-                <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span></td>
-                <td>${d.date_added.split(' ')[0]}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        if (tbody) {
+            tbody.innerHTML = '';
+            
+            // Show last 5
+            const recent = [...allDevices].reverse().slice(0, 5);
+            recent.forEach(d => {
+                const isRepaired = (d.repair_count && d.repair_count > 0) || d.status === 'Reparado';
+                const repairTag = isRepaired 
+                    ? `<span style="font-size: 11px; margin-left: 6px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 12px;"><i class="fa-solid fa-wrench"></i> x${Math.max(d.repair_count || 1, 1)}</span>` 
+                    : '';
+                    
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${d.name}</strong> ${repairTag}</td>
+                    <td>${d.type}</td>
+                    <td>${d.brand || '-'} / ${d.model || '-'}</td>
+                    <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span></td>
+                    <td>${d.date_added.split(' ')[0]}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
     }
 
     function getIconForType(type) {
@@ -1149,6 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         renderInventoryTypeStats(devicesToRender);
         const tbody = document.getElementById('inventory-table');
+        if (!tbody) return;
         tbody.innerHTML = '';
         const st = searchTerm.toLowerCase().trim();
         const filtered = devicesToRender.filter(d => {
@@ -1250,7 +1344,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Search Inventory
-    document.getElementById('')?.addEventListener('input', (e) => {
+    document.getElementById('search-inventory')?.addEventListener('input', (e) => {
         renderInventory(e.target.value);
     });
 
@@ -1520,22 +1614,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Decommission CRUD ---
     const decommissionModal = document.getElementById('decommission-modal');
-    document.getElementById('')?.addEventListener('click', () => {
+    document.getElementById('btn-new-decommission')?.addEventListener('click', () => {
         decommissionModal.classList.add('active');
         document.getElementById('decommission-form').reset();
     });
     
-    document.getElementById('')?.addEventListener('click', () => {
+    document.getElementById('btn-close-decommission')?.addEventListener('click', () => {
         decommissionModal.classList.remove('active');
     });
-    document.getElementById('')?.addEventListener('click', () => {
+    document.getElementById('btn-cancel-decommission')?.addEventListener('click', () => {
         decommissionModal.classList.remove('active');
     });
 
-    document.getElementById(\'decommission-form\')?.addEventListener(\'submit\', async (e) => {
+    document.getElementById('decommission-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = {
-            name: document.getElementById(\'dec-name\').value,
+            name: document.getElementById('dec-name').value,
             type: document.getElementById('dec-type').value,
             brand: document.getElementById('dec-brand').value,
             model: document.getElementById('dec-model').value,
@@ -1560,7 +1654,81 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Decommission Export & Archive ---
-    document.getElementById('')?.addEventListener('click', () => {
+    const pdfModal = document.getElementById('decommission-pdf-modal');
+    const btnExportPdf = document.getElementById('btn-export-decommission-pdf');
+    const btnClosePdfModal = document.getElementById('btn-close-pdf-modal');
+    const btnCancelPdfModal = document.getElementById('btn-cancel-pdf-modal');
+    const pdfForm = document.getElementById('decommission-pdf-form');
+
+    btnExportPdf?.addEventListener('click', () => {
+        let toExport = allDecommissions;
+        if (currentDecommissionHotelFilter !== 'all') {
+            toExport = allDecommissions.filter(d => d.hotel === currentDecommissionHotelFilter);
+        }
+        if (toExport.length === 0) {
+            showToast('No hay registros para exportar a PDF con este filtro', 'error');
+            return;
+        }
+        if (pdfModal) {
+            pdfModal.classList.add('active');
+        }
+    });
+
+    const closePdfModal = () => {
+        if (pdfModal) {
+            pdfModal.classList.remove('active');
+        }
+    };
+
+    btnClosePdfModal?.addEventListener('click', closePdfModal);
+    btnCancelPdfModal?.addEventListener('click', closePdfModal);
+
+    pdfForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            hotel: currentDecommissionHotelFilter,
+            no_control: document.getElementById('pdf-no-control')?.value || '',
+            department: document.getElementById('pdf-department')?.value || 'SISTEMAS',
+            decommission_type: document.getElementById('pdf-type')?.value || 'BAJA DE EQUIPO',
+            applicant: document.getElementById('pdf-applicant')?.value || '',
+            reason: document.getElementById('pdf-reason')?.value || 'Artículos de baja por término de vida útil o avería',
+            other_notes: document.getElementById('pdf-other-notes')?.value || ''
+        };
+
+        try {
+            showToast('Generando Hoja de Decomiso en PDF...', 'info');
+            const response = await fetch('/api/decommission/export/pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al generar el archivo PDF');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            let filterName = currentDecommissionHotelFilter === 'all' ? 'todos' : currentDecommissionHotelFilter.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            a.download = `Hoja_Decomiso_${filterName}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            showToast('PDF descargado correctamente', 'success');
+            closePdfModal();
+        } catch (err) {
+            console.error(err);
+            showToast('Error al descargar el PDF de decomiso', 'error');
+        }
+    });
+
+    document.getElementById('btn-export-decommission')?.addEventListener('click', () => {
         let toExport = allDecommissions;
         if (currentDecommissionHotelFilter !== 'all') {
             toExport = allDecommissions.filter(d => d.hotel === currentDecommissionHotelFilter);
@@ -1573,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadCSV(toExport, `decomiso_${filterName}_${new Date().toISOString().split('T')[0]}`);
     });
 
-    document.getElementById('')?.addEventListener('click', async () => {
+    document.getElementById('btn-clear-decommission')?.addEventListener('click', async () => {
         let toArchive = allDecommissions;
         if (currentDecommissionHotelFilter !== 'all') {
             toArchive = allDecommissions.filter(d => d.hotel === currentDecommissionHotelFilter);
@@ -1609,7 +1777,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- History Modal ---
     const historyModal = document.getElementById('history-modal');
-    document.getElementById('')?.addEventListener('click', async () => {
+    document.getElementById('btn-view-history')?.addEventListener('click', async () => {
         try {
             const res = await fetch('/api/decommissions/archive');
             const archives = await res.json();
@@ -1619,7 +1787,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Error al cargar historial', 'error');
         }
     });
-    document.getElementById('')?.addEventListener('click', () => historyModal.classList.remove('active'));
+    document.getElementById('btn-close-history')?.addEventListener('click', () => historyModal.classList.remove('active'));
 
     function renderHistory(archives) {
         const tbody = document.getElementById('history-table');
@@ -2408,15 +2576,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Inactivity Timeout Configuration ---
-    const INACTIVITY_LIMIT = 4 * 60 * 1000; // 4 minutes (in milliseconds)
+    let inactivityMinutes = 5;
     const COUNTDOWN_LIMIT = 60; // 60 seconds
     
     let inactivityTimer = null;
     let countdownTimer = null;
     let countdownValue = COUNTDOWN_LIMIT;
     
+    async function fetchInactivitySettings() {
+        try {
+            const res = await fetch('/api/settings/inactivity-timeout');
+            if (res.ok) {
+                const data = await res.json();
+                inactivityMinutes = parseInt(data.timeout_minutes);
+                if (isNaN(inactivityMinutes)) inactivityMinutes = 5;
+                const selectEl = document.getElementById('inactivity-minutes-select');
+                if (selectEl) selectEl.value = inactivityMinutes.toString();
+            }
+        } catch(e) {
+            console.error('Error fetching inactivity settings:', e);
+        }
+    }
+
+    document.getElementById('form-inactivity-settings')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const selectEl = document.getElementById('inactivity-minutes-select');
+        if (!selectEl) return;
+        const mins = parseInt(selectEl.value);
+        try {
+            const res = await fetch('/api/settings/inactivity-timeout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timeout_minutes: mins })
+            });
+            if (res.ok) {
+                inactivityMinutes = mins;
+                resetInactivityTimer();
+                showToast(`Tiempo de inactividad actualizado a ${mins === 0 ? 'Desactivado' : mins + ' minutos'}`, 'success');
+            } else {
+                showToast('Error al guardar configuración de inactividad', 'error');
+            }
+        } catch(err) {
+            showToast('Error de red al guardar inactividad', 'error');
+        }
+    });
+
     function resetInactivityTimer() {
-        if (!currentUser) return; // Only run if user is logged in
+        if (!currentUser || inactivityMinutes <= 0) {
+            clearTimeout(inactivityTimer);
+            return; // Desactivado o no autenticado
+        }
         
         // If warning modal is active, don't reset timer automatically by background movement
         const inactivityModal = document.getElementById('inactivity-modal');
@@ -2424,8 +2633,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        const limitMs = inactivityMinutes * 60 * 1000;
         clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(showInactivityWarning, INACTIVITY_LIMIT);
+        inactivityTimer = setTimeout(showInactivityWarning, limitMs);
     }
     
     function showInactivityWarning() {
@@ -2539,9 +2749,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/operational-tasks');
             if (res.ok) {
                 allOperationalTasks = await res.json();
-                populateTaskFilterOptions();
-                renderOperationalTasks();
-                updateOperationalTaskStats();
+                try { populateTaskFilterOptions(); } catch(e){}
+                try { renderOperationalTasks(); } catch(e){}
+                try { updateOperationalTaskStats(); } catch(e){}
             } else {
                 showToast('Error al cargar pendientes', 'error');
             }
@@ -3191,5 +3401,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Initialization is handled by checkAuth() -> initApp() after login validation
+    // Initialization is handled by checkAuth() after DOM loaded
+    checkAuth();
 });

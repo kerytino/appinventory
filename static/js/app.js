@@ -3404,13 +3404,3 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialization is handled by checkAuth() after DOM loaded
     checkAuth();
 });
-
-// FIX: Added filterByStatus for dashboard cards
-window.filterByStatus = function(status) {
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-        searchInput.value = status;
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        const allLinks = document.querySelectorAll('.nav-links li');
-        allLinks.forEach(l => l.classList.remove('active'));
-        const invTab = document.querySelector('.nav-links li[data-tab=" inventory\]');

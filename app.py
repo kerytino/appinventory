@@ -23,7 +23,7 @@ load_dotenv()
 app = Flask(__name__)
 # Usar la variable de entorno, o un valor por defecto solo para desarrollo
 app.secret_key = os.environ.get('SECRET_KEY', 'default-dev-key-change-me')
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 # Usamos una ruta absoluta para asegurar que sqlite se cree en la carpeta correcta
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'inventory.db')
