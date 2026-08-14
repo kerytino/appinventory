@@ -23,18 +23,24 @@
 }
 
 .sidebar-header {
-    padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-md) var(--spacing-lg);
+    padding: 24px 16px 20px 16px;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: var(--spacing-md);
+    justify-content: center;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border-light, #f1f5f9);
+    margin-bottom: 12px;
 }
 
 .sidebar-logo {
-    max-width: 190px;
-    height: auto;
-    max-height: 48px;
+    width: 80px;
+    height: 80px;
+    max-width: 90px;
+    max-height: 90px;
     object-fit: contain;
+    display: block;
+    margin: 0 auto;
+    filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.08));
 }
 
 .sidebar-nav {

@@ -1211,12 +1211,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderInventory(searchTerm = '') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStatus = urlParams.get('status');
+        const urlCritical = urlParams.get('critical') === 'true';
+        const urlWarehouse = urlParams.get('warehouse');
+
+        if (!searchTerm && urlStatus) {
+            searchTerm = urlStatus;
+            const searchInp = document.getElementById('search-inventory');
+            if (searchInp && !searchInp.value) searchInp.value = urlStatus;
+        }
+
+        if (urlWarehouse && !currentWarehouseFilter) {
+            currentWarehouseFilter = urlWarehouse;
+        }
+
         let devicesToRender = allDevices;
         if (currentWarehouseFilter) {
             devicesToRender = allDevices.filter(d => 
                 (d.status === 'En Stock' || d.status === 'Reparado') && 
                 d.warehouse === currentWarehouseFilter
             );
+        }
+
+        if (urlCritical) {
+            // Filtrar tipos de equipos cuyo stock actual esté <= límite configurado
+            const typeCounts = {};
+            allDevices.filter(d => d.status === 'En Stock' || d.status === 'Reparado').forEach(d => {
+                const t = (d.type || '').trim();
+                typeCounts[t] = (typeCounts[t] || 0) + (d.quantity || 1);
+            });
+            const criticalTypes = Object.keys(stockLimits).filter(type => {
+                const limit = stockLimits[type] || 0;
+                const count = typeCounts[type] || 0;
+                return count <= limit;
+            });
+            devicesToRender = devicesToRender.filter(d => criticalTypes.includes((d.type || '').trim()));
         }
         
         renderInventoryTypeStats(devicesToRender);
@@ -3414,7 +3444,26 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('device-modal')?.classList.remove('active');
     });
 
-    // --- Settings View: Tabs & User Management ---
+    // --- Global Dashboard Filters & Navigation ---
+    window.filterByStatus = function(status) {
+        window.location.href = `/inventario?status=${encodeURIComponent(status)}`;
+    };
+
+    window.openCriticalStockModal = function() {
+        window.location.href = `/inventario?critical=true`;
+    };
+
+    // --- Notifications Icon Header Action ---
+    document.getElementById('btn-notifications-icon')?.addEventListener('click', () => {
+        const staleModal = document.getElementById('stale-tasks-modal');
+        if (staleModal && staleModal.querySelector('.stale-task-item')) {
+            staleModal.classList.add('active');
+        } else {
+            showToast('🔔 Todas las actividades y tareas se encuentran al día', 'info');
+        }
+    });
+
+    // --- Settings View: Full Tab Switching & Data Loaders ---
     document.querySelectorAll('.settings-tabs .tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const target = btn.getAttribute('data-target');
@@ -3428,11 +3477,575 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetCard = document.getElementById(`settings-tab-${target}`);
             if (targetCard) targetCard.style.display = 'block';
             
-            if (target === 'users') fetchUsers();
+            if (target === 'warehouses') fetchWarehousesConfig();
+            else if (target === 'hotels') fetchHotelsConfig();
+            else if (target === 'technicians') fetchTechniciansConfig();
+            else if (target === 'providers') fetchProvidersConfig();
+            else if (target === 'users') fetchUsers();
+            else if (target === 'catalog') fetchCatalogConfig();
+            else if (target === 'stock-limits') fetchStockLimitsConfig();
+            else if (target === 'logs') fetchLogsConfig();
+            else if (target === 'inactivity') fetchInactivityConfig();
+            else if (target === 'email') fetchEmailSettings();
         });
     });
 
-    // --- User Modal and Actions ---
+    // --- 1. Warehouses Settings Management ---
+    async function fetchWarehousesConfig() {
+        const listBody = document.getElementById('settings-warehouse-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/settings/warehouses');
+            if (res.ok) {
+                const warehouses = await res.json();
+                renderWarehousesConfig(warehouses);
+            }
+        } catch(e) {
+            console.error('Error fetching warehouses:', e);
+        }
+    }
+
+    function renderWarehousesConfig(warehouses) {
+        const listBody = document.getElementById('settings-warehouse-list');
+        if (!listBody) return;
+        listBody.innerHTML = '';
+        if (warehouses.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay almacenes registrados</td></tr>';
+            return;
+        }
+        warehouses.forEach(w => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong><i class="fa-solid fa-warehouse" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(w.name)}</strong></td>
+                <td><span class="badge badge-info">${escapeHtml(w.hotel || 'Sin Hotel')}</span></td>
+                <td style="text-align: right;">
+                    <button class="btn-icon btn-delete-warehouse" data-id="${w.id}" data-name="${escapeHtml(w.name)}" title="Eliminar Almacén" style="color: var(--color-danger);">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-delete-warehouse').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                if (!confirm(`¿Seguro que deseas eliminar el almacén "${name}"?`)) return;
+                try {
+                    const res = await fetch(`/api/settings/warehouses/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast(`Almacén "${name}" eliminado`, 'success');
+                        fetchWarehousesConfig();
+                        fetchSettings();
+                    } else {
+                        showToast('Error al eliminar almacén', 'error');
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', 'error');
+                }
+            });
+        });
+    }
+
+    document.getElementById('form-add-warehouse')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputName = document.getElementById('input-new-warehouse');
+        const selectHotel = document.getElementById('input-new-warehouse-hotel');
+        const name = inputName.value.trim();
+        const hotel = selectHotel ? selectHotel.value : '';
+        if (!name) return;
+        try {
+            const res = await fetch('/api/settings/warehouses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, hotel })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Almacén "${name}" agregado`, 'success');
+                inputName.value = '';
+                fetchWarehousesConfig();
+                fetchSettings();
+            } else {
+                showToast(data.error || 'Error al agregar almacén', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 2. Hotels Settings Management ---
+    async function fetchHotelsConfig() {
+        const listBody = document.getElementById('settings-hotel-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/settings/hotels');
+            if (res.ok) {
+                const hotels = await res.json();
+                renderHotelsConfig(hotels);
+                // Populate hotel dropdown in add warehouse form
+                const whHotelSelect = document.getElementById('input-new-warehouse-hotel');
+                if (whHotelSelect) {
+                    const currentVal = whHotelSelect.value;
+                    whHotelSelect.innerHTML = '<option value="">Sin Hotel (Opcional)</option>' + 
+                        hotels.map(h => `<option value="${escapeHtml(h.name)}">${escapeHtml(h.name)}</option>`).join('');
+                    whHotelSelect.value = currentVal;
+                }
+            }
+        } catch(e) {
+            console.error('Error fetching hotels:', e);
+        }
+    }
+
+    function renderHotelsConfig(hotels) {
+        const listBody = document.getElementById('settings-hotel-list');
+        if (!listBody) return;
+        listBody.innerHTML = '';
+        if (hotels.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay hoteles registrados</td></tr>';
+            return;
+        }
+        hotels.forEach(h => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong><i class="fa-solid fa-hotel" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(h.name)}</strong></td>
+                <td style="text-align: right;">
+                    <button class="btn-icon btn-delete-hotel" data-id="${h.id}" data-name="${escapeHtml(h.name)}" title="Eliminar Hotel" style="color: var(--color-danger);">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-delete-hotel').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                if (!confirm(`¿Seguro que deseas eliminar el hotel "${name}"?`)) return;
+                try {
+                    const res = await fetch(`/api/settings/hotels/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast(`Hotel "${name}" eliminado`, 'success');
+                        fetchHotelsConfig();
+                        fetchSettings();
+                    } else {
+                        showToast('Error al eliminar hotel', 'error');
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', 'error');
+                }
+            });
+        });
+    }
+
+    document.getElementById('form-add-hotel')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('input-new-hotel');
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+            const res = await fetch('/api/settings/hotels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Hotel "${name}" agregado`, 'success');
+                input.value = '';
+                fetchHotelsConfig();
+                fetchSettings();
+            } else {
+                showToast(data.error || 'Error al agregar hotel', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 3. Technicians Settings Management ---
+    async function fetchTechniciansConfig() {
+        const listBody = document.getElementById('settings-technician-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/settings/technicians');
+            if (res.ok) {
+                const technicians = await res.json();
+                renderTechniciansConfig(technicians);
+            }
+        } catch(e) {
+            console.error('Error fetching technicians:', e);
+        }
+    }
+
+    function renderTechniciansConfig(technicians) {
+        const listBody = document.getElementById('settings-technician-list');
+        if (!listBody) return;
+        listBody.innerHTML = '';
+        if (technicians.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay técnicos registrados</td></tr>';
+            return;
+        }
+        technicians.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong><i class="fa-solid fa-user-gear" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(t.name)}</strong></td>
+                <td style="text-align: right;">
+                    <button class="btn-icon btn-delete-technician" data-id="${t.id}" data-name="${escapeHtml(t.name)}" title="Eliminar Técnico" style="color: var(--color-danger);">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-delete-technician').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                if (!confirm(`¿Seguro que deseas eliminar al técnico "${name}"?`)) return;
+                try {
+                    const res = await fetch(`/api/settings/technicians/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast(`Técnico "${name}" eliminado`, 'success');
+                        fetchTechniciansConfig();
+                        fetchSettings();
+                    } else {
+                        showToast('Error al eliminar técnico', 'error');
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', 'error');
+                }
+            });
+        });
+    }
+
+    document.getElementById('form-add-technician')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('input-new-technician');
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+            const res = await fetch('/api/settings/technicians', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Técnico "${name}" agregado`, 'success');
+                input.value = '';
+                fetchTechniciansConfig();
+                fetchSettings();
+            } else {
+                showToast(data.error || 'Error al agregar técnico', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 4. Providers Settings Management ---
+    async function fetchProvidersConfig() {
+        const listBody = document.getElementById('settings-provider-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/settings/providers');
+            if (res.ok) {
+                const providers = await res.json();
+                renderProvidersConfig(providers);
+            }
+        } catch(e) {
+            console.error('Error fetching providers:', e);
+        }
+    }
+
+    function renderProvidersConfig(providers) {
+        const listBody = document.getElementById('settings-provider-list');
+        if (!listBody) return;
+        listBody.innerHTML = '';
+        if (providers.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay proveedores registrados</td></tr>';
+            return;
+        }
+        providers.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong><i class="fa-solid fa-truck" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(p.name)}</strong></td>
+                <td style="text-align: right;">
+                    <button class="btn-icon btn-delete-provider" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Eliminar Proveedor" style="color: var(--color-danger);">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-delete-provider').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                if (!confirm(`¿Seguro que deseas eliminar al proveedor "${name}"?`)) return;
+                try {
+                    const res = await fetch(`/api/settings/providers/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast(`Proveedor "${name}" eliminado`, 'success');
+                        fetchProvidersConfig();
+                        fetchSettings();
+                    } else {
+                        showToast('Error al eliminar proveedor', 'error');
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', 'error');
+                }
+            });
+        });
+    }
+
+    document.getElementById('form-add-provider')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('input-new-provider');
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+            const res = await fetch('/api/settings/providers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Proveedor "${name}" agregado`, 'success');
+                input.value = '';
+                fetchProvidersConfig();
+                fetchSettings();
+            } else {
+                showToast(data.error || 'Error al agregar proveedor', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 5. Catalog Settings Management ---
+    async function fetchCatalogConfig() {
+        const listBody = document.getElementById('settings-catalog-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/settings/catalog');
+            if (res.ok) {
+                const catalog = await res.json();
+                renderCatalogConfig(catalog);
+            }
+        } catch(e) {
+            console.error('Error fetching catalog:', e);
+        }
+    }
+
+    function renderCatalogConfig(catalog) {
+        const listBody = document.getElementById('settings-catalog-list');
+        if (!listBody) return;
+        listBody.innerHTML = '';
+        if (catalog.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay modelos registrados en el catálogo</td></tr>';
+            return;
+        }
+        catalog.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="badge badge-info">${escapeHtml(item.type)}</span></td>
+                <td><strong>${escapeHtml(item.brand)}</strong></td>
+                <td>${escapeHtml(item.model)}</td>
+                <td style="text-align: right;">
+                    <button class="btn-icon btn-delete-catalog" data-type="${escapeHtml(item.type)}" data-brand="${escapeHtml(item.brand)}" data-model="${escapeHtml(item.model)}" title="Eliminar del Catálogo" style="color: var(--color-danger);">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-delete-catalog').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const type = btn.getAttribute('data-type');
+                const brand = btn.getAttribute('data-brand');
+                const model = btn.getAttribute('data-model');
+                if (!confirm(`¿Eliminar ${brand} ${model} (${type}) del catálogo?`)) return;
+                try {
+                    const res = await fetch('/api/settings/catalog/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type, brand, model })
+                    });
+                    if (res.ok) {
+                        showToast('Modelo eliminado del catálogo', 'success');
+                        fetchCatalogConfig();
+                        fetchCatalogDropdowns();
+                    } else {
+                        showToast('Error al eliminar del catálogo', 'error');
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', 'error');
+                }
+            });
+        });
+    }
+
+    document.getElementById('form-add-catalog')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const typeInput = document.getElementById('catalog-type');
+        const brandInput = document.getElementById('catalog-brand');
+        const modelInput = document.getElementById('catalog-model');
+        const type = typeInput.value.trim();
+        const brand = brandInput.value.trim();
+        const model = modelInput.value.trim();
+        if (!type || !brand || !model) return;
+        try {
+            const res = await fetch('/api/settings/catalog', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, brand, model })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast('Modelo agregado al catálogo', 'success');
+                typeInput.value = '';
+                brandInput.value = '';
+                modelInput.value = '';
+                fetchCatalogConfig();
+                fetchCatalogDropdowns();
+            } else {
+                showToast(data.error || 'Error al guardar en catálogo', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 6. Stock Limits Settings Management ---
+    async function fetchStockLimitsConfig() {
+        const listBody = document.getElementById('settings-stock-limits-list');
+        if (!listBody) return;
+        try {
+            const [limitsRes, catalogRes] = await Promise.all([
+                fetch('/api/settings/stock-limits'),
+                fetch('/api/settings/catalog')
+            ]);
+            const limits = limitsRes.ok ? await limitsRes.json() : {};
+            const catalog = catalogRes.ok ? await catalogRes.json() : [];
+            const types = Array.from(new Set(catalog.map(c => c.type).filter(Boolean)));
+            listBody.innerHTML = '';
+            if (types.length === 0) {
+                listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay tipos de equipos definidos en el catálogo</td></tr>';
+                return;
+            }
+            types.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(t)}</strong></td>
+                    <td style="width: 150px;">
+                        <input type="number" class="form-control stock-limit-input" data-type="${escapeHtml(t)}" value="${limits[t] || 0}" min="0">
+                    </td>
+                `;
+                listBody.appendChild(tr);
+            });
+        } catch(e) {
+            console.error('Error loading stock limits config:', e);
+        }
+    }
+
+    document.getElementById('btn-save-stock-limits')?.addEventListener('click', async () => {
+        const inputs = document.querySelectorAll('.stock-limit-input');
+        const payload = {};
+        inputs.forEach(inp => {
+            const type = inp.getAttribute('data-type');
+            payload[type] = parseInt(inp.value, 10) || 0;
+        });
+        try {
+            const res = await fetch('/api/settings/stock-limits', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Límites de stock guardados correctamente', 'success');
+                stockLimits = payload;
+            } else {
+                showToast('Error al guardar límites', 'error');
+            }
+        } catch(e) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 7. Activity Logs Management ---
+    async function fetchLogsConfig() {
+        const listBody = document.getElementById('settings-logs-list');
+        if (!listBody) return;
+        try {
+            const res = await fetch('/api/logs');
+            if (res.ok) {
+                const logs = await res.json();
+                listBody.innerHTML = '';
+                if (logs.length === 0) {
+                    listBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay registros de actividad recientes</td></tr>';
+                    return;
+                }
+                logs.slice(0, 100).forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="white-space: nowrap; font-size: 12px;">${escapeHtml(log.timestamp || '')}</td>
+                        <td><span class="badge badge-info">${escapeHtml(log.username || 'Sistema')}</span></td>
+                        <td><strong>${escapeHtml(log.action || '')}</strong></td>
+                        <td style="font-size: 13px;">${escapeHtml(log.details || '')}</td>
+                    `;
+                    listBody.appendChild(tr);
+                });
+            }
+        } catch(e) {
+            console.error('Error fetching logs:', e);
+        }
+    }
+
+    // --- 8. Inactivity Timeout Settings Management ---
+    async function fetchInactivityConfig() {
+        const select = document.getElementById('inactivity-minutes-select');
+        if (!select) return;
+        try {
+            const res = await fetch('/api/settings/inactivity-timeout');
+            if (res.ok) {
+                const data = await res.json();
+                select.value = data.minutes !== undefined ? String(data.minutes) : '5';
+            }
+        } catch(e) {
+            console.error('Error fetching inactivity config:', e);
+        }
+    }
+
+    document.getElementById('form-inactivity-settings')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const select = document.getElementById('inactivity-minutes-select');
+        const minutes = parseInt(select.value, 10);
+        try {
+            const res = await fetch('/api/settings/inactivity-timeout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ minutes })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message || 'Tiempo de inactividad actualizado', 'success');
+            } else {
+                showToast(data.error || 'Error al guardar tiempo de inactividad', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // --- 9. User Modal and Actions ---
     const userModal = document.getElementById('user-modal');
     document.getElementById('btn-new-user')?.addEventListener('click', () => {
         if (!userModal) return;
@@ -3590,6 +4203,18 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Error de conexión', 'error');
         }
     });
+
+    // --- Initialize Configuration Tab Data If on Configuration Page ---
+    if (window.location.pathname.includes('/configuracion')) {
+        fetchWarehousesConfig();
+        fetchHotelsConfig();
+        fetchTechniciansConfig();
+        fetchProvidersConfig();
+        fetchUsers();
+        fetchCatalogConfig();
+        fetchStockLimitsConfig();
+        fetchInactivityConfig();
+    }
 
     // Initialization is handled by checkAuth() after DOM loaded
     checkAuth();
