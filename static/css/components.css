@@ -623,4 +623,4 @@
 .data-table tbody tr { background-color: transparent !important; }
 .data-table tbody tr:nth-child(even) { background-color: var(--color-surface-hover) !important; }
 .data-table tbody tr:hover { background-color: var(--color-primary-light) !important; }
-.form-control input, .form-control select, .form-control textarea { background-color: var(--color-surface) !important; color: var(--color-text) !important; }
+.form-control input, .form-control select, .form-control textarea { background-color: var(--color-surface) !important; color: var(--color-text) !important; }\n\n/* FIX ACTION BUTTON & MODAL TABLE */\n.action-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--color-text-secondary); transition: color 0.2s; }\n.action-btn:hover { color: var(--color-danger); }\n#critical-stock-modal .modal-content { max-width: 800px !important; width: 90% !important; }\n
