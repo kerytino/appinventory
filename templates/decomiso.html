@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Hoja de Decomiso | The Excellence Collection{% endblock %}
+{% block page_title %}Hoja de Decomiso{% endblock %}
+{% block page_subtitle %}Registro de equipos dados de baja{% endblock %}
+
+{% block content %}
+{% from "components/kpi_card.html" import kpi_card %}
+{% from "components/button.html" import button %}
+
+<div id="view-decommission" class="view-section active">
+    <!-- Alert Box -->
+    <div style="background-color: var(--color-danger-light); border: 1px solid var(--color-danger); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-lg); display: flex; gap: var(--spacing-md); align-items: flex-start;">
+        <i class="fa-solid fa-circle-exclamation" style="color: var(--color-danger); font-size: 20px; margin-top: 2px;"></i>
+        <div>
+            <h3 class="section-title" style="color: var(--color-danger); margin-bottom: var(--spacing-xs);">Registro Manual</h3>
+            <p class="text-secondary" style="color: #991B1B;">Los equipos listados aquí han sido registrados manualmente como averiados o irrecuperables. Sus datos se conservan para auditoría y contabilidad independientemente del inventario en stock.</p>
+        </div>
+    </div>
+
+    <!-- KPIs and Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg); flex-wrap: wrap; gap: var(--spacing-md);">
+        
+        <div style="width: 300px;">
+            {{ kpi_card('Pérdida por Decomiso', '<span id="stat-decommission-value">$0.00</span>', 'fa-money-bill-trend-down', '', true) }}
+        </div>
+        
+        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; align-items: center;">
+            <div style="display: flex; align-items: center; gap: var(--spacing-xs); margin-right: var(--spacing-sm);">
+                <label for="decommission-hotel-filter" class="form-label" style="margin-bottom: 0;">Lugar:</label>
+                <select id="decommission-hotel-filter" class="form-control" style="width: auto;">
+                    <option value="all">Todos los Lugares</option>
+                </select>
+            </div>
+            
+            {{ button('Descargar CSV', 'outline', 'fa-download', 'btn-export-decommission') }}
+            {{ button('Archivar y Vaciar', 'danger', 'fa-box-archive', 'btn-clear-decommission') }}
+            {{ button('Historial', 'outline', 'fa-clock-rotate-left', 'btn-view-history') }}
+            {{ button('Registrar Manual', 'primary', 'fa-plus', 'btn-new-decommission') }}
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-container">
+        <div style="overflow-x: auto;">
+            <table class="data-table decommission-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th style="text-align: center; width: 60px;">Cant.</th>
+                        <th>Tipo</th>
+                        <th>Hotel de Origen</th>
+                        <th>Motivo</th>
+                        <th>Valor de Pérdida ($)</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="decommission-table">
+                    <!-- Data injected by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

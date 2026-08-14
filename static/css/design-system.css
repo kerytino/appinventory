@@ -1,0 +1,224 @@
+/* DESIGN SYSTEM
+   Modern Corporate Enterprise SaaS
+   Fonts: Inter
+*/
+
+:root {
+    /* Brand Colors */
+    --color-primary: #548c5b;
+    --color-primary-hover: #45764b;
+    
+    /* Background & Surfaces */
+    --color-background: #f8faf7;
+    --color-surface: #FFFFFF;
+    
+    /* Text Colors */
+    --color-text: #2d3a33;
+    --color-text-secondary: #6b7a70;
+    
+    /* Borders */
+    --color-border: #eaece8;
+    
+    /* Semantic Colors */
+    --color-success: #12B76A;
+    --color-success-light: #ECFDF3;
+    --color-warning: #F79009;
+    --color-warning-light: #FFFAEB;
+    --color-danger: #F04438;
+    --color-danger-light: #FEF3F2;
+    --color-info: #2E90FA;
+    --color-info-light: #EFF8FF;
+    
+    /* Spacing & Sizes */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* Radius */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-xl: 16px;
+    
+    /* Shadows */
+    --shadow-sm: 0 4px 12px rgba(0,0,0,0.05);
+    --shadow-md: 0 12px 32px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 32px rgba(45, 58, 51, 0.08);
+    --shadow-modal: 0 20px 24px -4px rgba(16, 24, 40, 0.08), 0 8px 8px -4px rgba(16, 24, 40, 0.03);
+
+    /* Typography */
+    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* Typography Hierarchy */
+.page-title {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-text);
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.text-body {
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.text-secondary {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.text-kpi {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+}
+
+/* ==========================================================================
+   Dark Theme Overrides
+   ========================================================================== */
+[data-theme="dark"] {
+    --bg-main: #121212;
+    --bg-dark: #1e1e1e;
+    --text-main: #e0e0e0;
+    --text-muted: #a0a0a0;
+    
+    --glass-bg: rgba(30, 30, 30, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    
+    --color-primary: #548c5b;
+    --color-primary-hover: #437349;
+    --color-accent: #2e4a31;
+    
+    --shadow-sm: 0 4px 12px rgba(0,0,0,0.05);
+    --shadow-md: 0 12px 32px rgba(0,0,0,0.08);
+}
+
+[data-theme="dark"] .glass-panel {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .data-table th {
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid var(--glass-border);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .data-table td {
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .form-control {
+    background: var(--bg-dark);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(84, 140, 91, 0.2);
+}
+
+[data-theme="dark"] .sidebar {
+    background: var(--bg-dark);
+    border-right: 1px solid var(--glass-border);
+}
+
+[data-theme="dark"] .header {
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+
+/* Glassmorphism Additions */
+.sidebar {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme="dark"] .sidebar {
+    background: rgba(30, 30, 30, 0.85);
+}
+
+.header {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] .header {
+    background: rgba(18, 18, 18, 0.8);
+}
+
+.data-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+    background-color: rgba(84, 140, 91, 0.03);
+}
+
+[data-theme="dark"] .data-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    box-shadow: 0 4px 12px rgba(84, 140, 91, 0.2);
+    border: none;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(84, 140, 91, 0.3);
+}

@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Excellence Collection</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome para Íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css?v=1786716580') }}?v=1786716580">
+</head>
+<body>
+    <!-- Login View Overlay -->
+    <div id="login-overlay" style="position: fixed; inset: 0; background: var(--bg-color); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+        <div class="logo" style="margin-bottom: 32px;">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="The Excellence Collection" style="width: 100%; max-width: 220px; object-fit: contain;">
+        </div>
+        <div class="glass-panel login-card" style="padding: 40px; width: 100%; max-width: 400px; border-radius: 16px;">
+            <h2 style="text-align: center; margin-bottom: 24px;">Iniciar Sesión</h2>
+            <form id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="text" id="login-username" placeholder="Usuario" required style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                <input type="password" id="login-password" placeholder="Contraseña" required style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                <p id="login-error" style="color: var(--danger); font-size: 14px; display: none; margin: 0;"></p>
+                <button type="submit" class="btn-primary" style="padding: 12px; font-size: 16px;">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="background-elements">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="app-container" id="main-app" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar glass-panel">
+            <div class="logo" style="margin-bottom: 32px;">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="The Excellence Collection" style="width: 100%; max-width: 200px; object-fit: contain;">
+            </div>
+            
+            <ul class="nav-links">
+                <li class="active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li data-tab="inventory" id="nav-inventory-li" style="flex-direction: column; align-items: flex-start; gap: 0; cursor: default;">
+                    <div id="nav-inventory-trigger" style="display: flex; align-items: center; width: 100%; gap: 16px; cursor: pointer;">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                        <span style="font-weight: 500;">Inventario General</span>
+                        <i class="fa-solid fa-chevron-down submenu-arrow" id="submenu-arrow" style="margin-left: auto; transition: transform 0.2s; font-size: 12px;"></i>
+                    </div>
+                    <ul class="submenu" id="warehouse-submenu" style="display: none; list-style: none; padding-left: 20px; margin-top: 12px; width: 100%; flex-direction: column; gap: 6px;">
+                        <!-- Injected dynamically by JS -->
+                    </ul>
+                </li>
+                <li data-tab="decommission">
+                    <i class="fa-solid fa-dumpster-fire"></i>
+                    <span>Hoja de Decomiso</span>
+                </li>
+                <li data-tab="warranties">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                    <span>Reparaciones</span>
+                </li>
+                <li data-tab="dispatch">
+                    <i class="fa-solid fa-truck-ramp-box"></i>
+                    <span>Despachar Equipo</span>
+                </li>
+                <li data-tab="operational-tasks">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Pendientes y Seguimiento</span>
+                </li>
+                <li data-tab="settings">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Configuración</span>
+                </li>
+            </ul>
+
+            <button class="btn-primary new-device-btn" id="btn-new-device">
+                <i class="fa-solid fa-plus"></i> Nuevo Equipo
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header Top -->
+            <header class="top-header">
+                <h1 id="page-title">Dashboard</h1>
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <select id="theme-selector" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color);">
+                        <option value="light">Tema: Light</option>
+                        <option value="dark">Tema: Dark Puro</option>
+                        <option value="glass">Tema: Glass Dark</option>
+                    </select>
+                    <div class="user-profile">
+                        <div class="avatar"><i class="fa-solid fa-user"></i></div>
+                        <span id="logged-username">Cargando...</span>
+                        <button id="btn-change-password" class="action-btn" title="Cambiar Contraseña" style="margin-left: 8px;"><i class="fa-solid fa-key"></i></button>
+                        <button id="btn-logout" class="action-btn" title="Cerrar Sesión" style="margin-left: 4px;"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="view-section active">
+                <div class="stats-grid">
+                    <div class="stat-card glass-panel" onclick="window.openCriticalStockModal()" title="Ver equipos en stock crítico" style="border: 1px solid rgba(239, 68, 68, 0.15);">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Stock Crítico</h3>
+                            <p id="stat-critical-count" style="color: #ef4444;">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" onclick="window.filterByStatus('En Stock')" title="Ver equipos en stock">
+                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">
+                            <i class="fa-solid fa-box-open"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Equipos en Stock</h3>
+                            <p id="stat-stock">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" onclick="window.filterByStatus('Despachado / Instalado')" title="Ver equipos despachados">
+                        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+                            <i class="fa-solid fa-truck-fast"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Despachados / Instalados</h3>
+                            <p id="stat-deployed">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" onclick="window.filterByStatus('Averiado')" title="Ver equipos averiados">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Averiados (en almacén)</h3>
+                            <p id="stat-damaged">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" onclick="window.filterByStatus('Reparado')" title="Ver equipos reparados">
+                        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">
+                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Equipos Reparados</h3>
+                            <p id="stat-repaired">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" onclick="window.filterByStatus('En Reparación / Garantía')" title="Ver equipos en reparación">
+                        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                            <i class="fa-solid fa-truck-medical"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>En Reparación / Garantía</h3>
+                            <p id="stat-repair">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-grid-two-col">
+                    <div class="recent-activity glass-panel" style="margin-top: 0;">
+                        <h2>Resumen de Stock por Marca y Modelo</h2>
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Marca / Modelo</th>
+                                        <th>Almacén</th>
+                                        <th>Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stock-summary-table">
+                                    <!-- Llenado dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="recent-activity glass-panel" style="margin-top: 0;">
+                        <h2>Stock por Almacén</h2>
+                        <div class="warehouse-chart-container" style="display: flex; align-items: center; gap: 32px; padding-top: 16px;">
+                            <div style="position: relative; width: 160px; height: 160px; flex-shrink: 0;">
+                                <canvas id="warehouse-chart"></canvas>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <span style="display: block; font-size: 12px; color: var(--color-text-secondary);">Total</span>
+                                    <strong id="warehouse-total-cost" style="font-size: 16px; color: var(--color-text);">$0.00</strong>
+                                </div>
+                            </div>
+                            <div id="warehouse-legend" style="flex-grow: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; max-height: 200px;">
+                                <!-- JS injected -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity glass-panel" style="margin-top: 24px;">
+                    <h2>Agregados Recientemente</h2>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Marca / Modelo</th>
+                                    <th>Estado</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-devices-table">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventory View -->
+            <section id="view-inventory" class="view-section">
+                <!-- Mini-Dashboard: Cantidad por Tipo -->
+                <div id="inventory-type-stats" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+                    <!-- Injected dynamically by JS -->
+                </div>
+
+                <div class="view-header">
+                    <div class="search-bar glass-panel">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="search-inventory" placeholder="Buscar equipo...">
+                    </div>
+                </div>
+                <div class="table-wrapper glass-panel mt-4">
+                    <table class="data-table full-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th style="text-align: center; width: 60px;">Cant.</th>
+                                <th>Tipo</th>
+                                <th>Marca / Modelo</th>
+                                <th>MAC / Serial</th>
+                                <th>Ubicación / Almacén</th>
+                                <th>Valor ($)</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table">
+                            <!-- Data injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Decommission View -->
+            <section id="view-decommission" class="view-section">
+                <div class="alert-box glass-panel error-border mb-4">
+                    <div class="alert-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+                    <div class="alert-content">
+                        <h3>Hoja de Decomiso (Registro Manual)</h3>
+                        <p>Los equipos listados aquí han sido registrados manualmente como averiados o irrecuperables. Sus datos se conservan para auditoría y contabilidad independientemente del inventario en stock.</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+                    <div class="stat-card glass-panel" style="max-width: 300px; margin: 0; padding: 16px;">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; width: 48px; height: 48px;">
+                            <i class="fa-solid fa-money-bill-trend-down"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 style="margin-bottom: 2px;">Pérdida por Decomiso</h3>
+                            <p id="stat-decommission-value" style="font-size: 20px;">$0.00</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                        <div style="margin-right: 8px;">
+                            <label for="decommission-hotel-filter" style="font-size: 14px; font-weight: 500; margin-right: 6px; color: var(--color-text-secondary);">Lugar:</label>
+                            <select id="decommission-hotel-filter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 14px;">
+                                <option value="all">Todos los Lugares</option>
+                            </select>
+                        </div>
+                        <button class="btn-secondary" id="btn-export-decommission">
+                            <i class="fa-solid fa-download"></i> Descargar CSV
+                        </button>
+                        <button class="btn-primary" style="background: var(--danger)" id="btn-clear-decommission">
+                            <i class="fa-solid fa-box-archive"></i> Archivar y Vaciar
+                        </button>
+                        <button class="btn-secondary" id="btn-view-history">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Historial
+                        </button>
+                        <button class="btn-primary" id="btn-new-decommission">
+                            <i class="fa-solid fa-plus"></i> Registrar Manual
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-wrapper glass-panel">
+                    <table class="data-table decommission-table">
+                        <thead>
+                            <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th style="text-align: center; width: 60px;">Cant.</th>
+                            <th>Tipo</th>
+                            <th>Hotel de Origen</th>
+                            <th>Motivo</th>
+                            <th>Valor de Pérdida ($)</th>
+                            <th>Fecha</th>
+                        </tr>
+                        </thead>
+                        <tbody id="decommission-table">
+                            <!-- Data injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <!-- WARRANTIES VIEW -->
+            <section id="view-warranties" class="view-section">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-truck-fast" style="color: var(--color-primary); margin-right: 8px;"></i>Garantías y Reparaciones</h2>
+                    <p style="color: var(--color-text-secondary); font-size: 14px;">Aquí se listan todos los equipos que han sido enviados a garantía o reparación. Una vez recibidos, la fecha no puede ser modificada.</p>
+                </div>
+                
+                <div class="table-wrapper glass-panel">
+                    <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre del Equipo</th>
+                                    <th>Marca / Modelo</th>
+                                    <th>Fecha de Envío</th>
+                                    <th>Enviado Por</th>
+                                    <th>Proveedor</th>
+                                    <th>Fecha Recepción</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="warranties-table">
+                                <!-- JS Injection -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            <!-- DISPATCH VIEW -->
+            <section id="view-dispatch" class="view-section">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-truck-ramp-box" style="color: var(--color-primary); margin-right: 8px;"></i>Módulo de Despacho de Equipo</h2>
+                    <p style="color: var(--color-text-secondary); font-size: 14px;">Busca por marca, modelo, S/N o MAC y despacha equipos del stock a sus destinos.</p>
+                </div>
+
+                <div class="glass-panel" style="margin-top: 24px; padding: 32px; max-width: 800px;">
+                    <form id="dispatch-module-form">
+                        <!-- Search Box Group -->
+                        <div class="form-group" style="position: relative; margin-bottom: 24px;">
+                            <label for="dispatch-search-input" style="font-weight: 600; margin-bottom: 8px; display: block;">Buscar Equipo en Stock (Nombre, Modelo, S/N, MAC)</label>
+                            <div style="position: relative; display: flex; align-items: center;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: var(--color-text-secondary);"></i>
+                                <input type="text" id="dispatch-search-input" placeholder="Ej: Cisco, SN12345, F8:E4..., Patchcord..." autocomplete="off" style="width: 100%; padding: 12px 12px 12px 40px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 15px;">
+                            </div>
+                            <!-- Search results drop list -->
+                            <div id="dispatch-search-results" class="glass-panel" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 8px; padding: 8px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg); background: var(--bg-color);">
+                                <!-- Result items injected by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Selected Device Info Panel -->
+                        <div id="dispatch-selected-device-card" class="glass-panel" style="display: none; margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h4 id="dispatch-card-title" style="margin: 0 0 6px 0; color: var(--color-primary); font-size: 16px;"></h4>
+                                    <p id="dispatch-card-details" style="margin: 0; font-size: 13px; color: var(--color-text-secondary);"></p>
+                                </div>
+                                <button type="button" id="dispatch-btn-change-device" class="btn-primary" style="padding: 6px 12px; font-size: 12px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); cursor: pointer;">
+                                    <i class="fa-solid fa-xmark"></i> Cambiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Input for selected device ID -->
+                        <input type="hidden" id="dispatch-selected-id">
+
+                        <!-- Dispatch details (hidden until a device is selected) -->
+                        <div id="dispatch-details-fields" style="display: none; border-top: 1px solid var(--border-color); padding-top: 24px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="dispatch-input-quantity">Cantidad a Despachar <span style="color:var(--danger)">*</span></label>
+                                    <input type="number" id="dispatch-input-quantity" min="1" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                                    <span id="dispatch-available-qty-label" style="font-size: 12px; color: var(--color-primary); margin-top: 6px; display: block; font-weight: 500;"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dispatch-input-hotel">Destino (Hotel / Lugar) <span style="color:var(--danger)">*</span></label>
+                                    <input type="text" id="dispatch-input-hotel" list="hotel-options" required placeholder="Ej: Excellence Punta Cana" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                                </div>
+                            </div>
+
+                            <div class="form-row" style="margin-top: 16px;">
+                                <div class="form-group">
+                                    <label for="dispatch-input-tech">Técnico Responsable <span style="color:var(--danger)">*</span></label>
+                                    <input type="text" id="dispatch-input-tech" list="technician-options" required placeholder="Nombre del técnico..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 16px;">
+                                <label for="dispatch-input-notes">Notas / Comentarios de Entrega</label>
+                                <textarea id="dispatch-input-notes" rows="3" placeholder="Detalles sobre el despacho, ticket, etc." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); resize: vertical;"></textarea>
+                            </div>
+
+                            <div class="form-actions" style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 16px;">
+                                <button type="submit" class="btn-primary" style="background: var(--color-primary); padding: 12px 24px; font-size: 15px;">
+                                    <i class="fa-solid fa-paper-plane" style="margin-right: 8px;"></i> Confirmar Despacho
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- SETTINGS VIEW -->
+            <section id="view-settings" class="view-section">
+                <div class="card-header">
+                    <h2 style="margin-bottom: 8px;">Configuración del Sistema</h2>
+                    <p style="color: var(--color-text-secondary); font-size: 14px;">Administra tus lugares fijos para tenerlos siempre disponibles en los menús desplegables.</p>
+                </div>
+                
+                <div class="settings-tabs" style="display: flex; gap: 16px; margin-top: 24px; margin-bottom: 24px; flex-wrap: wrap;">
+                    <button class="tab-btn active" data-target="warehouses">Almacenes</button>
+                    <button class="tab-btn" data-target="hotels">Hoteles</button>
+                    <button class="tab-btn" data-target="technicians">Técnicos</button>
+                    <button class="tab-btn" data-target="providers">Proveedores</button>
+                    <button class="tab-btn" data-target="users">Usuarios</button>
+                    <button class="tab-btn" data-target="stock-limits">Stock Mínimo</button>
+                    <button class="tab-btn" data-target="catalog">Catálogo</button>
+                    <button class="tab-btn" data-target="email">Correo SMTP</button>
+                    <button class="tab-btn" data-target="logs" id="tab-btn-logs" style="display:none;">Actividad</button>
+                </div>
+                
+                <div class="settings-content-area">
+                    <!-- Warehouses Settings -->
+                    <div id="settings-tab-warehouses" class="stat-card glass-panel settings-card" style="margin: 0; display: block; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-warehouse" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Almacenes</h3>
+                        <form id="form-add-warehouse" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <input type="text" id="input-new-warehouse" placeholder="Nombre del almacén..." required style="width: 300px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <select id="input-new-warehouse-hotel" style="width: 250px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                                <option value="">Sin Hotel (Opcional)</option>
+                                <!-- Injected by JS -->
+                            </select>
+                            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Agregar</button>
+                        </form>
+                        <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <tbody id="settings-warehouse-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Hotels Settings -->
+                    <div id="settings-tab-hotels" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-hotel" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Hoteles</h3>
+                        <form id="form-add-hotel" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <input type="text" id="input-new-hotel" placeholder="Nombre del hotel..." required style="width: 300px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Agregar</button>
+                        </form>
+                        <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <tbody id="settings-hotel-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Technicians Settings -->
+                    <div id="settings-tab-technicians" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-user-gear" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Técnicos</h3>
+                        <form id="form-add-technician" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <input type="text" id="input-new-technician" placeholder="Nombre del técnico..." required style="width: 300px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Agregar</button>
+                        </form>
+                        <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <tbody id="settings-technician-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Providers Settings -->
+                    <div id="settings-tab-providers" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-truck-fast" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Proveedores</h3>
+                        <form id="form-add-provider" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <input type="text" id="input-new-provider" placeholder="Nombre del proveedor..." required style="width: 300px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Agregar</button>
+                        </form>
+                        <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <tbody id="settings-provider-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Users Settings -->
+                    <div id="settings-tab-users" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-users" style="color: var(--color-primary); margin-right: 8px;"></i>Gestión de Usuarios</h3>
+                        <form id="form-add-user" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <input type="text" id="input-new-user-username" placeholder="Nombre de usuario..." required style="width: 250px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <input type="password" id="input-new-user-password" placeholder="Contraseña..." required style="width: 250px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <select id="input-new-user-role" required style="width: 200px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                                <option value="" disabled selected>Rol...</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Tecnico">Técnico</option>
+                                <option value="Viewer">Lector</option>
+                            </select>
+                            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Crear Usuario</button>
+                        </form>
+                        <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <tbody id="settings-user-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Catalog Settings -->
+                    <div id="settings-tab-catalog" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-book" style="color: var(--color-primary); margin-right: 8px;"></i>Catálogo de Modelos</h3>
+                        <p style="color: var(--color-text-secondary); font-size: 14px; margin-bottom: 16px;">Configura las marcas y modelos válidos por tipo de equipo para evitar errores de escritura al registrarlos.</p>
+                        
+                        <form id="form-add-catalog" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <input type="text" id="input-catalog-type" list="catalog-type-suggestions" placeholder="Tipo (Ej: Switch, Proyector)..." autocomplete="off" required style="width: 200px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <datalist id="catalog-type-suggestions"></datalist>
+                            <input type="text" id="input-catalog-brand" placeholder="Marca (Ej: Cisco)..." autocomplete="off" required style="width: 250px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <input type="text" id="input-catalog-model" placeholder="Modelo (Ej: WS-C2960)..." autocomplete="off" required style="width: 250px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main);">
+                            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Agregar al Catálogo</button>
+                        </form>
+                        
+                        <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo de Equipo</th>
+                                        <th>Marca</th>
+                                        <th>Modelo</th>
+                                        <th style="text-align: right; width: 80px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="settings-catalog-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Stock Limits Settings -->
+                    <div id="settings-tab-stock-limits" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b; margin-right: 8px;"></i>Configuración de Stock Mínimo</h3>
+                        <p style="color: var(--color-text-secondary); font-size: 14px; margin-bottom: 16px;">Define la cantidad mínima de stock requerida por cada tipo de equipo para activar alertas.</p>
+                        
+
+                        <form id="form-stock-limits" style="display: flex; flex-direction: column; gap: 16px; max-width: 500px; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+                            <div id="stock-limits-inputs" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Injected by JS -->
+                            </div>
+                            <button type="submit" class="btn-primary" style="align-self: flex-start; padding: 10px 24px;">Guardar Configuración</button>
+                        </form>
+                    </div>
+
+                    <!-- Email SMTP Settings -->
+                    <div id="settings-tab-email" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-envelope-open-text" style="color: var(--color-primary); margin-right: 8px;"></i>Notificaciones por Correo (SMTP)</h3>
+                        <p style="color: var(--color-text-secondary); font-size: 14px; margin-bottom: 20px;">Configura tu servidor de correo para enviar alertas automáticas cuando un pendiente exceda el tiempo límite de inactividad.</p>
+
+                        <form id="form-email-settings" style="display: flex; flex-direction: column; gap: 16px; max-width: 550px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="email-enabled-checkbox" style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+                                <label for="email-enabled-checkbox" style="font-weight: 600;">Activar notificaciones automáticas por correo</label>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+                                <div class="form-group" style="margin:0;">
+                                    <label for="smtp-server-input" style="font-size: 13px;">Servidor SMTP</label>
+                                    <input type="text" id="smtp-server-input" class="form-input" placeholder="smtp.gmail.com">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label for="smtp-port-input" style="font-size: 13px;">Puerto</label>
+                                    <input type="number" id="smtp-port-input" class="form-input" placeholder="587">
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group" style="margin:0;">
+                                    <label for="smtp-user-input" style="font-size: 13px;">Usuario SMTP / Correo</label>
+                                    <input type="email" id="smtp-user-input" class="form-input" placeholder="notificaciones@empresa.com">
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label for="smtp-pass-input" style="font-size: 13px;">Contraseña / Token App</label>
+                                    <input type="password" id="smtp-pass-input" class="form-input" placeholder="••••••••">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin:0;">
+                                <label for="smtp-sender-input" style="font-size: 13px;">Correo Remitente (From)</label>
+                                <input type="email" id="smtp-sender-input" class="form-input" placeholder="netvault@empresa.com">
+                            </div>
+
+                            <div class="form-group" style="margin:0;">
+                                <label for="smtp-recipients-input" style="font-size: 13px;">Correos Destinatarios por Defecto (separados por coma)</label>
+                                <input type="text" id="smtp-recipients-input" class="form-input" placeholder="gerencia@empresa.com, jefe.sistemas@empresa.com">
+                            </div>
+
+                            <div style="display: flex; gap: 12px; align-items: center; margin-top: 10px;">
+                                <button type="submit" class="btn-primary" style="padding: 10px 24px;">Guardar Configuración</button>
+                                <button type="button" id="btn-test-email" class="btn-secondary" style="padding: 10px 20px;">
+                                    <i class="fa-solid fa-paper-plane"></i> Probar Envío
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Activity Logs Settings -->
+                    <div id="settings-tab-logs" class="stat-card glass-panel settings-card" style="margin: 0; display: none; padding: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fa-solid fa-list-check" style="color: var(--color-primary); margin-right: 8px;"></i>Registro de Actividad</h3>
+                        <div class="table-wrapper" style="max-height: 400px; overflow-y: auto; padding: 0;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 180px;">Fecha y Hora</th>
+                                        <th style="width: 120px;">Usuario</th>
+                                        <th style="width: 180px;">Acción</th>
+                                        <th>Detalles</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="settings-logs-list">
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Operational Tasks & Follow-up View -->
+            <section id="view-operational-tasks" class="view-section">
+                <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="stat-card glass-panel" id="card-filter-all-tasks" title="Ver todos los pendientes" style="cursor: pointer;">
+                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Pendientes</h3>
+                            <p id="task-stat-total">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" id="card-filter-pending-tasks" title="Ver solo pendientes sin iniciar" style="cursor: pointer;">
+                        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Sin Iniciar</h3>
+                            <p id="task-stat-pending">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" id="card-filter-progress-tasks" title="Ver tareas en proceso" style="cursor: pointer;">
+                        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">
+                            <i class="fa-solid fa-spinner"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>En Proceso</h3>
+                            <p id="task-stat-progress">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel" id="card-filter-completed-tasks" title="Ver tareas completadas" style="cursor: pointer;">
+                        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Completados</h3>
+                            <p id="task-stat-completed">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-tabs" style="display: flex; gap: 12px; margin-top: 20px; margin-bottom: 16px;">
+                    <button class="tab-btn active" id="btn-cat-filter-all">Todos los Registros</button>
+                    <button class="tab-btn" id="btn-cat-filter-pending"><i class="fa-solid fa-list-check" style="margin-right: 6px; color: var(--color-primary);"></i>Pendientes</button>
+                    <button class="tab-btn" id="btn-cat-filter-project"><i class="fa-solid fa-diagram-project" style="margin-right: 6px; color: #8b5cf6;"></i>Proyectos</button>
+                    <button class="tab-btn" id="btn-cat-filter-completed"><i class="fa-solid fa-check-double" style="margin-right: 6px; color: #10b981;"></i>Completados</button>
+                </div>
+
+                <div class="table-container glass-panel" style="margin-top: 16px; padding: 20px;">
+                    <div class="table-header-controls" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; flex: 1;">
+                            <div class="task-search-container" style="position: relative; flex: 1; min-width: 220px; max-width: 300px;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-text-secondary); font-size: 14px;"></i>
+                                <input type="text" id="task-search-input" placeholder="Buscar por título, hotel o técnico..." style="width: 100%; padding: 10px 14px 10px 38px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main); font-size: 14px;">
+                            </div>
+                            <select id="task-filter-category" style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main); font-size: 14px;">
+                                <option value="">Todas las Categorías</option>
+                                <option value="Pendiente">Pendientes</option>
+                                <option value="Proyecto">Proyectos</option>
+                            </select>
+                            <select id="task-filter-status" style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main); font-size: 14px;">
+                                <option value="">Todos los Estados</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="En Proceso">En Proceso</option>
+                                <option value="Completado">Completado</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                            <select id="task-filter-tech" style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main); font-size: 14px;">
+                                <option value="">Todos los Técnicos</option>
+                            </select>
+                            <select id="task-filter-hotel" style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main); font-size: 14px;">
+                                <option value="">Todos los Hoteles</option>
+                            </select>
+                            <select id="task-filter-priority" style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-dark); color: var(--text-main); font-size: 14px;">
+                                <option value="">Todas las Prioridades</option>
+                                <option value="Urgente">Urgente</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Media">Media</option>
+                                <option value="Baja">Baja</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn-secondary" id="btn-check-inactivity-manual" style="white-space: nowrap;">
+                                <i class="fa-solid fa-bell" style="color: #ef4444; margin-right: 6px;"></i>Verificar Inactividad SLA
+                            </button>
+                            <button class="btn-primary" id="btn-new-task" style="white-space: nowrap;">
+                                <i class="fa-solid fa-plus"></i> Nuevo Pendiente / Proyecto
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="tasks-cards-container" class="tasks-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal Form -->
+    <div class="modal-overlay" id="device-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2 id="modal-title">Registrar Equipo</h2>
+                <button class="btn-close" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="device-form" class="device-form">
+                <input type="hidden" id="device-id">
+                
+                <div class="form-group">
+                    <label for="device-name">Nombre del Equipo</label>
+                    <input type="text" id="device-name" required placeholder="Ej: Switch Cisco 24P">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="device-type">Tipo de Equipo</label>
+                        <select id="device-type" required>
+                            <option value="" disabled selected>Seleccionar...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="device-status">Estado</label>
+                        <select id="device-status" required>
+                            <option value="En Stock">En Stock</option>
+                            <option value="Despachado / Instalado">Despachado / Instalado</option>
+                            <option value="Reparado">Reparado (En Stock)</option>
+                            <option value="Averiado">Averiado</option>
+                            <option value="En Reparación / Garantía">En Reparación / Garantía</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row" id="dynamic-fields-row">
+                    <div class="form-group" id="group-location" style="display: none;">
+                        <label for="device-location">Ubicación (Hotel) <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="device-location" class="form-input" list="hotel-options" placeholder="Ej: Recepción, Rack Principal...">
+                        <datalist id="hotel-options"></datalist>
+                    </div>
+                    <div class="form-group" id="group-warehouse" style="display: none;">
+                        <label for="device-warehouse">Almacén de Resguardo <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="device-warehouse" class="form-input" list="warehouse-options" placeholder="Ej: Almacén IT General">
+                        <datalist id="warehouse-options"></datalist>
+                        <datalist id="technician-options"></datalist>
+                    </div>
+                    <div class="form-group" id="group-dispatched-by" style="display: none; grid-column: span 2;">
+                        <label for="device-dispatched-by">Despachado por (Técnico responsable) <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="device-dispatched-by" class="form-input" list="technician-options" placeholder="Nombre de la persona que despacha o instala">
+                    </div>
+                    <div id="group-warranty" style="display: none; grid-column: span 2; display: flex; gap: 16px; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
+                            <label for="device-warranty-provider">Proveedor</label>
+                            <select id="device-warranty-provider" class="form-input">
+                                <option value="">Seleccione o deje en blanco...</option>
+                                <!-- Injected by JS -->
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
+                            <label for="device-warranty-sent">Fecha Envío</label>
+                            <input type="date" id="device-warranty-sent" class="form-input">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
+                            <label for="device-warranty-received">Fecha Recepción</label>
+                            <input type="date" id="device-warranty-received" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group" id="group-repair-count" style="display: none;">
+                        <label for="device-repair-count">Veces Reparado <i class="fa-solid fa-wrench"></i></label>
+                        <input type="number" id="device-repair-count" min="0" value="0" readonly title="Se incrementa automáticamente">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="device-brand">Marca <span style="color:var(--danger)">*</span></label>
+                        <select id="device-brand" required>
+                            <option value="" disabled selected>Selecciona tipo primero...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="device-model">Modelo <span style="color:var(--danger)">*</span></label>
+                        <select id="device-model" required>
+                            <option value="" disabled selected>Selecciona marca primero...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="device-serial">Número de Serie (S/N)</label>
+                        <input type="text" id="device-serial" placeholder="Opcional">
+                    </div>
+                    <div class="form-group">
+                        <label for="device-mac">Dirección MAC</label>
+                        <input type="text" id="device-mac" placeholder="Opcional">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="device-value">Valor ($) <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="device-value" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="device-quantity">Cantidad <span style="color:var(--color-text-secondary); font-size: 11px;">(Opcional)</span></label>
+                        <input type="number" id="device-quantity" min="1" placeholder="1" value="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="device-description">Descripción / Especificaciones</label>
+                    <textarea id="device-description" rows="3" placeholder="Detalles técnicos, notas, etc."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel">Cancelar</button>
+                    <button type="submit" class="btn-primary" id="btn-save">Guardar Equipo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Decommission Form -->
+    <div class="modal-overlay" id="decommission-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2>Registrar Equipo en Decomiso</h2>
+                <button class="btn-close" id="btn-close-decommission"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="decommission-form" class="device-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre del Equipo</label>
+                        <input type="text" id="dec-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <input type="text" id="dec-type" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Hotel de Origen</label>
+                        <input type="text" id="dec-hotel" list="hotel-options" placeholder="Ej: Excellence Punta Cana" required>
+                        <datalist id="hotel-options"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor de Pérdida ($) <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="dec-value" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group" style="max-width: 120px;">
+                        <label>Cantidad</label>
+                        <input type="number" id="dec-quantity" min="1" placeholder="1" value="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Marca</label>
+                        <input type="text" id="dec-brand">
+                    </div>
+                    <div class="form-group">
+                        <label>Modelo</label>
+                        <input type="text" id="dec-model">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="dec-serial">Número de Serie (S/N)</label>
+                    <input type="text" id="dec-serial">
+                </div>
+                <div class="form-group">
+                    <label for="dec-reason">Razón / Falla</label>
+                    <textarea id="dec-reason" rows="3" placeholder="Ej: Dañado por sobrecarga eléctrica" required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-decommission">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="background: var(--danger)">Registrar Pérdida</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal History -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal-content glass-panel" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Historial de Decomisos</h2>
+                <button class="btn-close" id="btn-close-history"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="table-container" style="max-height: 400px; overflow-y: auto; padding: 0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Periodo</th>
+                            <th>Fecha de Archivo</th>
+                            <th>Valor Total Pérdida</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table">
+                        <!-- JS injected -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals for Warranty -->
+    <div id="warranty-send-modal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Enviar a Garantía</h2>
+                <button class="action-btn" id="btn-close-warranty-send"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="warranty-send-form" style="margin-top: 16px;">
+                <input type="hidden" id="ws-device-id">
+                <div class="form-group">
+                    <label>Fecha de Envío <span style="color:var(--danger)">*</span></label>
+                    <input type="date" id="ws-date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Enviado por <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="ws-by" class="form-input" list="technician-options" placeholder="Nombre del técnico" required>
+                </div>
+                <div class="form-group">
+                    <label>Proveedor <span style="color:var(--danger)">*</span></label>
+                    <select id="ws-provider" class="form-input" required>
+                        <option value="" disabled selected>A qué proveedor se envió...</option>
+                        <!-- Injected by JS -->
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-warranty-send">Cancelar</button>
+                    <button type="submit" class="btn-primary">Registrar Envío</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="warranty-receive-modal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Recibir de Garantía</h2>
+                <button class="action-btn" id="btn-close-warranty-receive"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="warranty-receive-form" style="margin-top: 16px;">
+                <input type="hidden" id="wr-device-id">
+                <p style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px;">Una vez registrada la fecha de recepción, no podrá ser modificada por seguridad.</p>
+                <div class="form-group">
+                    <label>Fecha de Recepción <span style="color:var(--danger)">*</span></label>
+                    <input type="date" id="wr-date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Estado Final <span style="color:var(--danger)">*</span></label>
+                    <select id="wr-status" class="form-input" required>
+                        <option value="Reparado">Reparado (Queda en Stock)</option>
+                        <option value="Averiado">Sigue Averiado (No tuvo solución)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="wr-warehouse-group">
+                    <label>¿A qué almacén ingresa? <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="wr-warehouse" class="form-input" list="warehouse-options" placeholder="Almacén destino">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-warranty-receive">Cancelar</button>
+                    <button type="submit" class="btn-primary">Confirmar Recepción</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal-overlay" id="password-modal">
+        <div class="modal-content glass-panel" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Cambiar Contraseña</h2>
+                <button class="action-btn" id="btn-close-password-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="password-form" class="device-form" style="margin-top: 16px;">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="current-password" style="display: block; margin-bottom: 5px;">Contraseña Actual</label>
+                    <input type="password" id="current-password" class="form-input" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="new-password" style="display: block; margin-bottom: 5px;">Nueva Contraseña</label>
+                    <input type="password" id="new-password" class="form-input" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label for="confirm-password" style="display: block; margin-bottom: 5px;">Confirmar Nueva Contraseña</label>
+                    <input type="password" id="confirm-password" class="form-input" required>
+                </div>
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel-password" style="padding: 10px 20px; border-radius: 6px;">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="padding: 10px 20px; border-radius: 6px;">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Reset Password Modal -->
+    <div class="modal-overlay" id="admin-reset-password-modal">
+        <div class="modal-content glass-panel" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Restablecer Contraseña</h2>
+                <button class="action-btn" id="btn-close-admin-reset-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="admin-reset-password-form" class="device-form" style="margin-top: 16px;">
+                <input type="hidden" id="reset-user-id">
+                <p style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px;">Estás a punto de forzar el cambio de contraseña para el usuario: <strong id="reset-username-display"></strong></p>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="admin-new-password" style="display: block; margin-bottom: 5px;">Nueva Contraseña</label>
+                    <input type="password" id="admin-new-password" class="form-input" required>
+                </div>
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel-admin-reset" style="padding: 10px 20px; border-radius: 6px;">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="padding: 10px 20px; border-radius: 6px;">Actualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Operational Task Modal -->
+    <div class="modal-overlay" id="task-modal">
+        <div class="modal-content glass-panel" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="task-modal-title">Nuevo Pendiente u Operación</h2>
+                <button class="action-btn" id="btn-close-task-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="task-form" style="margin-top: 16px; display: flex; flex-direction: column; gap: 16px;">
+                <input type="hidden" id="task-id-input">
+                
+                <div class="form-group">
+                    <label for="task-title-input">Título de la Actividad / Proyecto <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="task-title-input" class="form-input" placeholder="Ej: Reparación cableado cocina Hotel Xec..." required>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label for="task-category-select">Clasificación <span style="color:var(--danger)">*</span></label>
+                        <select id="task-category-select" class="form-input">
+                            <option value="Pendiente">Pendiente Operativo</option>
+                            <option value="Proyecto">Proyecto</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-template-select">Plantilla Predefinida</label>
+                        <select id="task-template-select" class="form-input">
+                            <option value="">Personalizada (Pasos manuales)</option>
+                            <option value="reparacion_cableado">Reparación de Cableado</option>
+                            <option value="cableado_nuevo">Cableado Nuevo (Aprobación + Compras)</option>
+                            <option value="reemplazo_equipo">Reemplazo / Despacho de Equipo</option>
+                            <option value="mantenimiento_preventivo">Mantenimiento Preventivo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-type-input">Tipo / Categoría</label>
+                        <input type="text" id="task-type-input" class="form-input" placeholder="Ej: Cableado, Infraestructura..." list="task-type-list">
+                        <datalist id="task-type-list">
+                            <option value="Reparación Cableado">
+                            <option value="Cableado Nuevo">
+                            <option value="Mantenimiento">
+                            <option value="Instalación">
+                            <option value="Soporte Red">
+                        </datalist>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label for="task-hotel-select">Hotel / Ubicación</label>
+                        <select id="task-hotel-select" class="form-input">
+                            <option value="">Seleccionar Hotel...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-tech-select">Técnico Asignado</label>
+                        <select id="task-tech-select" class="form-input">
+                            <option value="">Sin Asignar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="task-priority-select">Prioridad</label>
+                        <select id="task-priority-select" class="form-input">
+                            <option value="Baja">Baja</option>
+                            <option value="Media" selected>Media</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Urgente">Urgente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-start-date-input">Previsto Inicio</label>
+                        <input type="date" id="task-start-date-input" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-end-date-input">Previsto Término</label>
+                        <input type="date" id="task-end-date-input" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-sla-input">Máx Inactividad (h)</label>
+                        <input type="number" id="task-sla-input" class="form-input" min="1" placeholder="Ej: 24, 48, 72...">
+                    </div>
+                </div>
+                <p style="color: var(--color-text-secondary); font-size: 12px; margin-top: -6px; margin-bottom: 4px;"><i class="fa-solid fa-circle-info" style="color: var(--color-primary); margin-right: 4px;"></i><strong>Inactividad SLA:</strong> Horas sin avance antes de enviar alerta de correo y pop-up. (Urgente: 24h, Alta: 48h, Media: 72h, Baja: 168h).</p>
+
+                <div class="form-group">
+                    <label for="task-desc-input">Descripción / Detalle</label>
+                    <textarea id="task-desc-input" class="form-input" rows="3" placeholder="Detalles de la solicitud u observaciones iniciales..."></textarea>
+                </div>
+
+                <div class="form-group" style="margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="font-weight: 600;">Secuencia de Pasos / Workflow</label>
+                        <button type="button" id="btn-add-step-row" class="btn-secondary" style="padding: 4px 10px; font-size: 13px;">
+                            <i class="fa-solid fa-plus"></i> Agregar Paso
+                        </button>
+                    </div>
+                    <div id="task-steps-builder" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Injected by JS template or user manual input -->
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="margin-top: 12px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel-task">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Pendiente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stale Operational Tasks Alert Modal -->
+    <div class="modal-overlay" id="stale-tasks-modal">
+        <div class="modal-content glass-panel" style="max-width: 650px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(239, 68, 68, 0.3);">
+                <h2><i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 8px;"></i>Alerta: Pendientes Inactivos (SLA Excedido)</h2>
+                <button class="action-btn" id="btn-close-stale-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p style="color: var(--color-text-secondary); font-size: 14px; margin-top: 12px; margin-bottom: 16px; line-height: 1.5;">
+                Las siguientes actividades no han registrado avances recientemente y han sobrepasado su tiempo máximo de inactividad configurado:
+            </p>
+            <div class="table-wrapper" style="max-height: 350px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pendiente / Proyecto</th>
+                            <th>Ubicación</th>
+                            <th>Técnico</th>
+                            <th>Inactividad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stale-tasks-table-body">
+                        <!-- Injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-secondary" id="btn-dismiss-stale-modal">Cerrar</button>
+                <button type="button" class="btn-primary" id="btn-go-to-tasks" style="background: var(--danger);">Ver Todos los Pendientes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Stock Modal -->
+    <div class="modal-overlay" id="critical-stock-modal">
+        <div class="modal-content glass-panel" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 8px;"></i>Equipos en Stock Crítico</h2>
+                <button class="action-btn" id="btn-close-critical-stock"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p style="color: var(--color-text-secondary); font-size: 14px; margin-bottom: 16px; margin-top: 8px;">Los siguientes modelos de equipos han alcanzado o están por debajo del límite mínimo configurado.</p>
+            <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Almacén</th>
+                            <th>Equipo</th>
+                            <th style="text-align: center; width: 100px;">En Stock</th>
+                            <th style="text-align: center; width: 100px;">Límite Mínimo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="critical-stock-table-body">
+                        <!-- Injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inactivity Timeout Warning Modal -->
+    <div id="inactivity-modal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width: 400px; text-align: center;">
+            <div style="margin-bottom: 20px;">
+                <i class="fa-solid fa-user-clock" style="font-size: 48px; color: var(--color-primary);"></i>
+            </div>
+            <h2 style="margin-bottom: 12px;">Sesión a punto de expirar</h2>
+            <p style="color: var(--color-text-secondary); font-size: 14px; margin-bottom: 24px; line-height: 1.6;">
+                Has estado inactivo por un tiempo. Por seguridad, tu sesión se cerrará en <strong id="inactivity-countdown" style="color: var(--color-primary); font-size: 16px;">60</strong> segundos.
+            </p>
+            <div class="modal-actions" style="justify-content: center; gap: 12px; margin-top: 0; display: flex;">
+                <button type="button" class="btn-secondary" id="btn-inactivity-logout">Cerrar Sesión</button>
+                <button type="button" class="btn-primary" id="btn-inactivity-keep">Permanecer Conectado</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/main_v2.js?v=1786716580') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+</html>

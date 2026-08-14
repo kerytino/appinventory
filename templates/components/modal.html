@@ -1,0 +1,21 @@
+{% macro modal(id, title, form_id='', submit_text='Guardar', cancel_text='Cancelar', is_danger=false) %}
+<div id="{{ id }}" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="section-title">{{ title }}</h3>
+            <button class="btn-icon btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            {% if form_id %}<form id="{{ form_id }}" class="form-group">{% endif %}
+                {{ caller() }}
+            {% if form_id %}</form>{% endif %}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline btn-cancel-modal">{{ cancel_text }}</button>
+            <button type="submit" {% if form_id %}form="{{ form_id }}"{% else %}id="btn-confirm-{{ id }}"{% endif %} class="btn {% if is_danger %}btn-danger{% else %}btn-primary{% endif %}">
+                {{ submit_text }}
+            </button>
+        </div>
+    </div>
+</div>
+{% endmacro %}

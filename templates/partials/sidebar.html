@@ -1,0 +1,59 @@
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="The Excellence Collection" class="sidebar-logo">
+    </div>
+    
+    <div class="sidebar-nav">
+        <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Dashboard</span>
+        </a>
+        
+        <div class="nav-item-group">
+            <a href="{{ url_for('inventario') }}" class="nav-item {% if request.endpoint == 'inventario' %}active{% endif %}" style="justify-content: space-between;">
+                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Inventario General</span>
+                </div>
+                <i class="fa-solid fa-chevron-down" style="font-size: 12px; width: auto;"></i>
+            </a>
+            <div class="nav-sub-items" style="display: flex; flex-direction: column; gap: 8px; padding-left: 40px; margin-top: 8px;">
+                <a href="#" class="nav-sub-item active" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: var(--color-primary); border-radius: 50%;"></span> Todos</a>
+                <a href="#" class="nav-sub-item" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: currentColor; border-radius: 50%;"></span> Almacén Parqueo</a>
+                <a href="#" class="nav-sub-item" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: currentColor; border-radius: 50%;"></span> Almacén Administración</a>
+                <a href="#" class="nav-sub-item" style="color: var(--color-text-secondary); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px;"><span style="width: 4px; height: 4px; background: currentColor; border-radius: 50%;"></span> Almacén Oficina XPC</a>
+            </div>
+        </div>
+        
+        <a href="{{ url_for('decomiso') }}" class="nav-item {% if request.endpoint == 'decomiso' %}active{% endif %}">
+            <i class="fa-solid fa-dumpster-fire"></i>
+            <span>Hoja de Decomiso</span>
+        </a>
+        
+        <a href="{{ url_for('reparaciones') }}" class="nav-item {% if request.endpoint == 'reparaciones' %}active{% endif %}">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+            <span>Reparaciones</span>
+        </a>
+        
+        <a href="{{ url_for('despacho') }}" class="nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" id="nav-dispatch">
+            <i class="fa-solid fa-truck-ramp-box"></i>
+            <span>Despachar Equipo</span>
+        </a>
+        
+        <a href="{{ url_for('pendientes') }}" class="nav-item {% if request.endpoint == 'pendientes' %}active{% endif %}">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Pendientes y Seguimiento</span>
+        </a>
+        
+        <a href="{{ url_for('configuracion') }}" class="nav-item {% if request.endpoint == 'configuracion' %}active{% endif %}" id="nav-settings">
+            <i class="fa-solid fa-gear"></i>
+            <span>Configuración</span>
+        </a>
+    </div>
+
+    <div class="sidebar-footer">
+        <button class="btn btn-primary" id="btn-new-device" style="width: 100%;">
+            <i class="fa-solid fa-plus"></i> <span>Nuevo Equipo</span>
+        </button>
+    </div>
+</nav>

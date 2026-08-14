@@ -1,0 +1,21 @@
+{% macro table(id, headers) %}
+<div class="table-container">
+    <div class="table-toolbar">
+        {{ caller() }}
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table" id="{{ id }}">
+            <thead>
+                <tr>
+                    {% for header in headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows injected by JS or Jinja -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endmacro %}

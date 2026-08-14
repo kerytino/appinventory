@@ -1,0 +1,22 @@
+[
+    {
+        "type": "ACCESS POINT",
+        "brand": "RUCKUS",
+        "model": "R510"
+    },
+    {
+        "type": "ACCESS POINT",
+        "brand": "RUCKUS",
+        "model": "R750"
+    },
+    {
+        "type": "SWITCH",
+        "brand": "CISCO",
+        "model": "CBS350-24P-4X 24-Port"
+    },
+    {
+        "type": "CABLEADO",
+        "brand": "PANDUIT",
+        "model": "6 FT"
+    }
+]

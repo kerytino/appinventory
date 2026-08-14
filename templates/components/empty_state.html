@@ -1,0 +1,12 @@
+{% macro empty_state(icon, title, message, action_text='', action_id='') %}
+<div class="empty-state">
+    <i class="fa-solid {{ icon }}"></i>
+    <h3 class="section-title" style="margin-bottom: var(--spacing-sm);">{{ title }}</h3>
+    <p class="text-secondary" style="margin-bottom: var(--spacing-lg); max-width: 400px;">{{ message }}</p>
+    {% if action_text %}
+    <button {% if action_id %}id="{{ action_id }}"{% endif %} class="btn btn-outline">
+        {{ action_text }}
+    </button>
+    {% endif %}
+</div>
+{% endmacro %}

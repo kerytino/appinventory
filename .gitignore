@@ -1,0 +1,23 @@
+# Entornos virtuales
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Variables de entorno
+.env
+.env.local
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Base de datos (ignorar db en el repositorio para evitar sobrescribir datos de prod)
+# inventory.db
+# Si prefieres subir la bd inicial, descomenta la línea de arriba.
+
+# Logs
+*.log

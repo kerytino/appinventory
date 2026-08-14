@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | The Excellence Collection{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Resumen general de inventario{% endblock %}
+
+{% block content %}
+{% from "components/kpi_card.html" import kpi_card %}
+
+<div id="view-dashboard" class="view-section active">
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div onclick="window.openCriticalStockModal()" style="cursor: pointer;" title="Ver equipos en stock crítico">
+            {{ kpi_card('Stock Crítico', '<span id="stat-critical-count" style="color: var(--color-danger);">0</span>', 'fa-triangle-exclamation', '', true) }}
+        </div>
+        
+        <div onclick="window.filterByStatus('En Stock')" style="cursor: pointer;" title="Ver equipos en stock">
+            {{ kpi_card('Equipos en Stock', '<span id="stat-stock">0</span>', 'fa-box-open', '') }}
+        </div>
+        
+        <div onclick="window.filterByStatus('Despachado / Instalado')" style="cursor: pointer;" title="Ver equipos despachados">
+            {{ kpi_card('Despachados / Instalados', '<span id="stat-deployed">0</span>', 'fa-truck-fast', '') }}
+        </div>
+        
+        <div onclick="window.filterByStatus('Averiado')" style="cursor: pointer;" title="Ver equipos averiados">
+            {{ kpi_card('Averiados (en almacén)', '<span id="stat-damaged">0</span>', 'fa-triangle-exclamation', '', true) }}
+        </div>
+        
+        <div onclick="window.filterByStatus('Reparado')" style="cursor: pointer;" title="Ver equipos reparados">
+            {{ kpi_card('Equipos Reparados', '<span id="stat-repaired">0</span>', 'fa-screwdriver-wrench', '') }}
+        </div>
+        
+        <div onclick="window.filterByStatus('En Reparación / Garantía')" style="cursor: pointer;" title="Ver equipos en reparación">
+            {{ kpi_card('En Reparación / Garantía', '<span id="stat-repair">0</span>', 'fa-truck-medical', '') }}
+        </div>
+    </div>
+
+    <!-- Data Tables Area -->
+    <div class="dashboard-grid">
+        <!-- Stock por Marca y Modelo -->
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-title">Resumen de Stock por Marca y Modelo</h3>
+            <div class="table-container" style="max-height: 350px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Marca / Modelo</th>
+                            <th>Almacén</th>
+                            <th>Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-summary-table">
+                        <!-- JS injected -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stock por Almacén -->
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-title">Stock por Almacén</h3>
+            <div class="warehouse-chart-container" style="display: flex; align-items: center; gap: 32px; padding-top: 16px;">
+                <div style="position: relative; width: 160px; height: 160px; flex-shrink: 0;">
+                    <div style="position: relative; width: 250px; height: 250px; flex-shrink: 0;"><canvas id="warehouse-chart"></canvas></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                        <span style="display: block; font-size: 12px; color: var(--color-text-secondary);">Total</span>
+                        <strong id="warehouse-total-cost" style="font-size: 16px; color: var(--color-text);">...</strong>
+                    </div>
+                </div>
+                <div id="warehouse-legend" style="flex-grow: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; max-height: 200px;">
+                    <!-- JS injected -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agregados Recientemente -->
+    <div class="dashboard-card" style="margin-top: var(--spacing-lg);">
+        <h3 class="dashboard-card-title">Agregados Recientemente</h3>
+        <div class="table-container" style="max-height: 350px; overflow-y: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Marca / Modelo</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-devices-table">
+                    <!-- JS Injected -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

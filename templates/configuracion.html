@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración | The Excellence Collection{% endblock %}
+{% block page_title %}Configuración del Sistema{% endblock %}
+{% block page_subtitle %}Administra opciones globales, usuarios y catálogos{% endblock %}
+
+{% block content %}
+<div id="view-settings" class="view-section active">
+    
+    <!-- Settings Tabs -->
+    <div class="settings-tabs" style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); flex-wrap: wrap; border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-sm);">
+        <button class="tab-btn active btn btn-outline" data-target="warehouses" style="border: none;">Almacenes</button>
+        <button class="tab-btn btn btn-outline" data-target="hotels" style="border: none;">Hoteles</button>
+        <button class="tab-btn btn btn-outline" data-target="technicians" style="border: none;">Técnicos</button>
+        <button class="tab-btn btn btn-outline" data-target="providers" style="border: none;">Proveedores</button>
+        <button class="tab-btn btn btn-outline" data-target="users" style="border: none;">Usuarios</button>
+        <button class="tab-btn btn btn-outline" data-target="stock-limits" style="border: none;">Stock Mínimo</button>
+        <button class="tab-btn btn btn-outline" data-target="catalog" style="border: none;">Catálogo</button>
+        <button class="tab-btn btn btn-outline" data-target="email" style="border: none;">Correo SMTP</button>
+        <button class="tab-btn btn btn-outline" data-target="logs" id="tab-btn-logs" style="display:none; border: none;">Actividad</button>
+    </div>
+    
+    <div class="settings-content-area" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--spacing-xl); box-shadow: var(--shadow-sm);">
+        
+        <!-- Warehouses Settings -->
+        <div id="settings-tab-warehouses" class="settings-card" style="display: block;">
+            <h3 class="section-title" style="margin-bottom: var(--spacing-md);"><i class="fa-solid fa-warehouse" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Almacenes</h3>
+            <form id="form-add-warehouse" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-lg);">
+                <input type="text" id="input-new-warehouse" class="form-control" placeholder="Nombre del almacén..." required style="max-width: 300px;">
+                <select id="input-new-warehouse-hotel" class="form-control" style="max-width: 250px;">
+                    <option value="">Sin Hotel (Opcional)</option>
+                    <!-- Injected by JS -->
+                </select>
+                <button type="submit" class="btn btn-primary">Agregar</button>
+            </form>
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <tbody id="settings-warehouse-list">
+                        <!-- Injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Hotels Settings -->
+        <div id="settings-tab-hotels" class="settings-card" style="display: none;">
+            <h3 class="section-title" style="margin-bottom: var(--spacing-md);"><i class="fa-solid fa-hotel" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Hoteles</h3>
+            <form id="form-add-hotel" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-lg);">
+                <input type="text" id="input-new-hotel" class="form-control" placeholder="Nombre del hotel..." required style="max-width: 300px;">
+                <button type="submit" class="btn btn-primary">Agregar</button>
+            </form>
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <tbody id="settings-hotel-list">
+                        <!-- Injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Other sections like technicians, providers, etc will be toggled by JS exactly like hotels -->
+        <!-- Because main_v2.js expects these DOM elements, I will generate the container placeholders -->
+        <div id="settings-tab-technicians" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Técnicos</h3>
+             <form id="form-add-technician" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                 <input type="text" id="input-new-technician" class="form-control" placeholder="Nombre del técnico..." required style="max-width: 300px;">
+                 <button type="submit" class="btn btn-primary">Agregar</button>
+             </form>
+             <div class="table-container"><table class="data-table"><tbody id="settings-technician-list"></tbody></table></div>
+        </div>
+
+        <div id="settings-tab-providers" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Proveedores</h3>
+             <form id="form-add-provider" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                 <input type="text" id="input-new-provider" class="form-control" placeholder="Nombre del proveedor..." required style="max-width: 300px;">
+                 <button type="submit" class="btn btn-primary">Agregar</button>
+             </form>
+             <div class="table-container"><table class="data-table"><tbody id="settings-provider-list"></tbody></table></div>
+        </div>
+
+        <div id="settings-tab-users" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Usuarios</h3>
+             <div style="display: flex; justify-content: flex-end; margin-bottom: var(--spacing-md);">
+                 <button class="btn btn-primary" id="btn-new-user"><i class="fa-solid fa-user-plus"></i> Nuevo Usuario</button>
+             </div>
+             <div class="table-container"><table class="data-table">
+                 <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
+                 <tbody id="settings-user-list"></tbody>
+             </table></div>
+        </div>
+
+        <div id="settings-tab-stock-limits" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Límites de Stock</h3>
+             <div class="table-container"><table class="data-table">
+                 <thead><tr><th>Categoría (Tipo)</th><th>Stock Mínimo</th></tr></thead>
+                 <tbody id="settings-stock-limits-list"></tbody>
+             </table></div>
+             <div style="margin-top: 16px;"><button id="btn-save-stock-limits" class="btn btn-primary">Guardar Límites</button></div>
+        </div>
+
+        <div id="settings-tab-catalog" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Catálogo de Equipos</h3>
+             <form id="form-add-catalog" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                 <input type="text" id="catalog-type" class="form-control" placeholder="Tipo" required>
+                 <input type="text" id="catalog-brand" class="form-control" placeholder="Marca" required>
+                 <input type="text" id="catalog-model" class="form-control" placeholder="Modelo" required>
+                 <button type="submit" class="btn btn-primary">Agregar</button>
+             </form>
+             <div class="table-container"><table class="data-table"><tbody id="settings-catalog-list"></tbody></table></div>
+        </div>
+
+        <div id="settings-tab-email" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Configuración SMTP</h3>
+             <form id="email-settings-form">
+                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                     <div class="form-group">
+                         <label class="form-label">Habilitar Alertas</label>
+                         <input type="checkbox" id="email-enabled">
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Servidor SMTP</label>
+                         <input type="text" id="email-smtp-server" class="form-control" required>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Puerto SMTP</label>
+                         <input type="number" id="email-smtp-port" class="form-control" required>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Usuario SMTP</label>
+                         <input type="text" id="email-smtp-user" class="form-control" required>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Contraseña SMTP</label>
+                         <input type="password" id="email-smtp-password" class="form-control" required>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Destinatarios</label>
+                         <input type="text" id="email-recipients" class="form-control" placeholder="correo1@.com, correo2@.com">
+                     </div>
+                 </div>
+                 <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+             </form>
+        </div>
+
+        <div id="settings-tab-logs" class="settings-card" style="display: none;">
+             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Registro de Actividad</h3>
+             <div class="table-container"><table class="data-table">
+                 <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalles</th></tr></thead>
+                 <tbody id="settings-logs-list"></tbody>
+             </table></div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

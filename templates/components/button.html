@@ -1,0 +1,6 @@
+{% macro button(text, type='primary', icon='', id='', outline=false, extra_classes='', attrs='') %}
+    <button {% if id %}id="{{ id }}"{% endif %} class="btn btn-{% if outline %}outline{% else %}{{ type }}{% endif %} {{ extra_classes }}" {{ attrs }}>
+        {% if icon %}<i class="fa-solid {{ icon }}"></i>{% endif %}
+        {% if text %}<span>{{ text }}</span>{% endif %}
+    </button>
+{% endmacro %}

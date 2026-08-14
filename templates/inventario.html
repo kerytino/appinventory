@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario | The Excellence Collection{% endblock %}
+{% block page_title %}Inventario General{% endblock %}
+{% block page_subtitle %}Gestión y control de equipos{% endblock %}
+
+{% block content %}
+{% from "components/button.html" import button %}
+
+<div id="view-inventory" class="view-section active">
+    <!-- Mini-Dashboard: Cantidad por Tipo -->
+    <div id="inventory-type-stats" class="kpi-grid" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-bottom: var(--spacing-lg);">
+        <!-- Injected dynamically by JS -->
+    </div>
+
+    <!-- Toolbar and Table -->
+    <div class="table-container">
+        <div class="table-toolbar">
+            <div style="position: relative; width: 300px;">
+                <i class="fa-solid fa-search" style="position: absolute; left: 12px; top: 12px; color: var(--color-text-secondary);"></i>
+                <input type="text" id="search-inventory" placeholder="Buscar equipo..." class="form-control" style="padding-left: 36px;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                {{ button('Exportar', 'outline', 'fa-download', 'btn-export-inventory') }}
+                {{ button('Filtros', 'outline', 'fa-filter') }}
+            </div>
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th style="text-align: center;">Cant.</th>
+                        <th>Tipo</th>
+                        <th>Marca / Modelo</th>
+                        <th>MAC / Serial</th>
+                        <th>Ubicación / Almacén</th>
+                        <th>Valor ($)</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-table">
+                    <!-- Data injected by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

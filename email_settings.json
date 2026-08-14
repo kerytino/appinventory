@@ -1,0 +1,10 @@
+{
+    "enabled": true,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "teleco1.rd@theexcellencecollection.com",
+    "smtp_password": "qmfc jfia ttnn bqae",
+    "sender_email": "teleco1.rd@theexcellencecollection.com",
+    "notification_recipients": "kfrias@theexcellencecollection.com",
+    "send_test_email": true
+}

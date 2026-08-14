@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Despachar Equipo | The Excellence Collection{% endblock %}
+{% block page_title %}Módulo de Despacho{% endblock %}
+{% block page_subtitle %}Busca y despacha equipos del stock a sus destinos{% endblock %}
+
+{% block content %}
+<div id="view-dispatch" class="view-section active">
+    
+    <div class="dispatch-flow">
+        
+        <div class="flow-steps">
+            <div class="step active">
+                <div class="step-circle">1</div>
+                <span class="step-label">Seleccionar equipo</span>
+            </div>
+            <div class="step">
+                <div class="step-circle">2</div>
+                <span class="step-label">Datos del despacho</span>
+            </div>
+            <div class="step">
+                <div class="step-circle">3</div>
+                <span class="step-label">Confirmar</span>
+            </div>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--spacing-xl); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
+            <form id="dispatch-module-form">
+                <!-- 01 Search -->
+                <div class="form-group" style="position: relative; margin-bottom: var(--spacing-xl);">
+                    <label for="dispatch-search-input" class="form-label" style="font-size: 16px;">Buscar Equipo en Stock (Nombre, Modelo, S/N, MAC)</label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 16px; top: 14px; color: var(--color-text-secondary);"></i>
+                        <input type="text" id="dispatch-search-input" class="form-control" placeholder="Ej: Cisco, SN12345, F8:E4..." autocomplete="off" style="padding-left: 44px; padding-top: 12px; padding-bottom: 12px; font-size: 16px;">
+                    </div>
+                    <div id="dispatch-search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 250px; overflow-y: auto; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-md); border-radius: var(--radius-md); margin-top: var(--spacing-xs);">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+
+                <!-- 02 Selected Device Info -->
+                <div id="dispatch-selected-device-card" style="display: none; background-color: var(--color-info-light); border: 1px solid var(--color-info); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-xl);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 id="dispatch-card-title" class="section-title" style="color: var(--color-info); margin-bottom: 4px;"></h4>
+                            <p id="dispatch-card-details" class="text-secondary"></p>
+                        </div>
+                        <button type="button" id="dispatch-btn-change-device" class="btn btn-outline" style="border-color: var(--color-info); color: var(--color-info);">
+                            <i class="fa-solid fa-xmark"></i> Cambiar
+                        </button>
+                    </div>
+                </div>
+                <input type="hidden" id="dispatch-selected-id">
+
+                <!-- 03 Dispatch Details -->
+                <div id="dispatch-details-fields" style="display: none; border-top: 1px solid var(--color-border); padding-top: var(--spacing-xl);">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
+                        <div class="form-group">
+                            <label for="dispatch-input-quantity" class="form-label">Cantidad a Despachar <span style="color: var(--color-danger);">*</span></label>
+                            <input type="number" id="dispatch-input-quantity" class="form-control" min="1" required>
+                            <span id="dispatch-available-qty-label" class="text-secondary" style="display: block; margin-top: 4px; color: var(--color-info);"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="dispatch-input-hotel" class="form-label">Destino (Hotel / Lugar) <span style="color: var(--color-danger);">*</span></label>
+                            <input type="text" id="dispatch-input-hotel" class="form-control" list="hotel-options" required placeholder="Ej: Excellence Punta Cana">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: var(--spacing-lg);">
+                        <label for="dispatch-input-tech" class="form-label">Técnico Responsable <span style="color: var(--color-danger);">*</span></label>
+                        <input type="text" id="dispatch-input-tech" class="form-control" list="technician-options" required placeholder="Nombre del técnico...">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: var(--spacing-xl);">
+                        <label for="dispatch-input-notes" class="form-label">Notas / Comentarios de Entrega</label>
+                        <textarea id="dispatch-input-notes" class="form-control" rows="3" placeholder="Detalles sobre el despacho, ticket, etc."></textarea>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button type="submit" class="btn btn-primary" style="padding: 12px 24px; font-size: 16px;">
+                            <i class="fa-solid fa-paper-plane"></i> Confirmar Despacho
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

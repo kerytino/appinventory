@@ -1,0 +1,15 @@
+{% macro status_badge(status) %}
+    {% set badge_class = 'badge-info' %}
+    
+    {% if status == 'En Stock' or status == 'Completado' or status == 'Reparado' %}
+        {% set badge_class = 'badge-success' %}
+    {% elif status == 'Averiado' or status == 'Pérdida por Decomiso' %}
+        {% set badge_class = 'badge-danger' %}
+    {% elif status == 'En Reparación' or status == 'Reparación / Garantía' or status == 'En Proceso' or status == 'Pendiente' %}
+        {% set badge_class = 'badge-warning' %}
+    {% endif %}
+
+    <span class="badge {{ badge_class }}">
+        {{ status }}
+    </span>
+{% endmacro %}

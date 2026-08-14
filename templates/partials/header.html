@@ -1,0 +1,31 @@
+<header class="top-header">
+    <div class="header-title-area">
+        <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+        <span class="text-secondary">{% block page_subtitle %}Resumen general de inventario{% endblock %}</span>
+    </div>
+    
+    <div class="header-actions">
+        <!-- Theme Selector (if needed) -->
+        <select id="theme-selector" class="form-control" style="width: auto;">
+            <option value="light">Tema: Light</option>
+            <option value="dark">Tema: Dark</option>
+        </select>
+        
+        <!-- User Profile -->
+        <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--color-primary-hover); color: white; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-user"></i>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <span id="logged-username" style="font-weight: 500; font-size: 14px;">Cargando...</span>
+            </div>
+            
+            <button id="btn-change-password" class="btn-icon" title="Cambiar Contraseña">
+                <i class="fa-solid fa-key"></i>
+            </button>
+            <button id="btn-logout" class="btn-icon" title="Cerrar Sesión" style="color: var(--color-danger);">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+    </div>
+</header>
