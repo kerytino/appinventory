@@ -1775,8 +1775,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Rellena el selector de propiedad del modal PDF
     function populatePdfHotelSelect() {
-        const sel = document.getElementById('pdf-hotel-select');
+        const sel        = document.getElementById('pdf-hotel-select');
+        const previewBox = document.getElementById('pdf-hotel-preview');
         if (!sel) return;
+
+        // Ocultar preview al abrir (estado limpio)
+        if (previewBox) previewBox.style.display = 'none';
+
         sel.innerHTML = '<option value="">Seleccionar propiedad...</option>';
         (allHotels || []).forEach(h => {
             const opt = document.createElement('option');
@@ -1784,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = h.sigla ? `${h.name}  (${h.sigla})` : h.name;
             sel.appendChild(opt);
         });
-        // Si hay filtro activo, preseleccionar ese hotel
+        // Si hay filtro activo, preseleccionar ese hotel y mostrar su preview
         if (currentDecommissionHotelFilter !== 'all') {
             const match = allHotels.find(h => h.name === currentDecommissionHotelFilter);
             if (match) {
