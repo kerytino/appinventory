@@ -51,8 +51,11 @@
             <form id="decommission-pdf-form" style="display: flex; flex-direction: column; gap: 16px; padding-top: 12px;">
                 <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
-                        <label class="form-label" for="pdf-no-control">No. Control</label>
-                        <input type="text" id="pdf-no-control" class="form-control" placeholder="Ej: XPC-2026-001">
+                        <label class="form-label" for="pdf-no-control">No. de Decomiso (auto)</label>
+                        <input type="text" id="pdf-no-control" class="form-control" 
+                               readonly placeholder="Se obtiene del registro..."
+                               style="font-family:monospace; font-weight:700; background:var(--color-surface-2); cursor:default;">
+                        <small class="text-secondary" style="display:block; margin-top:3px;">Se usa el número del primer registro del lote</small>
                     </div>
                     <div>
                         <label class="form-label" for="pdf-department">Departamento</label>
@@ -102,7 +105,7 @@
             <table class="data-table decommission-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>N° Decomiso</th>
                         <th>Nombre</th>
                         <th style="text-align: center; width: 60px;">Cant.</th>
                         <th>Tipo</th>

@@ -115,42 +115,75 @@
                 <button class="btn-close" id="btn-close-decommission"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form id="decommission-form" class="form-grid-2col">
+
+                <!-- Número de Decomiso (auto-generado, solo lectura) -->
+                <div class="form-group full-width" style="background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: 4px;">
+                    <label class="form-label" style="display:flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-hashtag" style="color:var(--color-primary);"></i>
+                        Número de Decomiso
+                    </label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input class="form-control" type="text" id="dec-decommission-number"
+                               readonly placeholder="Selecciona la propiedad para generar..."
+                               style="background: var(--color-surface); cursor: not-allowed; font-weight: 700; font-family: monospace; font-size: 1.05rem; letter-spacing: 1px; color: var(--color-primary);">
+                        <button type="button" class="btn btn-outline" id="btn-preview-dec-number" title="Actualizar preview" style="padding: 8px 12px; flex-shrink:0;">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+                    <small class="text-secondary" style="margin-top:4px; display:block;">El número se genera automáticamente. No puede ser editado manualmente.</small>
+                </div>
+
+                <!-- Hotel (select) -->
+                <div class="form-group">
+                    <label class="form-label">Propiedad / Hotel <span style="color:var(--color-danger)">*</span></label>
+                    <select class="form-control" id="dec-hotel" required>
+                        <option value="">Selecciona una propiedad...</option>
+                    </select>
+                </div>
+
+                <!-- Nombre del equipo -->
                 <div class="form-group">
                     <label class="form-label">Nombre del Equipo <span style="color:var(--color-danger)">*</span></label>
                     <input class="form-control" type="text" id="dec-name" required placeholder="Ej: Access Point R510">
                 </div>
+
+                <!-- Tipo -->
                 <div class="form-group">
                     <label class="form-label">Tipo de Equipo <span style="color:var(--color-danger)">*</span></label>
                     <input class="form-control" type="text" id="dec-type" required placeholder="Ej: Antena Wi-Fi">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Hotel de Origen <span style="color:var(--color-danger)">*</span></label>
-                    <input class="form-control" type="text" id="dec-hotel" list="hotel-options" placeholder="Ej: Excellence Punta Cana" required>
-                </div>
+                <!-- Valor -->
                 <div class="form-group">
                     <label class="form-label">Valor de Pérdida ($) <span style="color:var(--color-danger)">*</span></label>
                     <input class="form-control" type="number" id="dec-value" step="0.01" min="0" required placeholder="0.00">
                 </div>
 
+                <!-- Marca -->
                 <div class="form-group">
                     <label class="form-label">Marca</label>
                     <input class="form-control" type="text" id="dec-brand" placeholder="Ej: Ruckus">
                 </div>
+
+                <!-- Modelo -->
                 <div class="form-group">
                     <label class="form-label">Modelo</label>
                     <input class="form-control" type="text" id="dec-model" placeholder="Ej: R510">
                 </div>
 
+                <!-- Serial -->
                 <div class="form-group">
                     <label class="form-label" for="dec-serial">Número de Serie (S/N)</label>
                     <input class="form-control" type="text" id="dec-serial" placeholder="Opcional">
                 </div>
+
+                <!-- Cantidad -->
                 <div class="form-group">
                     <label class="form-label">Cantidad</label>
                     <input class="form-control" type="number" id="dec-quantity" min="1" placeholder="1" value="1">
                 </div>
 
+                <!-- Razón -->
                 <div class="form-group full-width">
                     <label class="form-label" for="dec-reason">Razón / Falla del Decomiso <span style="color:var(--color-danger)">*</span></label>
                     <textarea class="form-control" id="dec-reason" rows="3" placeholder="Ej: Dañado por sobrecarga eléctrica, imposible de reparar" required></textarea>
@@ -158,11 +191,12 @@
 
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" id="btn-cancel-decommission">Cancelar</button>
-                    <button type="submit" class="btn-danger">Registrar Pérdida</button>
+                    <button type="submit" class="btn-danger"><i class="fa-solid fa-circle-minus"></i> Registrar Pérdida</button>
                 </div>
             </form>
         </div>
     </div>
+
 
     <!-- Modal Nuevo Usuario (Configuración) -->
     <div class="modal-overlay" id="user-modal">

@@ -2,6 +2,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEVICE_TYPES = ["Switch", "Cámara", "Sensor", "Antena Wi-Fi", "Controladora", "Cableado", "Otro"];
     let stockLimits = {};
     let currentWarehouseFilter = null;
+
+    // Convierte un File a cadena base64 con data URL
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = e => resolve(e.target.result);
+            reader.onerror = e => reject(e);
+            reader.readAsDataURL(file);
+        });
+    }
+
+
     // --- Auth & Roles ---
     let currentUser = null;
     
@@ -1321,8 +1333,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         filtered.forEach(d => {
             const tr = document.createElement('tr');
+            const numDisplay = d.decommission_number
+                ? `<span style="font-family:monospace; font-weight:700; color:var(--color-primary); font-size:0.9rem;">${d.decommission_number}</span>`
+                : `<span style="color:var(--color-text-muted); font-size:0.8rem;">#${d.id}</span>`;
             tr.innerHTML = `
-                <td>#${d.id}</td>
+                <td>${numDisplay}</td>
                 <td><strong>${d.name}</strong></td>
                 <td style="text-align: center; font-weight: 600;">${d.quantity || 1}</td>
                 <td>${d.type}</td>
@@ -1333,6 +1348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             tbody.appendChild(tr);
         });
+
     }
 
     const hotelFilterElem = document.getElementById('decommission-hotel-filter');
@@ -1623,9 +1639,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Decommission CRUD ---
     const decommissionModal = document.getElementById('decommission-modal');
-    document.getElementById('btn-new-decommission')?.addEventListener('click', () => {
+
+    // Llenar select de hoteles en el modal de decomiso
+    async function loadHotelsIntoDecomSelect() {
+        try {
+            const res = await fetch('/api/settings/hotels');
+            const hotels = await res.json();
+            const select = document.getElementById('dec-hotel');
+            if (!select) return;
+            // Guardar el valor actual si hay uno
+            const current = select.value;
+            select.innerHTML = '<option value="">Selecciona una propiedad...</option>';
+            hotels.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h.name;
+                opt.textContent = h.sigla ? `${h.name} (${h.sigla})` : h.name;
+                opt.dataset.sigla = h.sigla || '';
+                select.appendChild(opt);
+            });
+            if (current) select.value = current;
+        } catch (e) {
+            console.error('Error cargando hoteles en modal decomiso:', e);
+        }
+    }
+
+    // Previsualizar el número de decomiso automáticamente
+    async function previewDecommissionNumber() {
+        const select = document.getElementById('dec-hotel');
+        const numInput = document.getElementById('dec-decommission-number');
+        if (!select || !numInput) return;
+        const hotel = select.value;
+        if (!hotel) {
+            numInput.value = '';
+            numInput.placeholder = 'Selecciona la propiedad para generar...';
+            return;
+        }
+        numInput.placeholder = 'Generando...';
+        try {
+            const res = await fetch(`/api/decommissions/preview-number?hotel=${encodeURIComponent(hotel)}`);
+            const data = await res.json();
+            numInput.value = data.decommission_number || '';
+        } catch (e) {
+            numInput.value = '';
+            numInput.placeholder = 'Error al generar preview';
+        }
+    }
+
+    document.getElementById('btn-new-decommission')?.addEventListener('click', async () => {
         decommissionModal.classList.add('active');
         document.getElementById('decommission-form').reset();
+        document.getElementById('dec-decommission-number').value = '';
+        await loadHotelsIntoDecomSelect();
+    });
+
+    document.getElementById('dec-hotel')?.addEventListener('change', () => {
+        previewDecommissionNumber();
+    });
+
+    document.getElementById('btn-preview-dec-number')?.addEventListener('click', () => {
+        previewDecommissionNumber();
     });
     
     document.getElementById('btn-close-decommission')?.addEventListener('click', () => {
@@ -1649,18 +1721,25 @@ document.addEventListener('DOMContentLoaded', () => {
             quantity: document.getElementById('dec-quantity').value || 1
         };
         try {
-            await fetch('/api/decommissions', {
+            const response = await fetch('/api/decommissions', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             });
-            showToast('Decomiso registrado', 'success');
-            decommissionModal.classList.remove('active');
-            fetchDecommissions();
+            const result = await response.json();
+            if (response.ok) {
+                const num = result.decommission_number || '';
+                showToast(num ? `Decomiso ${num} registrado correctamente` : 'Decomiso registrado', 'success');
+                decommissionModal.classList.remove('active');
+                fetchDecommissions();
+            } else {
+                showToast(result.error || 'Error al registrar decomiso', 'error');
+            }
         } catch (err) {
             showToast('Error al registrar decomiso', 'error');
         }
     });
+
 
     // --- Decommission Export & Archive ---
     const pdfModal = document.getElementById('decommission-pdf-modal');
@@ -1677,6 +1756,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toExport.length === 0) {
             showToast('No hay registros para exportar a PDF con este filtro', 'error');
             return;
+        }
+        // Auto-rellenar el número de decomiso con el primer registro del lote
+        const noControlInput = document.getElementById('pdf-no-control');
+        if (noControlInput) {
+            const firstNum = toExport.find(d => d.decommission_number)?.decommission_number || '';
+            noControlInput.value = firstNum;
         }
         if (pdfModal) {
             pdfModal.classList.add('active');
@@ -1940,7 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             renderSettingsList('settings-warehouse-list', allWarehouses, deleteWarehouse);
-            renderSettingsList('settings-hotel-list', allHotels, deleteHotel);
+            renderHotelList('settings-hotel-list', allHotels);
             renderSettingsList('settings-technician-list', allTechnicians, deleteTechnician);
             renderSettingsList('settings-provider-list', window.allProviders, deleteProvider);
             
@@ -2046,7 +2131,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
+    // Render especial para hoteles: muestra logo, nombre, sigla y botones editar/eliminar
+    function renderHotelList(tbodyId, hotels) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (!hotels || hotels.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted); padding:24px;">No hay propiedades registradas</td></tr>';
+            return;
+        }
+        hotels.forEach(h => {
+            const logoHtml = h.logo
+                ? `<img src="${h.logo}" alt="Logo" style="height:36px; width:36px; object-fit:contain; border-radius:4px; background:var(--color-surface);">`
+                : `<div style="height:36px; width:36px; background:var(--color-surface-2); border-radius:4px; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-hotel" style="color:var(--color-text-muted);"></i></div>`;
+            const siglaHtml = h.sigla
+                ? `<span style="font-family:monospace; font-weight:700; color:var(--color-primary); font-size:0.95rem; background:var(--color-surface-2); padding:3px 10px; border-radius:6px; letter-spacing:1px;">${h.sigla}</span>`
+                : '<span style="color:var(--color-text-muted); font-size:0.8rem;">—</span>';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="width:55px;">${logoHtml}</td>
+                <td><strong>${h.name}</strong></td>
+                <td style="text-align:center;">${siglaHtml}</td>
+                <td style="text-align:center; width:120px;">
+                    <button class="action-btn" style="margin-right:6px;" onclick="window.editHotel(${h.id})" title="Editar">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="action-btn delete" onclick="window.deleteHotel(${h.id})" title="Eliminar">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
 
     document.getElementById('form-stock-limits')?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -2102,15 +2220,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('form-add-hotel')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const input = document.getElementById('input-new-hotel');
+        const nameInput  = document.getElementById('input-new-hotel');
+        const siglaInput = document.getElementById('input-new-hotel-sigla');
+        const logoInput  = document.getElementById('input-new-hotel-logo');
+
+        const name  = nameInput?.value?.trim()  || '';
+        const sigla = siglaInput?.value?.trim().toUpperCase() || '';
+
+        if (!name || !sigla) {
+            showToast('El nombre y la sigla son obligatorios', 'error');
+            return;
+        }
+
+        // Convertir logo a base64 si se seleccionó uno
+        let logoBase64 = '';
+        if (logoInput?.files?.length > 0) {
+            logoBase64 = await fileToBase64(logoInput.files[0]);
+        }
+
         try {
             const res = await fetch('/api/settings/hotels', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name: input.value})
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, sigla, logo: logoBase64 })
             });
             if (res.ok) {
-                input.value = '';
-                showToast('Hotel agregado', 'success');
+                nameInput.value  = '';
+                if (siglaInput) siglaInput.value = '';
+                if (logoInput)  logoInput.value  = '';
+                showToast(`Propiedad "${name}" (${sigla}) agregada`, 'success');
                 fetchSettings();
             } else {
                 const data = await res.json();
@@ -2186,11 +2324,73 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.deleteHotel = async function(id) {
-        if(confirm('¿Eliminar este hotel de la lista fija?')) {
-            await fetch('/api/settings/hotels/' + id, { method: 'DELETE' });
+        if(confirm('¿Eliminar esta propiedad? Los decomisos existentes con este nombre conservan su número generado.')) {
+            const res = await fetch('/api/settings/hotels/' + id, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Propiedad eliminada', 'success');
+            } else {
+                showToast('Error al eliminar la propiedad', 'error');
+            }
             fetchSettings();
         }
     };
+
+    window.editHotel = function(id) {
+        const hotel = allHotels.find(h => h.id === id);
+        if (!hotel) return;
+        document.getElementById('hotel-edit-id').value   = hotel.id;
+        document.getElementById('hotel-edit-name').value  = hotel.name;
+        document.getElementById('hotel-edit-sigla').value = hotel.sigla || '';
+        // Mostrar preview del logo actual
+        const preview = document.getElementById('hotel-edit-logo-preview');
+        if (preview) {
+            preview.innerHTML = hotel.logo
+                ? `<img src="${hotel.logo}" alt="Logo actual" style="height:48px; border-radius:6px; object-fit:contain;">`
+                : '<span style="color:var(--color-text-muted); font-size:0.85rem;">Sin logo</span>';
+        }
+        document.getElementById('hotel-edit-modal')?.classList.add('active');
+    };
+
+    // Cerrar modal de edición de hotel
+    document.getElementById('btn-close-hotel-edit')?.addEventListener('click', () => {
+        document.getElementById('hotel-edit-modal')?.classList.remove('active');
+    });
+    document.getElementById('btn-cancel-hotel-edit')?.addEventListener('click', () => {
+        document.getElementById('hotel-edit-modal')?.classList.remove('active');
+    });
+
+    // Guardar cambios del hotel
+    document.getElementById('hotel-edit-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id    = document.getElementById('hotel-edit-id').value;
+        const name  = document.getElementById('hotel-edit-name').value.trim();
+        const sigla = document.getElementById('hotel-edit-sigla').value.trim().toUpperCase();
+        const logoFile = document.getElementById('hotel-edit-logo-file');
+
+        let logo = '';
+        const currentHotel = allHotels.find(h => h.id === parseInt(id));
+        if (logoFile?.files?.length > 0) {
+            logo = await fileToBase64(logoFile.files[0]);
+        } else if (currentHotel) {
+            logo = currentHotel.logo || '';
+        }
+
+        try {
+            const res = await fetch('/api/settings/hotels/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, sigla, logo })
+            });
+            if (res.ok) {
+                document.getElementById('hotel-edit-modal')?.classList.remove('active');
+                showToast(`Propiedad "${name}" actualizada`, 'success');
+                fetchSettings();
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Error al actualizar', 'error');
+            }
+        } catch(err) { showToast('Error de red', 'error'); }
+    });
 
     window.deleteTechnician = async function(id) {
         if(confirm('¿Eliminar este técnico de la lista fija?')) {

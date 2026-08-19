@@ -145,21 +145,23 @@ class Device(db.Model):
         }
 
 class Decommission(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    device_type = db.Column(db.String(50), nullable=False)
-    brand = db.Column(db.String(100), nullable=True, default='')
-    model = db.Column(db.String(100), nullable=True, default='')
-    serial_number = db.Column(db.String(100), nullable=True, default='')
-    hotel = db.Column(db.String(100), nullable=True, default='')
-    reason = db.Column(db.Text, nullable=True)
-    value = db.Column(db.Float, nullable=False, default=0.0)
-    quantity = db.Column(db.Integer, nullable=False, default=1)
-    date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    id                  = db.Column(db.Integer, primary_key=True)
+    decommission_number = db.Column(db.String(30), nullable=True, unique=True, index=True)  # Ej: EXO-2026-08-001
+    name                = db.Column(db.String(100), nullable=False)
+    device_type         = db.Column(db.String(50), nullable=False)
+    brand               = db.Column(db.String(100), nullable=True, default='')
+    model               = db.Column(db.String(100), nullable=True, default='')
+    serial_number       = db.Column(db.String(100), nullable=True, default='')
+    hotel               = db.Column(db.String(100), nullable=True, default='')
+    reason              = db.Column(db.Text, nullable=True)
+    value               = db.Column(db.Float, nullable=False, default=0.0)
+    quantity            = db.Column(db.Integer, nullable=False, default=1)
+    date_added          = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             'id': self.id,
+            'decommission_number': self.decommission_number or '',
             'name': self.name,
             'type': self.device_type,
             'brand': self.brand,
@@ -197,11 +199,13 @@ class Warehouse(db.Model):
         return {'id': self.id, 'name': self.name, 'hotel': self.hotel}
 
 class Hotel(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    id     = db.Column(db.Integer, primary_key=True)
+    name   = db.Column(db.String(100), nullable=False, unique=True)
+    sigla  = db.Column(db.String(20),  nullable=True,  unique=True)  # Sigla unica de la propiedad, ej: EXO
+    logo   = db.Column(db.Text, nullable=True)                        # Base64 del logo de la propiedad
     
     def to_dict(self):
-        return {'id': self.id, 'name': self.name}
+        return {'id': self.id, 'name': self.name, 'sigla': self.sigla or '', 'logo': self.logo or ''}
 
 class Technician(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -526,8 +530,28 @@ with app.app_context():
     except Exception as e:
         pass
 
+    # Migración: decommission_number en tabla decommission
+    try:
+        db.session.execute(db.text("ALTER TABLE decommission ADD COLUMN decommission_number VARCHAR(30)"))
+        db.session.commit()
+    except Exception:
+        pass
+
+    # Migración: sigla y logo en tabla hotel
+    try:
+        db.session.execute(db.text("ALTER TABLE hotel ADD COLUMN sigla VARCHAR(20)"))
+        db.session.commit()
+    except Exception:
+        pass
+    try:
+        db.session.execute(db.text("ALTER TABLE hotel ADD COLUMN logo TEXT"))
+        db.session.commit()
+    except Exception:
+        pass
+
     # Consolidar duplicados en el inicio del servidor
     consolidate_existing_inventory()
+
 
 @app.route('/')
 def index():
@@ -738,22 +762,89 @@ def get_decommissions():
     decommissions = Decommission.query.all()
     return jsonify([d.to_dict() for d in decommissions])
 
+def generate_decommission_number(hotel_name, date=None):
+    """
+    Genera el numero de decomiso con formato: [SIGLA]-[ANIO]-[MES]-[SEQ]
+    El secuencial reinicia en 001 cada mes por propiedad.
+    La operacion es segura ante accesos concurrentes gracias al UNIQUE en BD.
+    """
+    if not date:
+        date = datetime.utcnow()
+    
+    year  = date.strftime('%Y')
+    month = date.strftime('%m')
+    
+    # Obtener sigla del hotel; si no tiene, usar las 3 primeras letras en mayusculas
+    hotel = Hotel.query.filter_by(name=hotel_name).first()
+    if hotel and hotel.sigla:
+        sigla = hotel.sigla.upper().strip()
+    else:
+        sigla = (hotel_name[:3] if hotel_name else 'DEC').upper().replace(' ', '')
+    
+    prefix = f"{sigla}-{year}-{month}-"
+    
+    # Buscar el ultimo numero secuencial para esta propiedad/mes
+    last = (
+        Decommission.query
+        .filter(Decommission.decommission_number.like(f"{prefix}%"))
+        .order_by(Decommission.decommission_number.desc())
+        .first()
+    )
+    
+    if last and last.decommission_number:
+        try:
+            last_seq = int(last.decommission_number.split('-')[-1])
+        except (ValueError, IndexError):
+            last_seq = 0
+    else:
+        last_seq = 0
+    
+    next_seq = last_seq + 1
+    return f"{prefix}{str(next_seq).zfill(3)}"
+
+
+@app.route('/api/decommissions/preview-number', methods=['GET'])
+def preview_decommission_number():
+    """Retorna el siguiente numero disponible sin crear el registro."""
+    hotel_name = request.args.get('hotel', '').strip()
+    if not hotel_name:
+        return jsonify({'error': 'Se requiere el nombre del hotel'}), 400
+    number = generate_decommission_number(hotel_name)
+    return jsonify({'decommission_number': number})
+
+
 @app.route('/api/decommissions', methods=['POST'])
 def add_decommission():
     data = request.json
+    hotel_name = data.get('hotel', '')
+    
+    # Generar numero de decomiso automaticamente
+    dec_number = generate_decommission_number(hotel_name)
+    
     new_decommission = Decommission(
+        decommission_number=dec_number,
         name=data['name'],
         device_type=data['type'],
         brand=data.get('brand', ''),
         model=data.get('model', ''),
         serial_number=data.get('serial_number', ''),
-        hotel=data.get('hotel', ''),
+        hotel=hotel_name,
         reason=data.get('reason', ''),
         value=float(data.get('value', 0.0)),
         quantity=int(data.get('quantity', 1))
     )
     db.session.add(new_decommission)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        # En caso de colision de numero unico (muy raro), reintentar una vez
+        dec_number = generate_decommission_number(hotel_name)
+        new_decommission.decommission_number = dec_number
+        db.session.add(new_decommission)
+        db.session.commit()
+    
+    log_activity(current_username(), 'Decomiso', f'Registro {dec_number}: {new_decommission.name} ({hotel_name})')
     return jsonify(new_decommission.to_dict()), 201
 
 @app.route('/api/decommissions', methods=['DELETE'])
@@ -1210,15 +1301,44 @@ def get_hotels():
 @app.route('/api/settings/hotels', methods=['POST'])
 def add_hotel():
     data = request.json
-    name = data.get('name', '').strip()
+    name  = data.get('name', '').strip()
+    sigla = data.get('sigla', '').strip().upper()
+    logo  = data.get('logo', '').strip()
     if not name:
-        return jsonify({'error': 'Name is required'}), 400
+        return jsonify({'error': 'El nombre es requerido'}), 400
+    if not sigla:
+        return jsonify({'error': 'La sigla es requerida'}), 400
     if Hotel.query.filter_by(name=name).first():
         return jsonify({'error': 'Ya existe un hotel con ese nombre'}), 400
-    h = Hotel(name=name)
+    if Hotel.query.filter_by(sigla=sigla).first():
+        return jsonify({'error': f'La sigla "{sigla}" ya esta en uso por otra propiedad'}), 400
+    h = Hotel(name=name, sigla=sigla, logo=logo)
     db.session.add(h)
     db.session.commit()
+    log_activity(current_username(), 'Configuracion Hoteles', f'Se agrego la propiedad: {name} ({sigla})')
     return jsonify(h.to_dict()), 201
+
+@app.route('/api/settings/hotels/<int:id>', methods=['PUT'])
+def update_hotel(id):
+    h = Hotel.query.get_or_404(id)
+    data  = request.json
+    name  = data.get('name', h.name).strip()
+    sigla = data.get('sigla', h.sigla or '').strip().upper()
+    logo  = data.get('logo', h.logo or '').strip()
+    # Validar unicidad excluyendo el mismo registro
+    conflict_name = Hotel.query.filter(Hotel.name == name, Hotel.id != id).first()
+    if conflict_name:
+        return jsonify({'error': 'Ya existe un hotel con ese nombre'}), 400
+    if sigla:
+        conflict_sigla = Hotel.query.filter(Hotel.sigla == sigla, Hotel.id != id).first()
+        if conflict_sigla:
+            return jsonify({'error': f'La sigla "{sigla}" ya esta en uso por otra propiedad'}), 400
+    h.name  = name
+    h.sigla = sigla
+    h.logo  = logo
+    db.session.commit()
+    log_activity(current_username(), 'Configuracion Hoteles', f'Se edito la propiedad: {name} ({sigla})')
+    return jsonify(h.to_dict())
 
 @app.route('/api/settings/hotels/<int:id>', methods=['DELETE'])
 def delete_hotel(id):

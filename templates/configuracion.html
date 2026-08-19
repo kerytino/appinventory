@@ -45,19 +45,84 @@
 
         <!-- Hotels Settings -->
         <div id="settings-tab-hotels" class="settings-card" style="display: none;">
-            <h3 class="section-title" style="margin-bottom: var(--spacing-md);"><i class="fa-solid fa-hotel" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Hoteles</h3>
-            <form id="form-add-hotel" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-lg);">
-                <input type="text" id="input-new-hotel" class="form-control" placeholder="Nombre del hotel..." required style="max-width: 300px;">
-                <button type="submit" class="btn btn-primary">Agregar</button>
+            <h3 class="section-title" style="margin-bottom: var(--spacing-md);"><i class="fa-solid fa-hotel" style="color: var(--color-primary); margin-right: 8px;"></i>Mis Hoteles / Propiedades</h3>
+
+            <form id="form-add-hotel" style="display: grid; grid-template-columns: 2fr 1fr auto auto; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap; align-items: end; border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-lg);">
+                <div>
+                    <label class="form-label" for="input-new-hotel">Nombre de la Propiedad <span style="color:var(--color-danger)">*</span></label>
+                    <input type="text" id="input-new-hotel" class="form-control" placeholder="Ej: Excellence Punta Cana" required>
+                </div>
+                <div>
+                    <label class="form-label" for="input-new-hotel-sigla">
+                        Sigla <span style="color:var(--color-danger)">*</span>
+                        <span style="color:var(--color-text-muted); font-weight:400; font-size:0.78rem;"> — Ej: EXO</span>
+                    </label>
+                    <input type="text" id="input-new-hotel-sigla" class="form-control" placeholder="EXO" required maxlength="10"
+                           style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 2px;"
+                           oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div>
+                    <label class="form-label" for="input-new-hotel-logo">Logo (opcional)</label>
+                    <input type="file" id="input-new-hotel-logo" class="form-control" accept="image/*" style="padding: 6px;">
+                </div>
+                <div style="padding-bottom: 1px;">
+                    <button type="submit" class="btn btn-primary" style="height: 40px;"><i class="fa-solid fa-plus"></i> Agregar</button>
+                </div>
             </form>
-            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+
+            <div class="table-container" style="max-height: 450px; overflow-y: auto;">
                 <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width:55px;">Logo</th>
+                            <th>Nombre</th>
+                            <th style="width:90px; text-align:center;">Sigla</th>
+                            <th style="width:120px; text-align:center;">Acciones</th>
+                        </tr>
+                    </thead>
                     <tbody id="settings-hotel-list">
                         <!-- Injected by JS -->
                     </tbody>
                 </table>
             </div>
+
+            <!-- Modal editar hotel -->
+            <div class="modal-overlay" id="hotel-edit-modal">
+                <div class="modal-content" style="max-width: 480px;">
+                    <div class="modal-header">
+                        <h3>Editar Propiedad</h3>
+                        <button class="btn-close" id="btn-close-hotel-edit"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form id="hotel-edit-form" style="display:flex; flex-direction:column; gap:16px; padding-top:12px;">
+                        <input type="hidden" id="hotel-edit-id">
+                        <div>
+                            <label class="form-label">Nombre <span style="color:var(--color-danger)">*</span></label>
+                            <input type="text" id="hotel-edit-name" class="form-control" required>
+                        </div>
+                        <div>
+                            <label class="form-label">
+                                Sigla <span style="color:var(--color-danger)">*</span>
+                                <span style="color:var(--color-text-muted); font-weight:400; font-size:0.78rem;"> — Ej: EXO</span>
+                            </label>
+                            <input type="text" id="hotel-edit-sigla" class="form-control" required maxlength="10"
+                                   style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 2px;"
+                                   oninput="this.value = this.value.toUpperCase()">
+                        </div>
+                        <div>
+                            <label class="form-label">Logo actual</label>
+                            <div id="hotel-edit-logo-preview" style="margin-bottom:8px; min-height:40px;"></div>
+                            <input type="file" id="hotel-edit-logo-file" class="form-control" accept="image/*" style="padding:6px;">
+                            <small class="text-secondary">Deja en blanco para mantener el logo actual. Sube uno nuevo para reemplazarlo.</small>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                            <button type="button" class="btn btn-outline" id="btn-cancel-hotel-edit">Cancelar</button>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
+
         
         <!-- Other sections like technicians, providers, etc will be toggled by JS exactly like hotels -->
         <!-- Because main_v2.js expects these DOM elements, I will generate the container placeholders -->
