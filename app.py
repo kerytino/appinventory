@@ -41,8 +41,12 @@ def add_header(response):
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import threading
+import atexit
+from apscheduler.schedulers.background import BackgroundScheduler
 
 EMAIL_SETTINGS_FILE = os.path.join(basedir, 'email_settings.json')
+ALERT_STATE_FILE = os.path.join(basedir, 'alert_state.json')
 
 def load_email_settings():
     if os.path.exists(EMAIL_SETTINGS_FILE):
@@ -1489,6 +1493,137 @@ def delete_catalog_entry():
         return jsonify({'error': str(e)}), 500
 
 # ==========================================
+# SCHEDULER DE ALERTAS AUTOMÁTICAS EN BACKGROUND
+# ================================================
+
+def load_alert_state():
+    """Carga el estado del último envío de alertas automáticas."""
+    if os.path.exists(ALERT_STATE_FILE):
+        try:
+            with open(ALERT_STATE_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {'last_alert_sent_at': None, 'last_alert_count': 0, 'last_run_at': None, 'last_run_status': 'never'}
+
+def save_alert_state(state):
+    """Guarda el estado del scheduler en disco."""
+    try:
+        with open(ALERT_STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(state, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"[SCHEDULER] Error guardando alert_state.json: {e}")
+
+def run_inactivity_alert_job():
+    """
+    Job del scheduler: detecta tareas vencidas y envia correo de alerta.
+    Corre automaticamente en background sin necesidad de usuarios conectados.
+    Implementa anti-spam: solo envia si han pasado N horas desde el ultimo envio.
+    """
+    with app.app_context():
+        now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        print(f"[SCHEDULER] Ejecutando revision de inactividad - {now_str}")
+        state = load_alert_state()
+        
+        try:
+            # Obtener todas las tareas activas
+            tasks = OperationalTask.query.all()
+            stale_tasks = [t.to_dict() for t in tasks if t.to_dict().get('is_stale')]
+            
+            state['last_run_at'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            state['last_run_status'] = f'OK - {len(stale_tasks)} tarea(s) vencidas de {len(tasks)} totales'
+            
+            print(f"[SCHEDULER] Encontradas {len(stale_tasks)} tarea(s) vencidas de {len(tasks)} totales.")
+            
+            if not stale_tasks:
+                save_alert_state(state)
+                return
+            
+            # Verificar configuracion de email
+            email_settings = load_email_settings()
+            if not email_settings.get('enabled'):
+                print("[SCHEDULER] Notificaciones por correo desactivadas. Saltando envio.")
+                save_alert_state(state)
+                return
+            
+            # Anti-spam: verificar si ya se envio una alerta recientemente
+            inactivity_cfg = load_inactivity_settings()
+            alert_interval_hours = int(inactivity_cfg.get('alert_interval_hours', 1))
+            
+            last_sent = state.get('last_alert_sent_at')
+            if last_sent:
+                try:
+                    last_sent_dt = datetime.strptime(last_sent, '%Y-%m-%d %H:%M:%S')
+                    elapsed_hours = (datetime.utcnow() - last_sent_dt).total_seconds() / 3600
+                    if elapsed_hours < alert_interval_hours:
+                        remaining = round(alert_interval_hours - elapsed_hours, 1)
+                        print(f"[SCHEDULER] Anti-spam activo: faltan {remaining}h para el proximo envio.")
+                        save_alert_state(state)
+                        return
+                except Exception:
+                    pass
+            
+            # Construir cuerpo del correo
+            rows = "".join([
+                f"<tr>"
+                f"<td style='padding:8px;border:1px solid #ddd;'>#{t['id']} - {t['title']}</td>"
+                f"<td style='padding:8px;border:1px solid #ddd;'>{t.get('hotel', '') or 'N/A'}</td>"
+                f"<td style='padding:8px;border:1px solid #ddd;'>{t.get('technician_name', '') or 'Sin Asignar'}</td>"
+                f"<td style='padding:8px;border:1px solid #ddd;'>{t.get('priority', '')}</td>"
+                f"<td style='padding:8px;border:1px solid #ddd;color:#c0392b;font-weight:bold;'>"
+                f"Inactivo {t['hours_inactive']} hrs (Limite: {t['inactivity_threshold_hours']} hrs)</td>"
+                f"</tr>"
+                for t in stale_tasks
+            ])
+            
+            body = f"""
+            <div style='font-family:Arial,sans-serif;max-width:700px;margin:auto;'>
+                <div style='background:#c0392b;color:white;padding:20px;border-radius:8px 8px 0 0;'>
+                    <h2 style='margin:0;'>ALERTA AUTOMATICA - Pendientes con Inactividad Vencida</h2>
+                    <p style='margin:5px 0 0 0;opacity:0.85;'>NetVault - Seguimiento Operativo</p>
+                </div>
+                <div style='border:1px solid #ddd;border-top:none;padding:20px;background:#fff;'>
+                    <p>Se detectaron <strong>{len(stale_tasks)} pendiente(s)</strong> que superaron su tiempo limite de inactividad (SLA) al <strong>{now_str}</strong>:</p>
+                    <table style='border-collapse:collapse;width:100%;font-size:13px;'>
+                        <thead>
+                            <tr style='background:#f5f5f5;'>
+                                <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Tarea / Proyecto</th>
+                                <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Hotel</th>
+                                <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Tecnico</th>
+                                <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Prioridad</th>
+                                <th style='padding:8px;border:1px solid #ddd;text-align:left;'>Inactividad</th>
+                            </tr>
+                        </thead>
+                        <tbody>{rows}</tbody>
+                    </table>
+                    <p style='margin-top:20px;'>Por favor ingresa a <strong>NetVault</strong> para actualizar los avances de estos pendientes.</p>
+                    <p style='color:#888;font-size:11px;'>Este correo fue generado automaticamente por el scheduler de alertas de NetVault. Intervalo configurado: cada {alert_interval_hours} hora(s).</p>
+                </div>
+            </div>
+            """
+            
+            success, msg = send_email_alert(
+                subject=f"[NetVault] ALERTA: {len(stale_tasks)} Pendiente(s) con Inactividad Vencida",
+                body=body
+            )
+            
+            if success:
+                state['last_alert_sent_at'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                state['last_alert_count'] = len(stale_tasks)
+                print(f"[SCHEDULER] OK - Correo de alerta enviado correctamente ({len(stale_tasks)} tarea(s)).")
+            else:
+                print(f"[SCHEDULER] ERROR enviando correo: {msg}")
+                state['last_run_status'] = f'ERROR email: {msg}'
+            
+            save_alert_state(state)
+            
+        except Exception as e:
+            print(f"[SCHEDULER] ERROR inesperado en el job: {e}")
+            state['last_run_status'] = f'ERROR: {str(e)}'
+            state['last_run_at'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            save_alert_state(state)
+
+
 # ENDPOINTS PENDIENTES Y SEGUIMIENTO OPERATIVO
 # ==========================================
 
@@ -1514,10 +1649,57 @@ def save_inactivity_settings():
     try:
         data = request.json
         mins = int(data.get('timeout_minutes', 5))
+        alert_interval = int(data.get('alert_interval_hours', 1))
+        cfg = {
+            'timeout_minutes': mins,
+            'alert_interval_hours': alert_interval
+        }
         with open(INACTIVITY_SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump({'timeout_minutes': mins}, f, indent=4)
-        log_activity(current_username(), 'Configuración Inactividad', f'Se actualizó el tiempo de inactividad a {mins} minutos.')
-        return jsonify({'message': 'Configuración de inactividad guardada correctamente', 'timeout_minutes': mins})
+            json.dump(cfg, f, indent=4)
+        log_activity(current_username(), 'Configuración Inactividad', f'Se actualizó el tiempo de inactividad a {mins} minutos. Intervalo de alerta: {alert_interval}h.')
+        return jsonify({'message': 'Configuración de inactividad guardada correctamente', 'timeout_minutes': mins, 'alert_interval_hours': alert_interval})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/scheduler/status', methods=['GET'])
+def get_scheduler_status():
+    """Retorna el estado actual del scheduler de alertas automáticas."""
+    state = load_alert_state()
+    inactivity_cfg = load_inactivity_settings()
+    email_cfg = load_email_settings()
+    
+    # Contar tareas vencidas actualmente
+    try:
+        tasks = OperationalTask.query.all()
+        stale_count = sum(1 for t in tasks if t.to_dict().get('is_stale'))
+    except Exception:
+        stale_count = -1
+    
+    return jsonify({
+        'scheduler_running': True,
+        'alert_interval_hours': inactivity_cfg.get('alert_interval_hours', 1),
+        'email_enabled': email_cfg.get('enabled', False),
+        'last_run_at': state.get('last_run_at'),
+        'last_run_status': state.get('last_run_status', 'never'),
+        'last_alert_sent_at': state.get('last_alert_sent_at'),
+        'last_alert_count': state.get('last_alert_count', 0),
+        'current_stale_count': stale_count
+    })
+
+@app.route('/api/scheduler/run-now', methods=['POST'])
+def trigger_scheduler_now():
+    """Endpoint de administración para disparar el job manualmente (solo Admins)."""
+    if session.get('role') != 'Admin':
+        return jsonify({'error': 'No autorizado'}), 403
+    try:
+        # Resetear last_alert_sent_at para forzar el envío
+        state = load_alert_state()
+        state['last_alert_sent_at'] = None
+        save_alert_state(state)
+        # Ejecutar en hilo para no bloquear la respuesta HTTP
+        t = threading.Thread(target=run_inactivity_alert_job, daemon=True)
+        t.start()
+        return jsonify({'message': 'Job de alertas disparado manualmente. Revisa la consola para ver el resultado.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1844,4 +2026,24 @@ def delete_task_step(step_id):
 if __name__ == '__main__':
     # Habilitar debug solo si la variable FLASK_DEBUG es "True"
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Iniciar scheduler de alertas automáticas en background
+    inactivity_cfg = load_inactivity_settings()
+    alert_interval_hours = int(inactivity_cfg.get('alert_interval_hours', 1))
+    
+    scheduler = BackgroundScheduler(daemon=True)
+    scheduler.add_job(
+        func=run_inactivity_alert_job,
+        trigger='interval',
+        hours=alert_interval_hours,
+        id='inactivity_alert_job',
+        name='Alerta Automática de Inactividad',
+        replace_existing=True
+    )
+    scheduler.start()
+    print(f"[SCHEDULER] Scheduler iniciado - revision cada {alert_interval_hours} hora(s).")
+    
+    # Detener el scheduler limpiamente al cerrar la app
+    atexit.register(lambda: scheduler.shutdown(wait=False))
+    
     app.run(debug=debug_mode, port=5000)
