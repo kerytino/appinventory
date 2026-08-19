@@ -1748,30 +1748,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelPdfModal = document.getElementById('btn-cancel-pdf-modal');
     const pdfForm = document.getElementById('decommission-pdf-form');
 
-    btnExportPdf?.addEventListener('click', () => {
-        let toExport = allDecommissions;
-        if (currentDecommissionHotelFilter !== 'all') {
-            toExport = allDecommissions.filter(d => d.hotel === currentDecommissionHotelFilter);
-        }
-        if (toExport.length === 0) {
-            showToast('No hay registros para exportar a PDF con este filtro', 'error');
+    // Actualiza el preview de propiedad en el modal PDF
+    function updatePdfHotelPreview(hotelId) {
+        const previewBox   = document.getElementById('pdf-hotel-preview');
+        const logoBox      = document.getElementById('pdf-hotel-logo-preview');
+        const nameEl       = document.getElementById('pdf-hotel-name-preview');
+        const siglaEl      = document.getElementById('pdf-hotel-sigla-preview');
+        if (!previewBox) return;
+
+        const hotel = allHotels.find(h => h.id === parseInt(hotelId));
+        if (!hotel) {
+            previewBox.style.display = 'none';
             return;
         }
-        // Auto-rellenar el número de decomiso con el primer registro del lote
+
+        // Logo
+        if (hotel.logo) {
+            logoBox.innerHTML = `<img src="${hotel.logo}" alt="Logo" style="width:100%; height:100%; object-fit:contain; padding:4px;">`;
+        } else {
+            logoBox.innerHTML = `<i class="fa-solid fa-hotel" style="color:var(--color-text-muted); font-size:1.4rem;"></i>`;
+        }
+        nameEl.textContent  = hotel.name;
+        siglaEl.textContent = hotel.sigla ? hotel.sigla : '';
+        previewBox.style.display = 'flex';
+    }
+
+    // Rellena el selector de propiedad del modal PDF
+    function populatePdfHotelSelect() {
+        const sel = document.getElementById('pdf-hotel-select');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+        (allHotels || []).forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = h.id;
+            opt.textContent = h.sigla ? `${h.name}  (${h.sigla})` : h.name;
+            sel.appendChild(opt);
+        });
+        // Si hay filtro activo, preseleccionar ese hotel
+        if (currentDecommissionHotelFilter !== 'all') {
+            const match = allHotels.find(h => h.name === currentDecommissionHotelFilter);
+            if (match) {
+                sel.value = match.id;
+                updatePdfHotelPreview(match.id);
+            }
+        }
+    }
+
+    // Listener del selector de propiedad en el PDF modal
+    document.getElementById('pdf-hotel-select')?.addEventListener('change', function() {
+        updatePdfHotelPreview(this.value);
+    });
+
+    btnExportPdf?.addEventListener('click', () => {
+        if (allDecommissions.length === 0) {
+            showToast('No hay registros para exportar a PDF', 'error');
+            return;
+        }
+        // Auto-rellenar el número de decomiso con el primer registro que tenga número
         const noControlInput = document.getElementById('pdf-no-control');
         if (noControlInput) {
-            const firstNum = toExport.find(d => d.decommission_number)?.decommission_number || '';
+            let toCheck = allDecommissions;
+            if (currentDecommissionHotelFilter !== 'all') {
+                toCheck = allDecommissions.filter(d => d.hotel === currentDecommissionHotelFilter);
+            }
+            const firstNum = toCheck.find(d => d.decommission_number)?.decommission_number || '';
             noControlInput.value = firstNum;
         }
-        if (pdfModal) {
-            pdfModal.classList.add('active');
-        }
+        // Poblar selector y mostrar modal
+        populatePdfHotelSelect();
+        if (pdfModal) pdfModal.classList.add('active');
     });
 
     const closePdfModal = () => {
-        if (pdfModal) {
-            pdfModal.classList.remove('active');
-        }
+        if (pdfModal) pdfModal.classList.remove('active');
     };
 
     btnClosePdfModal?.addEventListener('click', closePdfModal);
@@ -1779,9 +1828,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     pdfForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        const hotelId = document.getElementById('pdf-hotel-select')?.value;
+        if (!hotelId) {
+            showToast('Por favor, selecciona una propiedad', 'error');
+            return;
+        }
+        const selectedHotel = allHotels.find(h => h.id === parseInt(hotelId));
         
         const payload = {
-            hotel: currentDecommissionHotelFilter,
+            hotel: selectedHotel?.name || currentDecommissionHotelFilter,
+            hotel_id: hotelId,
             no_control: document.getElementById('pdf-no-control')?.value || '',
             department: document.getElementById('pdf-department')?.value || 'SISTEMAS',
             decommission_type: document.getElementById('pdf-type')?.value || 'BAJA DE EQUIPO',
@@ -1799,7 +1856,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                throw new Error('Error al generar el archivo PDF');
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Error al generar el archivo PDF');
             }
 
             const blob = await response.blob();
@@ -1807,8 +1865,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const a = document.createElement('a');
             a.href = url;
             
-            let filterName = currentDecommissionHotelFilter === 'all' ? 'todos' : currentDecommissionHotelFilter.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            a.download = `Hoja_Decomiso_${filterName}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const sigla = selectedHotel?.sigla || (selectedHotel?.name || 'decomiso').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            a.download = `Hoja_Decomiso_${sigla}_${new Date().toISOString().split('T')[0]}.pdf`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1818,7 +1876,7 @@ document.addEventListener('DOMContentLoaded', () => {
             closePdfModal();
         } catch (err) {
             console.error(err);
-            showToast('Error al descargar el PDF de decomiso', 'error');
+            showToast(err.message || 'Error al descargar el PDF de decomiso', 'error');
         }
     });
 
@@ -2080,21 +2138,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             
-            // Update Hotel Filter Dropdown (Only distinct hotels from decommissions)
+            // Update Hotel Filter Dropdown — usa la lista maestra de hoteles
             const filterSelect = document.getElementById('decommission-hotel-filter');
             if (filterSelect) {
-                const uniqueHotels = [...new Set(allDecommissions.map(d => d.hotel).filter(h => h))];
+                const prev = filterSelect.value;
                 filterSelect.innerHTML = '<option value="all">Todos los Lugares</option>';
-                
-                uniqueHotels.forEach(hotelName => {
-                    const opt = document.createElement('option');
-                    opt.value = hotelName;
-                    opt.textContent = hotelName;
-                    filterSelect.appendChild(opt);
-                });
 
-                if (Array.from(filterSelect.options).some(o => o.value === currentDecommissionHotelFilter)) {
-                    filterSelect.value = currentDecommissionHotelFilter;
+                if (allHotels && allHotels.length > 0) {
+                    allHotels.forEach(h => {
+                        const opt = document.createElement('option');
+                        opt.value = h.name;
+                        opt.textContent = h.sigla ? `${h.name} (${h.sigla})` : h.name;
+                        filterSelect.appendChild(opt);
+                    });
+                } else {
+                    const opt = document.createElement('option');
+                    opt.disabled = true;
+                    opt.textContent = '— No hay propiedades registradas —';
+                    filterSelect.appendChild(opt);
+                }
+
+                // Restaurar selección previa si aún existe
+                if (Array.from(filterSelect.options).some(o => o.value === prev)) {
+                    filterSelect.value = prev;
                 } else {
                     currentDecommissionHotelFilter = 'all';
                     filterSelect.value = 'all';
@@ -2131,37 +2197,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Render especial para hoteles: muestra logo, nombre, sigla y botones editar/eliminar
-    function renderHotelList(tbodyId, hotels) {
-        const tbody = document.getElementById(tbodyId);
-        if (!tbody) return;
-        tbody.innerHTML = '';
+    // Render especial para hoteles: cards individuales por propiedad
+    function renderHotelList(containerId, hotels) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
         if (!hotels || hotels.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted); padding:24px;">No hay propiedades registradas</td></tr>';
+            container.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--color-text-muted);">
+                    <i class="fa-solid fa-hotel" style="font-size:2rem; margin-bottom:12px; display:block; opacity:0.3;"></i>
+                    <p style="margin:0; font-size:0.95rem;">No hay propiedades registradas</p>
+                    <p style="margin:6px 0 0; font-size:0.82rem;">Agrega tu primera propiedad usando el formulario de arriba</p>
+                </div>`;
             return;
         }
         hotels.forEach(h => {
+            const card = document.createElement('div');
+            card.style.cssText = [
+                'background: var(--color-surface)',
+                'border: 1px solid var(--color-border)',
+                'border-radius: var(--radius-lg)',
+                'padding: 16px',
+                'display: flex',
+                'flex-direction: column',
+                'gap: 12px',
+                'transition: box-shadow 0.2s ease, border-color 0.2s ease',
+                'cursor: default'
+            ].join('; ');
+            card.onmouseenter = () => { card.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'; card.style.borderColor = 'var(--color-primary)'; };
+            card.onmouseleave = () => { card.style.boxShadow = ''; card.style.borderColor = 'var(--color-border)'; };
+
+            // Cabecera: logo + info
             const logoHtml = h.logo
-                ? `<img src="${h.logo}" alt="Logo" style="height:36px; width:36px; object-fit:contain; border-radius:4px; background:var(--color-surface);">`
-                : `<div style="height:36px; width:36px; background:var(--color-surface-2); border-radius:4px; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-hotel" style="color:var(--color-text-muted);"></i></div>`;
+                ? `<img src="${h.logo}" alt="Logo" style="width:52px; height:52px; object-fit:contain; border-radius:var(--radius-md); background:var(--color-surface-2); border:1px solid var(--color-border); padding:4px;">`
+                : `<div style="width:52px; height:52px; background:var(--color-surface-2); border:1px solid var(--color-border); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-hotel" style="color:var(--color-text-muted); font-size:1.4rem;"></i></div>`;
+
             const siglaHtml = h.sigla
-                ? `<span style="font-family:monospace; font-weight:700; color:var(--color-primary); font-size:0.95rem; background:var(--color-surface-2); padding:3px 10px; border-radius:6px; letter-spacing:1px;">${h.sigla}</span>`
-                : '<span style="color:var(--color-text-muted); font-size:0.8rem;">—</span>';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="width:55px;">${logoHtml}</td>
-                <td><strong>${h.name}</strong></td>
-                <td style="text-align:center;">${siglaHtml}</td>
-                <td style="text-align:center; width:120px;">
-                    <button class="action-btn" style="margin-right:6px;" onclick="window.editHotel(${h.id})" title="Editar">
-                        <i class="fa-solid fa-pen"></i>
+                ? `<span style="display:inline-block; font-family:monospace; font-weight:700; color:var(--color-primary); font-size:0.82rem; background:color-mix(in srgb, var(--color-primary) 12%, transparent); padding:2px 8px; border-radius:20px; letter-spacing:1px;">${h.sigla}</span>`
+                : `<span style="font-size:0.8rem; color:var(--color-text-muted);">Sin sigla</span>`;
+
+            card.innerHTML = `
+                <div style="display:flex; align-items:center; gap:12px;">
+                    ${logoHtml}
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; font-size:0.95rem; color:var(--color-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${h.name}">${h.name}</div>
+                        <div style="margin-top:4px;">${siglaHtml}</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; border-top:1px solid var(--color-border); padding-top:12px;">
+                    <button class="btn btn-outline" style="flex:1; font-size:0.82rem; padding:6px 10px;" onclick="window.editHotel(${h.id})">
+                        <i class="fa-solid fa-pen" style="margin-right:5px;"></i>Editar
                     </button>
-                    <button class="action-btn delete" onclick="window.deleteHotel(${h.id})" title="Eliminar">
-                        <i class="fa-solid fa-trash"></i>
+                    <button class="btn" style="flex:1; font-size:0.82rem; padding:6px 10px; border:1px solid var(--color-danger); color:var(--color-danger); background:transparent;" onclick="window.deleteHotel(${h.id})">
+                        <i class="fa-solid fa-trash" style="margin-right:5px;"></i>Eliminar
                     </button>
-                </td>
+                </div>
             `;
-            tbody.appendChild(tr);
+            container.appendChild(card);
         });
     }
 
@@ -2341,13 +2433,23 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('hotel-edit-id').value   = hotel.id;
         document.getElementById('hotel-edit-name').value  = hotel.name;
         document.getElementById('hotel-edit-sigla').value = hotel.sigla || '';
-        // Mostrar preview del logo actual
-        const preview = document.getElementById('hotel-edit-logo-preview');
-        if (preview) {
-            preview.innerHTML = hotel.logo
-                ? `<img src="${hotel.logo}" alt="Logo actual" style="height:48px; border-radius:6px; object-fit:contain;">`
-                : '<span style="color:var(--color-text-muted); font-size:0.85rem;">Sin logo</span>';
+
+        // Preview del logo actual en el modal
+        const logoPreviewBox = document.getElementById('hotel-edit-logo-preview');
+        const previewWrap    = document.getElementById('hotel-edit-current-preview');
+        if (logoPreviewBox) {
+            if (hotel.logo) {
+                logoPreviewBox.innerHTML = `<img src="${hotel.logo}" alt="Logo actual" style="width:100%; height:100%; object-fit:contain; padding:4px;">`;
+                if (previewWrap) previewWrap.style.display = 'flex';
+            } else {
+                logoPreviewBox.innerHTML = `<i class="fa-solid fa-hotel" style="color:var(--color-text-muted); font-size:1.4rem;"></i>`;
+                if (previewWrap) previewWrap.style.display = 'flex';
+            }
         }
+        // Limpiar el input de archivo
+        const logoFile = document.getElementById('hotel-edit-logo-file');
+        if (logoFile) logoFile.value = '';
+
         document.getElementById('hotel-edit-modal')?.classList.add('active');
     };
 

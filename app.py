@@ -1237,33 +1237,52 @@ def export_decommission_pdf():
         params = request.json or {}
     else:
         params = request.args.to_dict()
-        
+
+    # Obtener datos de la propiedad seleccionada (por id o por nombre)
+    hotel_id     = params.get('hotel_id')
     hotel_filter = params.get('hotel', 'all')
-    if hotel_filter == 'all' or not hotel_filter:
-        decommissions = Decommission.query.all()
-        loc_display = "TODOS LOS HOTELES"
-    else:
+    hotel_obj    = None
+
+    if hotel_id:
+        hotel_obj = Hotel.query.get(int(hotel_id))
+    elif hotel_filter and hotel_filter != 'all':
+        hotel_obj = Hotel.query.filter_by(name=hotel_filter).first()
+
+    # Determinar los decomisos a exportar
+    if hotel_obj:
+        decommissions = Decommission.query.filter_by(hotel=hotel_obj.name).all()
+        loc_display   = hotel_obj.name.upper()
+        # Inyectar datos del hotel en el payload para el PDF
+        params['hotel_name']  = hotel_obj.name
+        params['hotel_sigla'] = hotel_obj.sigla or ''
+        params['hotel_logo']  = hotel_obj.logo  or ''
+    elif hotel_filter and hotel_filter != 'all':
         decommissions = Decommission.query.filter_by(hotel=hotel_filter).all()
-        loc_display = hotel_filter.upper()
-        
+        loc_display   = hotel_filter.upper()
+    else:
+        decommissions = Decommission.query.all()
+        loc_display   = "TODOS LOS HOTELES"
+
     data_list = [d.to_dict() for d in decommissions]
-    
+
     if not params.get('location'):
         params['location'] = loc_display
     if not params.get('date_str'):
         params['date_str'] = format_spanish_date()
-        
+
     pdf_buffer = create_decommission_pdf_buffer(data_list, params)
-    
-    clean_hotel = hotel_filter.replace(' ', '_').lower()
-    filename = f"Hoja_Decomiso_{clean_hotel}_{datetime.now().strftime('%Y%m%d')}.pdf"
-    
+
+    sigla      = hotel_obj.sigla if hotel_obj and hotel_obj.sigla else (hotel_filter or 'decomiso')
+    clean_name = sigla.replace(' ', '_').lower()
+    filename   = f"Hoja_Decomiso_{clean_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
         as_attachment=True,
         download_name=filename
     )
+
 
 # --- Settings API: Warehouses ---
 @app.route('/api/settings/warehouses', methods=['GET'])
