@@ -898,11 +898,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/decommissions');
             allDecommissions = await response.json();
+            try { await populateDecommissionHotelFilter(); } catch(e) {}
             try { renderDecommission(); } catch(e) {}
         } catch (error) {
             showToast('Error cargando decomisos', 'error');
         }
     }
+
 
     function formatCurrency(val) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -2021,18 +2023,71 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    // --- Settings / Configurations ---
+    // Función dedicada para llenar el select de hotel en la página de Decomiso
+    // Puede llamarse desde cualquier lugar de forma segura
+    async function populateDecommissionHotelFilter() {
+        const filterSelect = document.getElementById('decommission-hotel-filter');
+        if (!filterSelect) return;   // No estamos en la página de decomiso
+
+        if (!allHotels || allHotels.length === 0) {
+            try {
+                const resH = await fetch('/api/settings/hotels');
+                if (resH.ok) {
+                    allHotels = await resH.json();
+                }
+            } catch(e) {
+                console.error('Error cargando hoteles para el filtro de decomisos:', e);
+            }
+        }
+
+        const prev = filterSelect.value;
+        filterSelect.innerHTML = '<option value="all">Todos los Lugares</option>';
+
+        if (allHotels && allHotels.length > 0) {
+            allHotels.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h.name;
+                opt.textContent = h.sigla ? `${h.name} (${h.sigla})` : h.name;
+                filterSelect.appendChild(opt);
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.textContent = '— No hay propiedades registradas —';
+            filterSelect.appendChild(opt);
+        }
+
+        // Restaurar selección previa si aún existe
+        if (Array.from(filterSelect.options).some(o => o.value === prev)) {
+            filterSelect.value = prev;
+        } else {
+            currentDecommissionHotelFilter = 'all';
+            filterSelect.value = 'all';
+        }
+    }
+
     async function fetchSettings() {
         try {
-            const resW = await fetch('/api/settings/warehouses');
-            allWarehouses = await resW.json();
-            
-            const resH = await fetch('/api/settings/hotels');
-            allHotels = await resH.json();
-            const resT = await fetch('/api/settings/technicians');
-            allTechnicians = await resT.json();
-            const resP = await fetch('/api/settings/providers');
-            window.allProviders = await resP.json();
+            try {
+                const resW = await fetch('/api/settings/warehouses');
+                allWarehouses = await resW.json();
+            } catch(e) { console.error('Error almacenes:', e); }
+
+            try {
+                const resH = await fetch('/api/settings/hotels');
+                allHotels = await resH.json();
+            } catch(e) { console.error('Error hoteles:', e); }
+
+            try {
+                const resT = await fetch('/api/settings/technicians');
+                allTechnicians = await resT.json();
+            } catch(e) { console.error('Error técnicos:', e); }
+
+            try {
+                const resP = await fetch('/api/settings/providers');
+                window.allProviders = await resP.json();
+            } catch(e) { console.error('Error proveedores:', e); }
+
             
             // Fetch users only if Admin
             if (currentUser && currentUser.role === 'Admin') {
@@ -2143,35 +2198,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             
-            // Update Hotel Filter Dropdown — usa la lista maestra de hoteles
-            const filterSelect = document.getElementById('decommission-hotel-filter');
-            if (filterSelect) {
-                const prev = filterSelect.value;
-                filterSelect.innerHTML = '<option value="all">Todos los Lugares</option>';
-
-                if (allHotels && allHotels.length > 0) {
-                    allHotels.forEach(h => {
-                        const opt = document.createElement('option');
-                        opt.value = h.name;
-                        opt.textContent = h.sigla ? `${h.name} (${h.sigla})` : h.name;
-                        filterSelect.appendChild(opt);
-                    });
-                } else {
-                    const opt = document.createElement('option');
-                    opt.disabled = true;
-                    opt.textContent = '— No hay propiedades registradas —';
-                    filterSelect.appendChild(opt);
-                }
-
-                // Restaurar selección previa si aún existe
-                if (Array.from(filterSelect.options).some(o => o.value === prev)) {
-                    filterSelect.value = prev;
-                } else {
-                    currentDecommissionHotelFilter = 'all';
-                    filterSelect.value = 'all';
-                }
-            }
+            // Llenar filtro de hotel de decomiso
+            populateDecommissionHotelFilter();
             
+
             // Populate dynamic sidebar submenu
             renderStockLimitsConfig();
             populateWarehouseSubmenu();
