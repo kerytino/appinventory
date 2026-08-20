@@ -6,7 +6,9 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import json
+import base64
 from io import BytesIO
+from PIL import Image as PILImage
 from dotenv import load_dotenv
 
 from reportlab.lib.pagesizes import letter
@@ -145,21 +147,23 @@ class Device(db.Model):
         }
 
 class Decommission(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    device_type = db.Column(db.String(50), nullable=False)
-    brand = db.Column(db.String(100), nullable=True, default='')
-    model = db.Column(db.String(100), nullable=True, default='')
-    serial_number = db.Column(db.String(100), nullable=True, default='')
-    hotel = db.Column(db.String(100), nullable=True, default='')
-    reason = db.Column(db.Text, nullable=True)
-    value = db.Column(db.Float, nullable=False, default=0.0)
-    quantity = db.Column(db.Integer, nullable=False, default=1)
-    date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    id                  = db.Column(db.Integer, primary_key=True)
+    decommission_number = db.Column(db.String(30), nullable=True, unique=True, index=True)  # Ej: EXO-2026-08-001
+    name                = db.Column(db.String(100), nullable=False)
+    device_type         = db.Column(db.String(50), nullable=False)
+    brand               = db.Column(db.String(100), nullable=True, default='')
+    model               = db.Column(db.String(100), nullable=True, default='')
+    serial_number       = db.Column(db.String(100), nullable=True, default='')
+    hotel               = db.Column(db.String(100), nullable=True, default='')
+    reason              = db.Column(db.Text, nullable=True)
+    value               = db.Column(db.Float, nullable=False, default=0.0)
+    quantity            = db.Column(db.Integer, nullable=False, default=1)
+    date_added          = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             'id': self.id,
+            'decommission_number': self.decommission_number or '',
             'name': self.name,
             'type': self.device_type,
             'brand': self.brand,
@@ -197,11 +201,13 @@ class Warehouse(db.Model):
         return {'id': self.id, 'name': self.name, 'hotel': self.hotel}
 
 class Hotel(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    id     = db.Column(db.Integer, primary_key=True)
+    name   = db.Column(db.String(100), nullable=False, unique=True)
+    sigla  = db.Column(db.String(20),  nullable=True,  unique=True)  # Sigla unica de la propiedad, ej: EXO
+    logo   = db.Column(db.Text, nullable=True)                        # Base64 del logo de la propiedad
     
     def to_dict(self):
-        return {'id': self.id, 'name': self.name}
+        return {'id': self.id, 'name': self.name, 'sigla': self.sigla or '', 'logo': self.logo or ''}
 
 class Technician(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -526,8 +532,28 @@ with app.app_context():
     except Exception as e:
         pass
 
+    # Migración: decommission_number en tabla decommission
+    try:
+        db.session.execute(db.text("ALTER TABLE decommission ADD COLUMN decommission_number VARCHAR(30)"))
+        db.session.commit()
+    except Exception:
+        pass
+
+    # Migración: sigla y logo en tabla hotel
+    try:
+        db.session.execute(db.text("ALTER TABLE hotel ADD COLUMN sigla VARCHAR(20)"))
+        db.session.commit()
+    except Exception:
+        pass
+    try:
+        db.session.execute(db.text("ALTER TABLE hotel ADD COLUMN logo TEXT"))
+        db.session.commit()
+    except Exception:
+        pass
+
     # Consolidar duplicados en el inicio del servidor
     consolidate_existing_inventory()
+
 
 @app.route('/')
 def index():
@@ -738,22 +764,89 @@ def get_decommissions():
     decommissions = Decommission.query.all()
     return jsonify([d.to_dict() for d in decommissions])
 
+def generate_decommission_number(hotel_name, date=None):
+    """
+    Genera el numero de decomiso con formato: [SIGLA]-[ANIO]-[MES]-[SEQ]
+    El secuencial reinicia en 001 cada mes por propiedad.
+    La operacion es segura ante accesos concurrentes gracias al UNIQUE en BD.
+    """
+    if not date:
+        date = datetime.utcnow()
+    
+    year  = date.strftime('%Y')
+    month = date.strftime('%m')
+    
+    # Obtener sigla del hotel; si no tiene, usar las 3 primeras letras en mayusculas
+    hotel = Hotel.query.filter_by(name=hotel_name).first()
+    if hotel and hotel.sigla:
+        sigla = hotel.sigla.upper().strip()
+    else:
+        sigla = (hotel_name[:3] if hotel_name else 'DEC').upper().replace(' ', '')
+    
+    prefix = f"{sigla}-{year}-{month}-"
+    
+    # Buscar el ultimo numero secuencial para esta propiedad/mes
+    last = (
+        Decommission.query
+        .filter(Decommission.decommission_number.like(f"{prefix}%"))
+        .order_by(Decommission.decommission_number.desc())
+        .first()
+    )
+    
+    if last and last.decommission_number:
+        try:
+            last_seq = int(last.decommission_number.split('-')[-1])
+        except (ValueError, IndexError):
+            last_seq = 0
+    else:
+        last_seq = 0
+    
+    next_seq = last_seq + 1
+    return f"{prefix}{str(next_seq).zfill(3)}"
+
+
+@app.route('/api/decommissions/preview-number', methods=['GET'])
+def preview_decommission_number():
+    """Retorna el siguiente numero disponible sin crear el registro."""
+    hotel_name = request.args.get('hotel', '').strip()
+    if not hotel_name:
+        return jsonify({'error': 'Se requiere el nombre del hotel'}), 400
+    number = generate_decommission_number(hotel_name)
+    return jsonify({'decommission_number': number})
+
+
 @app.route('/api/decommissions', methods=['POST'])
 def add_decommission():
     data = request.json
+    hotel_name = data.get('hotel', '')
+    
+    # Generar numero de decomiso automaticamente
+    dec_number = generate_decommission_number(hotel_name)
+    
     new_decommission = Decommission(
+        decommission_number=dec_number,
         name=data['name'],
         device_type=data['type'],
         brand=data.get('brand', ''),
         model=data.get('model', ''),
         serial_number=data.get('serial_number', ''),
-        hotel=data.get('hotel', ''),
+        hotel=hotel_name,
         reason=data.get('reason', ''),
         value=float(data.get('value', 0.0)),
         quantity=int(data.get('quantity', 1))
     )
     db.session.add(new_decommission)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        # En caso de colision de numero unico (muy raro), reintentar una vez
+        dec_number = generate_decommission_number(hotel_name)
+        new_decommission.decommission_number = dec_number
+        db.session.add(new_decommission)
+        db.session.commit()
+    
+    log_activity(current_username(), 'Decomiso', f'Registro {dec_number}: {new_decommission.name} ({hotel_name})')
     return jsonify(new_decommission.to_dict()), 201
 
 @app.route('/api/decommissions', methods=['DELETE'])
@@ -814,6 +907,80 @@ def format_spanish_date(dt=None):
     day_name = days[dt.weekday()]
     month_name = months[dt.month - 1]
     return f"{day_name} {dt.day:02d} {month_name} {dt.year}"
+
+def load_pdf_logo(hotel_logo, default_logo_path, max_w=170, max_h=50):
+    """
+    Decodifica y procesa el logo para el PDF (soporta base64 data URI, ruta local de archivo y fallback al logo por defecto).
+    Mantiene la proporción de aspecto dentro de los límites máximos (max_w, max_h).
+    """
+    if hotel_logo and isinstance(hotel_logo, str) and hotel_logo.strip():
+        try:
+            logo_str = hotel_logo.strip()
+            image_bytes = None
+            
+            if ',' in logo_str:
+                header, encoded = logo_str.split(',', 1)
+                encoded = encoded.strip().replace('\n', '').replace('\r', '').replace(' ', '')
+                image_bytes = base64.b64decode(encoded)
+            elif logo_str.startswith('/static/') or logo_str.startswith('static/'):
+                rel_path = logo_str.lstrip('/')
+                full_path = os.path.join(basedir, rel_path)
+                if os.path.exists(full_path):
+                    with open(full_path, 'rb') as f:
+                        image_bytes = f.read()
+            elif os.path.exists(logo_str):
+                with open(logo_str, 'rb') as f:
+                    image_bytes = f.read()
+            else:
+                try:
+                    clean_str = logo_str.replace('\n', '').replace('\r', '').replace(' ', '')
+                    image_bytes = base64.b64decode(clean_str)
+                except Exception:
+                    pass
+
+            if image_bytes:
+                img_buf = BytesIO(image_bytes)
+                pil_img = PILImage.open(img_buf)
+                w, h = pil_img.size
+                if w > 0 and h > 0:
+                    aspect = w / h
+                    if (max_w / max_h) > aspect:
+                        draw_h = min(max_h, float(h))
+                        draw_w = draw_h * aspect
+                    else:
+                        draw_w = min(max_w, float(w))
+                        draw_h = draw_w / aspect
+                else:
+                    draw_w, draw_h = max_w, max_h
+                
+                img_buf.seek(0)
+                return Image(img_buf, width=draw_w, height=draw_h)
+        except Exception as e:
+            print(f"[PDF LOGO WARNING] No se pudo procesar el logo del hotel: {e}")
+
+    # Fallback al logo por defecto
+    if os.path.exists(default_logo_path):
+        try:
+            with open(default_logo_path, 'rb') as f:
+                img_buf = BytesIO(f.read())
+            pil_img = PILImage.open(img_buf)
+            w, h = pil_img.size
+            if w > 0 and h > 0:
+                aspect = w / h
+                if (max_w / max_h) > aspect:
+                    draw_h = min(max_h, float(h))
+                    draw_w = draw_h * aspect
+                else:
+                    draw_w = min(max_w, float(w))
+                    draw_h = draw_w / aspect
+            else:
+                draw_w, draw_h = max_w, max_h
+            img_buf.seek(0)
+            return Image(img_buf, width=draw_w, height=draw_h)
+        except Exception:
+            return Image(default_logo_path, width=170, height=45)
+
+    return None
 
 def create_decommission_pdf_buffer(data_list, params):
     buffer = BytesIO()
@@ -885,11 +1052,16 @@ def create_decommission_pdf_buffer(data_list, params):
     story = []
     
     # 1. ENCABEZADO (LOGO E INFORMACIÓN DE CONTROL)
-    logo_path = os.path.join(basedir, 'static', 'img', 'logo.png')
-    if os.path.exists(logo_path):
-        img_logo = Image(logo_path, width=170, height=45)
+    default_logo_path = os.path.join(basedir, 'static', 'img', 'logo.png')
+    hotel_logo_str = params.get('hotel_logo', '')
+    
+    img_logo = load_pdf_logo(hotel_logo_str, default_logo_path, max_w=220, max_h=52)
+    
+    if img_logo:
+        logo_cell = img_logo
     else:
-        img_logo = Paragraph("<b>LOGO DE LA EMPRESA</b>", title_style)
+        hotel_tag_text = params.get('hotel_name') or params.get('location') or "LOGO DE LA EMPRESA"
+        logo_cell = Paragraph(f"<b>{hotel_tag_text.upper()}</b>", title_style)
         
     no_control = params.get('no_control', '').strip()
     selected_type = (params.get('decommission_type') or 'BAJA DE EQUIPO').strip().upper()
@@ -914,7 +1086,7 @@ def create_decommission_pdf_buffer(data_list, params):
     control_box_html = f"<b>No. Control:</b> {control_str}<br/><br/>{types_html}"
     p_control = Paragraph(control_box_html, val_style)
     
-    header_table = Table([[img_logo, p_control]], colWidths=[280, 275])
+    header_table = Table([[logo_cell, p_control]], colWidths=[280, 275])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('BOX', (0,0), (0,0), 1, colors.black),
@@ -1076,21 +1248,21 @@ def create_decommission_pdf_buffer(data_list, params):
     )
     
     f1_col1 = [
-        Paragraph(":Solicitado por", sig_title_style),
+        Paragraph("Solicitado por:", sig_title_style),
         Spacer(1, 18),
         HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
         Paragraph("Gerente de Área", sig_style)
     ]
     
     f1_col2 = [
-        Paragraph(":Revisado por", sig_title_style),
+        Paragraph("Revisado por:", sig_title_style),
         Spacer(1, 18),
         HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
         Paragraph("Reporting & Accounting Assistant", sig_style)
     ]
     
     f1_col3 = [
-        Paragraph(":Verificado por", sig_title_style),
+        Paragraph("Verificado por:", sig_title_style),
         Spacer(1, 18),
         HRFlowable(width="80%", thickness=0.5, color=colors.black, spaceAfter=2),
         Paragraph("Gerente de Prevención", sig_style)
@@ -1146,33 +1318,85 @@ def export_decommission_pdf():
         params = request.json or {}
     else:
         params = request.args.to_dict()
-        
+
+    # Obtener datos de la propiedad seleccionada (por id o por nombre)
+    hotel_id     = params.get('hotel_id')
     hotel_filter = params.get('hotel', 'all')
-    if hotel_filter == 'all' or not hotel_filter:
-        decommissions = Decommission.query.all()
-        loc_display = "TODOS LOS HOTELES"
+    hotel_obj    = None
+
+    # 1. Intentar buscar por ID
+    if hotel_id:
+        try:
+            hotel_obj = db.session.get(Hotel, int(hotel_id))
+        except (ValueError, TypeError):
+            pass
+
+    # 2. Buscar por nombre o filtro de hotel
+    if not hotel_obj and hotel_filter and hotel_filter != 'all':
+        hotel_obj = Hotel.query.filter_by(name=hotel_filter).first()
+        if not hotel_obj:
+            hotel_obj = Hotel.query.filter(db.func.lower(Hotel.name) == hotel_filter.lower()).first()
+
+    # 3. Determinar decomisos a exportar
+    if hotel_obj:
+        decommissions = Decommission.query.filter(db.func.lower(Decommission.hotel) == hotel_obj.name.lower()).all()
+        if not decommissions:
+            decommissions = Decommission.query.all()
+    elif hotel_filter and hotel_filter != 'all':
+        decommissions = Decommission.query.filter(db.func.lower(Decommission.hotel) == hotel_filter.lower()).all()
+        if not decommissions:
+            decommissions = Decommission.query.all()
     else:
-        decommissions = Decommission.query.filter_by(hotel=hotel_filter).all()
-        loc_display = hotel_filter.upper()
-        
+        decommissions = Decommission.query.all()
+
+    # 4. Auto-detectar hotel_obj si todos los decomisos a exportar pertenecen a una sola propiedad
+    if not hotel_obj and decommissions:
+        distinct_hotels = list(set([d.hotel for d in decommissions if d.hotel and d.hotel != 'No especificado']))
+        if len(distinct_hotels) == 1:
+            target_hotel_name = distinct_hotels[0]
+            hotel_obj = Hotel.query.filter(db.func.lower(Hotel.name) == target_hotel_name.lower()).first()
+
+    # 5. Inyectar metadatos del hotel (nombre, sigla, logo) de forma garantizada
+    if hotel_obj:
+        params['hotel_name']  = hotel_obj.name
+        params['hotel_sigla'] = hotel_obj.sigla or ''
+        params['hotel_logo']  = hotel_obj.logo  or ''
+        loc_display           = hotel_obj.name.upper()
+    elif hotel_filter and hotel_filter != 'all':
+        h_match = Hotel.query.filter(db.func.lower(Hotel.name) == hotel_filter.lower()).first()
+        if h_match:
+            hotel_obj = h_match
+            params['hotel_name']  = h_match.name
+            params['hotel_sigla'] = h_match.sigla or ''
+            params['hotel_logo']  = h_match.logo  or ''
+            loc_display           = h_match.name.upper()
+        else:
+            params['hotel_name']  = hotel_filter
+            loc_display           = hotel_filter.upper()
+    else:
+        params['hotel_name']  = "TODOS LOS HOTELES"
+        loc_display           = "TODOS LOS HOTELES"
+
     data_list = [d.to_dict() for d in decommissions]
-    
+
     if not params.get('location'):
         params['location'] = loc_display
     if not params.get('date_str'):
         params['date_str'] = format_spanish_date()
-        
+
     pdf_buffer = create_decommission_pdf_buffer(data_list, params)
-    
-    clean_hotel = hotel_filter.replace(' ', '_').lower()
-    filename = f"Hoja_Decomiso_{clean_hotel}_{datetime.now().strftime('%Y%m%d')}.pdf"
-    
+
+    sigla      = hotel_obj.sigla if hotel_obj and hotel_obj.sigla else (hotel_filter or 'decomiso')
+    clean_name = sigla.replace(' ', '_').lower()
+    filename   = f"Hoja_Decomiso_{clean_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
         as_attachment=True,
         download_name=filename
     )
+
 
 # --- Settings API: Warehouses ---
 @app.route('/api/settings/warehouses', methods=['GET'])
@@ -1210,15 +1434,44 @@ def get_hotels():
 @app.route('/api/settings/hotels', methods=['POST'])
 def add_hotel():
     data = request.json
-    name = data.get('name', '').strip()
+    name  = data.get('name', '').strip()
+    sigla = data.get('sigla', '').strip().upper()
+    logo  = data.get('logo', '').strip()
     if not name:
-        return jsonify({'error': 'Name is required'}), 400
+        return jsonify({'error': 'El nombre es requerido'}), 400
+    if not sigla:
+        return jsonify({'error': 'La sigla es requerida'}), 400
     if Hotel.query.filter_by(name=name).first():
         return jsonify({'error': 'Ya existe un hotel con ese nombre'}), 400
-    h = Hotel(name=name)
+    if Hotel.query.filter_by(sigla=sigla).first():
+        return jsonify({'error': f'La sigla "{sigla}" ya esta en uso por otra propiedad'}), 400
+    h = Hotel(name=name, sigla=sigla, logo=logo)
     db.session.add(h)
     db.session.commit()
+    log_activity(current_username(), 'Configuracion Hoteles', f'Se agrego la propiedad: {name} ({sigla})')
     return jsonify(h.to_dict()), 201
+
+@app.route('/api/settings/hotels/<int:id>', methods=['PUT'])
+def update_hotel(id):
+    h = Hotel.query.get_or_404(id)
+    data  = request.json
+    name  = data.get('name', h.name).strip()
+    sigla = data.get('sigla', h.sigla or '').strip().upper()
+    logo  = data.get('logo', h.logo or '').strip()
+    # Validar unicidad excluyendo el mismo registro
+    conflict_name = Hotel.query.filter(Hotel.name == name, Hotel.id != id).first()
+    if conflict_name:
+        return jsonify({'error': 'Ya existe un hotel con ese nombre'}), 400
+    if sigla:
+        conflict_sigla = Hotel.query.filter(Hotel.sigla == sigla, Hotel.id != id).first()
+        if conflict_sigla:
+            return jsonify({'error': f'La sigla "{sigla}" ya esta en uso por otra propiedad'}), 400
+    h.name  = name
+    h.sigla = sigla
+    h.logo  = logo
+    db.session.commit()
+    log_activity(current_username(), 'Configuracion Hoteles', f'Se edito la propiedad: {name} ({sigla})')
+    return jsonify(h.to_dict())
 
 @app.route('/api/settings/hotels/<int:id>', methods=['DELETE'])
 def delete_hotel(id):
