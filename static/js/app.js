@@ -3785,7 +3785,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (targetCard) targetCard.style.display = 'block';
             
             if (target === 'warehouses') fetchWarehousesConfig();
-            else if (target === 'hotels') fetchHotelsConfig();
+            else if (target === 'hotels') fetchSettings();
             else if (target === 'technicians') fetchTechniciansConfig();
             else if (target === 'providers') fetchProvidersConfig();
             else if (target === 'users') fetchUsers();
@@ -3882,95 +3882,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 2. Hotels Settings Management ---
-    async function fetchHotelsConfig() {
-        const listBody = document.getElementById('settings-hotel-list');
-        if (!listBody) return;
-        try {
-            const res = await fetch('/api/settings/hotels');
-            if (res.ok) {
-                const hotels = await res.json();
-                renderHotelsConfig(hotels);
-                // Populate hotel dropdown in add warehouse form
-                const whHotelSelect = document.getElementById('input-new-warehouse-hotel');
-                if (whHotelSelect) {
-                    const currentVal = whHotelSelect.value;
-                    whHotelSelect.innerHTML = '<option value="">Sin Hotel (Opcional)</option>' + 
-                        hotels.map(h => `<option value="${escapeHtml(h.name)}">${escapeHtml(h.name)}</option>`).join('');
-                    whHotelSelect.value = currentVal;
-                }
-            }
-        } catch(e) {
-            console.error('Error fetching hotels:', e);
-        }
-    }
-
-    function renderHotelsConfig(hotels) {
-        const listBody = document.getElementById('settings-hotel-list');
-        if (!listBody) return;
-        listBody.innerHTML = '';
-        if (hotels.length === 0) {
-            listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay hoteles registrados</td></tr>';
-            return;
-        }
-        hotels.forEach(h => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong><i class="fa-solid fa-hotel" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(h.name)}</strong></td>
-                <td style="text-align: right;">
-                    <button class="btn-icon btn-delete-hotel" data-id="${h.id}" data-name="${escapeHtml(h.name)}" title="Eliminar Hotel" style="color: var(--color-danger);">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            listBody.appendChild(tr);
-        });
-
-        listBody.querySelectorAll('.btn-delete-hotel').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const id = btn.getAttribute('data-id');
-                const name = btn.getAttribute('data-name');
-                if (!confirm(`¿Seguro que deseas eliminar el hotel "${name}"?`)) return;
-                try {
-                    const res = await fetch(`/api/settings/hotels/${id}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        showToast(`Hotel "${name}" eliminado`, 'success');
-                        fetchHotelsConfig();
-                        fetchSettings();
-                    } else {
-                        showToast('Error al eliminar hotel', 'error');
-                    }
-                } catch(e) {
-                    showToast('Error de conexión', 'error');
-                }
-            });
-        });
-    }
-
-    document.getElementById('form-add-hotel')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = document.getElementById('input-new-hotel');
-        const name = input.value.trim();
-        if (!name) return;
-        try {
-            const res = await fetch('/api/settings/hotels', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                showToast(`Hotel "${name}" agregado`, 'success');
-                input.value = '';
-                fetchHotelsConfig();
-                fetchSettings();
-            } else {
-                showToast(data.error || 'Error al agregar hotel', 'error');
-            }
-        } catch(err) {
-            showToast('Error de conexión', 'error');
-        }
-    });
 
     // --- 3. Technicians Settings Management ---
     async function fetchTechniciansConfig() {
@@ -4514,7 +4425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Initialize Configuration Tab Data If on Configuration Page ---
     if (window.location.pathname.includes('/configuracion')) {
         fetchWarehousesConfig();
-        fetchHotelsConfig();
+        // fetchSettings() ya carga allHotels y renderiza las cards de hoteles
         fetchTechniciansConfig();
         fetchProvidersConfig();
         fetchUsers();
