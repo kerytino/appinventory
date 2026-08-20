@@ -1483,69 +1483,72 @@ document.addEventListener('DOMContentLoaded', () => {
     window.moveToDecommission = async function(id) {
         const device = allDevices.find(d => d.id === id);
         if (!device) return;
+
+        const decModal = document.getElementById('decommission-modal');
+        if (!decModal) return;
+
+        // Limpiar formulario y rellenar con los datos del equipo
+        document.getElementById('decommission-form')?.reset();
         
-        let qtyToDecommission = device.quantity || 1;
-        if (device.quantity && device.quantity > 1) {
-            const qtyInput = prompt(`El equipo tiene ${device.quantity} unidades en total.\n¿Cuántas unidades deseas mover a Decomiso?`, device.quantity);
-            if (qtyInput === null) return;
-            qtyToDecommission = parseInt(qtyInput) || 1;
-            if (qtyToDecommission <= 0 || qtyToDecommission > device.quantity) {
-                alert("Cantidad inválida");
-                return;
+        const devIdInput = document.getElementById('dec-device-id');
+        if (devIdInput) devIdInput.value = id;
+
+        const nameInput = document.getElementById('dec-name');
+        if (nameInput) nameInput.value = device.name || '';
+
+        const typeInput = document.getElementById('dec-type');
+        if (typeInput) typeInput.value = device.type || '';
+
+        const brandInput = document.getElementById('dec-brand');
+        if (brandInput) brandInput.value = device.brand || '';
+
+        const modelInput = document.getElementById('dec-model');
+        if (modelInput) modelInput.value = device.model || '';
+
+        const serialInput = document.getElementById('dec-serial');
+        if (serialInput) serialInput.value = device.serial_number || '';
+
+        const valInput = document.getElementById('dec-value');
+        if (valInput) valInput.value = device.value || 0;
+
+        const qtyInput = document.getElementById('dec-quantity');
+        if (qtyInput) {
+            qtyInput.value = device.quantity || 1;
+            qtyInput.max = device.quantity || 1;
+        }
+
+        const reasonInput = document.getElementById('dec-reason');
+        if (reasonInput) {
+            reasonInput.value = '';
+            reasonInput.placeholder = 'Ingresa la razón de la falla o motivo del decomiso...';
+        }
+
+        // Cargar lista de hoteles
+        await loadHotelsIntoDecomSelect();
+
+        // Si el equipo ya tiene una ubicación/hotel, preseleccionarlo si existe en la lista
+        const hotelSelect = document.getElementById('dec-hotel');
+        if (hotelSelect) {
+            const loc = (device.location || device.hotel || '').trim();
+            if (loc) {
+                const foundOpt = Array.from(hotelSelect.options).find(o => o.value.toLowerCase() === loc.toLowerCase());
+                if (foundOpt) {
+                    hotelSelect.value = foundOpt.value;
+                }
             }
         }
+
+        await previewDecommissionNumber();
+        decModal.classList.add('active');
         
-        const reason = prompt(`Estás a punto de pasar a Decomiso ${qtyToDecommission} unidad(es) de: ${device.name}\n\nPor favor, ingresa la razón de la falla o decomiso:`);
-        if (!reason) return; // Canceló o dejó vacío
-        
-        let autoHotel = device.location || device.warehouse || 'No especificado';
-        
-        const total_qty = device.quantity || 1;
-        const total_val = device.value || 0.0;
-        const decommissioned_value = (qtyToDecommission / total_qty) * total_val;
-        const remaining_value = total_val - decommissioned_value;
-        
-        const decommissionData = {
-            name: device.name,
-            type: device.type,
-            brand: device.brand,
-            model: device.model,
-            serial_number: device.serial_number,
-            value: decommissioned_value,
-            quantity: qtyToDecommission,
-            reason: reason,
-            hotel: autoHotel
-        };
-        
-        try {
-            // Guardar en Decomisos
-            await fetch('/api/decommissions', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(decommissionData)
-            });
-            
-            if (qtyToDecommission === total_qty) {
-                // Eliminar del stock general
-                await fetch(`/api/devices/${id}`, { method: 'DELETE' });
-            } else {
-                // Reducir la cantidad en stock y ajustar el valor
-                await fetch(`/api/devices/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        quantity: total_qty - qtyToDecommission,
-                        value: remaining_value
-                    })
-                });
+        // Enfocar el selector de hotel o el motivo
+        setTimeout(() => {
+            if (hotelSelect && !hotelSelect.value) {
+                hotelSelect.focus();
+            } else if (reasonInput) {
+                reasonInput.focus();
             }
-            
-            showToast('Equipo movido a Decomiso exitosamente', 'success');
-            fetchDevices();
-            fetchDecommissions();
-        } catch (err) {
-            showToast('Error al mover a decomiso', 'error');
-        }
+        }, 150);
     };
 
     window.moveToRepair = async function(id) {
@@ -1689,7 +1692,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-new-decommission')?.addEventListener('click', async () => {
         decommissionModal.classList.add('active');
-        document.getElementById('decommission-form').reset();
+        document.getElementById('decommission-form')?.reset();
+        const devIdInput = document.getElementById('dec-device-id');
+        if (devIdInput) devIdInput.value = '';
         document.getElementById('dec-decommission-number').value = '';
         await loadHotelsIntoDecomSelect();
     });
@@ -1704,13 +1709,28 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btn-close-decommission')?.addEventListener('click', () => {
         decommissionModal.classList.remove('active');
+        const devIdInput = document.getElementById('dec-device-id');
+        if (devIdInput) devIdInput.value = '';
     });
     document.getElementById('btn-cancel-decommission')?.addEventListener('click', () => {
         decommissionModal.classList.remove('active');
+        const devIdInput = document.getElementById('dec-device-id');
+        if (devIdInput) devIdInput.value = '';
     });
 
     document.getElementById('decommission-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const hotel = document.getElementById('dec-hotel').value;
+        if (!hotel) {
+            showToast('Por favor selecciona la propiedad / hotel para el decomiso', 'error');
+            document.getElementById('dec-hotel')?.focus();
+            return;
+        }
+
+        const deviceId = document.getElementById('dec-device-id')?.value;
+        const qty = parseInt(document.getElementById('dec-quantity').value) || 1;
+        const val = parseFloat(document.getElementById('dec-value').value) || 0.0;
+
         const data = {
             name: document.getElementById('dec-name').value,
             type: document.getElementById('dec-type').value,
@@ -1718,10 +1738,11 @@ document.addEventListener('DOMContentLoaded', () => {
             model: document.getElementById('dec-model').value,
             serial_number: document.getElementById('dec-serial').value,
             reason: document.getElementById('dec-reason').value,
-            value: document.getElementById('dec-value').value,
-            hotel: document.getElementById('dec-hotel').value,
-            quantity: document.getElementById('dec-quantity').value || 1
+            value: val,
+            hotel: hotel,
+            quantity: qty
         };
+
         try {
             const response = await fetch('/api/decommissions', {
                 method: 'POST',
@@ -1730,9 +1751,36 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const result = await response.json();
             if (response.ok) {
+                // Si proviene de un equipo existente en inventario (averiado), descontar o eliminar
+                if (deviceId) {
+                    const devIdInt = parseInt(deviceId);
+                    const dev = allDevices.find(d => d.id === devIdInt);
+                    const originalQty = dev ? (dev.quantity || 1) : qty;
+                    const originalVal = dev ? (dev.value || 0.0) : val;
+
+                    if (qty >= originalQty) {
+                        await fetch(`/api/devices/${deviceId}`, { method: 'DELETE' });
+                    } else {
+                        const remainingQty = originalQty - qty;
+                        const remainingVal = (originalVal / originalQty) * remainingQty;
+                        await fetch(`/api/devices/${deviceId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                quantity: remainingQty,
+                                value: remainingVal
+                            })
+                        });
+                    }
+                }
+
                 const num = result.decommission_number || '';
-                showToast(num ? `Decomiso ${num} registrado correctamente` : 'Decomiso registrado', 'success');
+                showToast(num ? `Decomiso ${num} registrado para ${hotel}` : 'Decomiso registrado exitosamente', 'success');
                 decommissionModal.classList.remove('active');
+                const devIdInput = document.getElementById('dec-device-id');
+                if (devIdInput) devIdInput.value = '';
+
+                fetchDevices();
                 fetchDecommissions();
             } else {
                 showToast(result.error || 'Error al registrar decomiso', 'error');
@@ -1776,10 +1824,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Rellena el selector de propiedad del modal PDF
-    function populatePdfHotelSelect() {
+    async function populatePdfHotelSelect() {
         const sel        = document.getElementById('pdf-hotel-select');
         const previewBox = document.getElementById('pdf-hotel-preview');
         if (!sel) return;
+
+        if (!allHotels || allHotels.length === 0) {
+            try {
+                const resH = await fetch('/api/settings/hotels');
+                if (resH.ok) {
+                    allHotels = await resH.json();
+                }
+            } catch(e) {
+                console.error('Error cargando propiedades para el PDF:', e);
+            }
+        }
 
         // Ocultar preview al abrir (estado limpio)
         if (previewBox) previewBox.style.display = 'none';
@@ -1806,7 +1865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePdfHotelPreview(this.value);
     });
 
-    btnExportPdf?.addEventListener('click', () => {
+    btnExportPdf?.addEventListener('click', async () => {
         if (allDecommissions.length === 0) {
             showToast('No hay registros para exportar a PDF', 'error');
             return;
@@ -1822,7 +1881,7 @@ document.addEventListener('DOMContentLoaded', () => {
             noControlInput.value = firstNum;
         }
         // Poblar selector y mostrar modal
-        populatePdfHotelSelect();
+        await populatePdfHotelSelect();
         if (pdfModal) pdfModal.classList.add('active');
     });
 
