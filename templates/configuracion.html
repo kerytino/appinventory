@@ -185,34 +185,43 @@
 
         <div id="settings-tab-email" class="settings-card" style="display: none;">
              <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Configuración SMTP</h3>
-             <form id="email-settings-form">
+             <form id="form-email-settings">
                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
                      <div class="form-group">
                          <label class="form-label">Habilitar Alertas</label>
-                         <input type="checkbox" id="email-enabled">
+                         <input type="checkbox" id="email-enabled-checkbox">
                      </div>
                      <div class="form-group">
                          <label class="form-label">Servidor SMTP</label>
-                         <input type="text" id="email-smtp-server" class="form-control" required>
+                         <input type="text" id="smtp-server-input" class="form-control" required>
                      </div>
                      <div class="form-group">
                          <label class="form-label">Puerto SMTP</label>
-                         <input type="number" id="email-smtp-port" class="form-control" required>
+                         <input type="number" id="smtp-port-input" class="form-control" required>
                      </div>
                      <div class="form-group">
                          <label class="form-label">Usuario SMTP</label>
-                         <input type="text" id="email-smtp-user" class="form-control" required>
+                         <input type="text" id="smtp-user-input" class="form-control" required>
                      </div>
                      <div class="form-group">
                          <label class="form-label">Contraseña SMTP</label>
-                         <input type="password" id="email-smtp-password" class="form-control" required>
+                         <input type="password" id="smtp-pass-input" class="form-control" required>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Correo Remitente (From)</label>
+                         <input type="email" id="smtp-sender-input" class="form-control">
                      </div>
                      <div class="form-group">
                          <label class="form-label">Destinatarios</label>
-                         <input type="text" id="email-recipients" class="form-control" placeholder="correo1@.com, correo2@.com">
+                         <input type="text" id="smtp-recipients-input" class="form-control" placeholder="correo1@.com, correo2@.com">
                      </div>
                  </div>
-                 <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                 <div style="display: flex; gap: var(--spacing-md);">
+                     <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                     <button type="button" id="btn-test-email" class="btn btn-secondary">
+                         <i class="fa-solid fa-paper-plane"></i> Hacer Pruebas
+                     </button>
+                 </div>
              </form>
         </div>
 
