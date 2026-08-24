@@ -671,6 +671,56 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMinStockSuggestion();
     }
 
+    function populateWarehouseDropdown(selectedVal = null) {
+        const sel = document.getElementById('device-warehouse');
+        if (!sel || sel.tagName !== 'SELECT') return;
+        sel.innerHTML = '<option value="" disabled selected>Selecciona un almacén...</option>';
+        (allWarehouses || []).forEach(w => {
+            const opt = document.createElement('option');
+            opt.value = w.name;
+            opt.innerText = w.name;
+            if (selectedVal && (w.name.trim().toUpperCase() === selectedVal.trim().toUpperCase())) {
+                opt.selected = true;
+            }
+            sel.appendChild(opt);
+        });
+        if (selectedVal) {
+            sel.value = selectedVal;
+        }
+    }
+
+    function getMinStockLimit(warehouse, brand, model) {
+        if (!stockLimits) return 0;
+        const cleanBrand = (brand || '').trim().toUpperCase();
+        const cleanModel = (model || '').trim().toUpperCase();
+        const cleanWh = (warehouse || '').trim().toUpperCase();
+        
+        // Try specific warehouse key
+        if (cleanWh && cleanWh !== 'SIN ALMACÉN / POR DEFECTO') {
+            for (const [key, val] of Object.entries(stockLimits)) {
+                const parts = key.split(' | ');
+                if (parts.length > 1) {
+                    const kWh = parts[0].trim().toUpperCase();
+                    const kMod = parts.slice(1).join(' | ').trim().toUpperCase();
+                    if (kWh === cleanWh && (kMod === `${cleanBrand} ${cleanModel}` || kMod === cleanModel)) {
+                        return parseInt(val) || 0;
+                    }
+                }
+            }
+        }
+        
+        // Try default / any warehouse key
+        for (const [key, val] of Object.entries(stockLimits)) {
+            const parts = key.split(' | ');
+            const kMod = (parts.length > 1 ? parts.slice(1).join(' | ') : key).trim().toUpperCase();
+            if (kMod === `${cleanBrand} ${cleanModel}` || kMod === cleanModel) {
+                const num = parseInt(val) || 0;
+                if (num > 0) return num;
+            }
+        }
+        return 0;
+    }
+
     function updateMinStockSuggestion() {
         const brand = (document.getElementById('device-brand')?.value || '').trim();
         const model = (document.getElementById('device-model')?.value || '').trim();
@@ -679,15 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!minStockInput) return;
         
         if (brand && model && brand !== '__new__' && model !== '__new__') {
-            const specificKey = `${warehouse || 'Sin Almacén / Por Defecto'} | ${brand} ${model}`;
-            const defaultKey = `Sin Almacén / Por Defecto | ${brand} ${model}`;
-            if (stockLimits[specificKey] !== undefined) {
-                minStockInput.value = stockLimits[specificKey];
-            } else if (stockLimits[defaultKey] !== undefined) {
-                minStockInput.value = stockLimits[defaultKey];
-            } else {
-                minStockInput.value = 0;
-            }
+            minStockInput.value = getMinStockLimit(warehouse, brand, model);
         }
     }
 
@@ -795,6 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'add') {
             document.getElementById('modal-title').innerText = 'Registrar Equipo';
             deviceForm.reset();
+            populateWarehouseDropdown();
             document.getElementById('device-id').value = '';
             document.getElementById('device-quantity').value = 1;
             updateBrandModelSuggestions();
@@ -812,6 +855,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('device-id').value = device.id;
             document.getElementById('device-name').value = device.name;
             document.getElementById('device-type').value = device.type;
+            populateWarehouseDropdown(device.warehouse || '');
+            document.getElementById('device-warehouse').value = device.warehouse || '';
             updateBrandModelSuggestions(device.brand, device.model);
             document.getElementById('device-serial').value = device.serial_number || '';
             document.getElementById('device-mac').value = device.mac_address || '';
@@ -820,7 +865,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('device-quantity').value = device.quantity || 1;
             document.getElementById('device-description').value = device.description;
             document.getElementById('device-repair-count').value = device.repair_count || 0;
-            document.getElementById('device-warehouse').value = device.warehouse || '';
             document.getElementById('device-location').value = device.location || '';
             document.getElementById('device-dispatched-by').value = device.dispatched_by || '';
             const elSent = document.getElementById('device-warranty-sent');
@@ -1489,17 +1533,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 locationOrWarehouse = `<i class="fa-solid fa-boxes-stacked"></i> ${d.warehouse}`;
             }
 
+            // Check Low Stock Alert
+            const isStockState = (d.status === 'En Stock' || d.status === 'Reparado');
+            let isLowStock = false;
+            let minLimit = 0;
+            let totalModelQty = 0;
+
+            if (isStockState) {
+                const wh = (d.warehouse || '').trim();
+                const brand = (d.brand || '').trim();
+                const model = (d.model || '').trim();
+                minLimit = getMinStockLimit(wh, brand, model);
+
+                allDevices.forEach(other => {
+                    if ((other.status === 'En Stock' || other.status === 'Reparado') &&
+                        (other.brand || '').trim().toUpperCase() === brand.toUpperCase() &&
+                        (other.model || '').trim().toUpperCase() === model.toUpperCase() &&
+                        (!wh || (other.warehouse || '').trim().toUpperCase() === wh.toUpperCase())) {
+                        totalModelQty += (other.quantity || 1);
+                    }
+                });
+
+                if (minLimit > 0 && totalModelQty <= minLimit) {
+                    isLowStock = true;
+                }
+            }
+
+            const qtyDisplay = isLowStock
+                ? `<span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: #ef4444; font-weight: 700; background: rgba(239, 68, 68, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.35);" title="¡ALERTA STOCK BAJO! Stock actual: ${totalModelQty} (Mínimo: ${minLimit})"><i class="fa-solid fa-triangle-exclamation"></i> ${d.quantity || 1}</span>`
+                : `${d.quantity || 1}`;
+
+            const lowStockBadge = isLowStock
+                ? `<div style="margin-top: 4px;"><span style="display: inline-flex; align-items: center; gap: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;" title="Stock bajo el límite (${totalModelQty}/${minLimit})"><i class="fa-solid fa-triangle-exclamation"></i> Stock Bajo</span></div>`
+                : '';
+
             const tr = document.createElement('tr');
+            if (isLowStock) {
+                tr.style.backgroundColor = 'rgba(239, 68, 68, 0.03)';
+            }
             tr.innerHTML = `
                 <td>#${d.id}</td>
                 <td><strong>${d.name}</strong> ${repairTag}</td>
-                <td style="text-align: center; font-weight: 600;">${d.quantity || 1}</td>
+                <td style="text-align: center; font-weight: 600;">${qtyDisplay}</td>
                 <td>${d.type}</td>
                 <td>${d.brand || '-'} / ${d.model || '-'}</td>
                 <td><small>MAC: ${d.mac_address || '-'}<br>S/N: ${d.serial_number || '-'}</small></td>
                 <td>${locationOrWarehouse}</td>
                 <td>${formatCurrency(d.value)}</td>
-                <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span></td>
+                <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span>${lowStockBadge}</td>
                 <td>
                     <button class="action-btn edit" title="Editar" onclick="window.editDevice(${d.id})"><i class="fa-solid fa-pen"></i></button>
                     ${d.status === 'Averiado' ? `<button class="action-btn" style="color: #f59e0b" title="Enviar a Reparación / Garantía" onclick="window.moveToRepair(${d.id})"><i class="fa-solid fa-screwdriver-wrench"></i></button>` : ''}

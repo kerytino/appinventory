@@ -801,8 +801,9 @@
                     </div>
                     <div class="form-group" id="group-warehouse" style="display: block;">
                         <label for="device-warehouse">Almacén de Resguardo <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="device-warehouse" class="form-input" list="warehouse-options" placeholder="Ej: Almacén IT General">
-                        <datalist id="warehouse-options"></datalist>
+                        <select id="device-warehouse" class="form-input" required>
+                            <option value="" disabled selected>Selecciona un almacén...</option>
+                        </select>
                         <datalist id="technician-options"></datalist>
                     </div>
                     <div class="form-group" id="group-dispatched-by" style="display: none; grid-column: span 2;">

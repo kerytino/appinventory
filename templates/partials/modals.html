@@ -45,9 +45,9 @@
 
                 <div class="form-group full-width" id="group-warehouse" style="display: block;">
                     <label class="form-label" for="device-warehouse">Almacén de Resguardo <span style="color:var(--color-danger)">*</span></label>
-                    <input type="text" id="device-warehouse" class="form-control" list="warehouse-options" placeholder="Ej: Almacén IT General">
-                    <datalist id="warehouse-options"></datalist>
-                    <datalist id="technician-options"></datalist>
+                    <select id="device-warehouse" class="form-control" required>
+                        <option value="" disabled selected>Selecciona un almacén...</option>
+                    </select>
                 </div>
 
                 <div class="form-group" id="group-location" style="display: none;">
