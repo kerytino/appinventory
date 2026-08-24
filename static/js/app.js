@@ -4262,7 +4262,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (res.ok) {
                         showToast('Modelo eliminado del catálogo', 'success');
                         fetchCatalogConfig();
-                        fetchCatalogDropdowns();
+                        fetchCatalog();
                     } else {
                         showToast('Error al eliminar del catálogo', 'error');
                     }
@@ -4326,7 +4326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast(`Catálogo editado correctamente`, 'success');
                 document.getElementById('catalog-edit-modal').classList.remove('active');
                 fetchCatalogConfig();
-                fetchCatalogDropdowns();
+                fetchCatalog();
             } else {
                 showToast(data.error || 'Error al editar catálogo', 'error');
             }
@@ -4357,7 +4357,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 brandInput.value = '';
                 modelInput.value = '';
                 fetchCatalogConfig();
-                fetchCatalogDropdowns();
+                fetchCatalog();
             } else {
                 showToast(data.error || 'Error al guardar en catálogo', 'error');
             }
