@@ -4395,27 +4395,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const listBody = document.getElementById('settings-stock-limits-list');
         if (!listBody) return;
         try {
-            const [limitsRes, catalogRes, whRes] = await Promise.all([
+            const [limitsRes, catalogRes, whRes, devRes] = await Promise.all([
                 fetch('/api/settings/stock-limits'),
                 fetch('/api/settings/catalog'),
-                fetch('/api/settings/warehouses')
+                fetch('/api/settings/warehouses'),
+                fetch('/api/devices')
             ]);
             const limits = limitsRes.ok ? await limitsRes.json() : {};
             const catalog = catalogRes.ok ? await catalogRes.json() : [];
             const warehouses = whRes.ok ? await whRes.json() : [];
+            const devices = devRes.ok ? await devRes.json() : [];
             stockLimits = limits;
 
+            // Build unified unique items combining both real inventory and catalog
+            const combinedMap = new Map();
+            
+            // Add from actual registered devices first
+            devices.forEach(d => {
+                const type = (d.type || '').trim();
+                const brand = (d.brand || '').trim();
+                const model = (d.model || '').trim();
+                if (type && model) {
+                    const k = `${type.toUpperCase()}|${brand.toUpperCase()}|${model.toUpperCase()}`;
+                    combinedMap.set(k, { type, brand, model });
+                }
+            });
+
+            // Also add from catalog
+            catalog.forEach(c => {
+                const type = (c.type || '').trim();
+                const brand = (c.brand || '').trim();
+                const model = (c.model || '').trim();
+                if (type && model) {
+                    const k = `${type.toUpperCase()}|${brand.toUpperCase()}|${model.toUpperCase()}`;
+                    if (!combinedMap.has(k)) {
+                        combinedMap.set(k, { type, brand, model });
+                    }
+                }
+            });
+
+            const uniqueList = Array.from(combinedMap.values());
+
             listBody.innerHTML = '';
-            const validCatalog = catalog.filter(c => c.type && c.model);
-            if (validCatalog.length === 0) {
-                listBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay modelos definidos en el catálogo</td></tr>';
+            if (uniqueList.length === 0) {
+                listBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay modelos definidos en el inventario o catálogo</td></tr>';
                 return;
             }
 
             const whList = warehouses.map(w => w.name);
             whList.unshift('Sin Almacén / Por Defecto');
 
-            validCatalog.forEach(item => {
+            uniqueList.forEach(item => {
                 const brand = item.brand || '';
                 const model = item.model || '';
                 const type = item.type || '';

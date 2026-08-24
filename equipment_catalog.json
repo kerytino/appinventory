@@ -2,21 +2,16 @@
     {
         "type": "ACCESS POINT",
         "brand": "RUCKUS",
-        "model": "R510"
+        "model": "T750SE"
     },
     {
-        "type": "ACCESS POINT",
-        "brand": "RUCKUS",
-        "model": "R750"
-    },
-    {
-        "type": "SWITCH",
+        "type": "TRANSCEIVER",
         "brand": "CISCO",
-        "model": "CBS350-24P-4X 24-Port"
+        "model": "SFP-10G-LR"
     },
     {
         "type": "CABLEADO",
-        "brand": "PANDUIT",
-        "model": "6 FT"
+        "brand": "GENERIC",
+        "model": "SC-LC-UPC-2M"
     }
 ]
