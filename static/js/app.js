@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
                 await fetchSettings();
+                await fetchStockLimits();
                 await fetchCatalog();
                 await fetchInactivitySettings();
                 await populateSidebarWarehouses();
@@ -71,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
+                await fetchStockLimits();
                 await fetchInactivitySettings();
                 await populateSidebarWarehouses();
                 await fetchDevices();
@@ -1118,6 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchDevices() {
         try {
+            await fetchStockLimits();
             const response = await fetch('/api/devices');
             allDevices = await response.json();
             try { renderDashboard(); } catch(e) { console.warn(e); }
@@ -1163,14 +1166,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Populate Stock Summary by Brand and Model
         const stockDevices = allDevices.filter(d => d.status === 'En Stock' || d.status === 'Reparado');
 
-        // Calculate total stock counts by warehouse name + brand + model key
+        // Calculate total stock counts by warehouse name + brand + model key AND by model alone
         const warehouseModelStockCounts = {};
+        const modelTotalStockCounts = {};
         stockDevices.forEach(d => {
             if (d.brand && d.model) {
-                const w = d.warehouse && d.warehouse.trim() !== '' ? d.warehouse : 'Sin Almacén / Por Defecto';
-                const key = `${w} | ${d.brand} ${d.model}`;
-                if (!warehouseModelStockCounts[key]) warehouseModelStockCounts[key] = 0;
-                warehouseModelStockCounts[key] += (d.quantity || 1);
+                const w = (d.warehouse && d.warehouse.trim() !== '' ? d.warehouse : 'Sin Almacén / Por Defecto').trim().toUpperCase();
+                const brand = d.brand.trim().toUpperCase();
+                const model = d.model.trim().toUpperCase();
+                const key = `${w} | ${brand} ${model}`;
+                const mKey = `${brand} ${model}`;
+                
+                warehouseModelStockCounts[key] = (warehouseModelStockCounts[key] || 0) + (d.quantity || 1);
+                modelTotalStockCounts[mKey] = (modelTotalStockCounts[mKey] || 0) + (d.quantity || 1);
             }
         });
 
@@ -1179,15 +1187,26 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const [limitKey, limit] of Object.entries(stockLimits)) {
             const minLimit = parseInt(limit) || 0;
             if (minLimit > 0) {
-                const currentCount = warehouseModelStockCounts[limitKey] || 0;
+                const parts = limitKey.split(' | ');
+                let warehouse = 'Sin Almacén / Por Defecto';
+                let model = limitKey;
+                if (parts.length > 1) {
+                    warehouse = parts[0].trim();
+                    model = parts.slice(1).join(' | ').trim();
+                }
+                
+                const cleanWh = warehouse.toUpperCase();
+                const cleanMod = model.toUpperCase();
+                const normalizedKey = `${cleanWh} | ${cleanMod}`;
+                
+                let currentCount = 0;
+                if (cleanWh === 'SIN ALMACÉN / POR DEFECTO') {
+                    currentCount = modelTotalStockCounts[cleanMod] || 0;
+                } else {
+                    currentCount = warehouseModelStockCounts[normalizedKey] || 0;
+                }
+
                 if (currentCount <= minLimit) {
-                    const parts = limitKey.split(' | ');
-                    let warehouse = 'Sin Almacén / Por Defecto';
-                    let model = limitKey;
-                    if (parts.length > 1) {
-                        warehouse = parts[0];
-                        model = parts.slice(1).join(' | ');
-                    }
                     lowStockAlerts.push({
                         warehouse: warehouse,
                         model: model,
@@ -4780,27 +4799,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const listBody = document.getElementById('settings-stock-limits-list');
         if (!listBody) return;
         try {
-            const [limitsRes, catalogRes] = await Promise.all([
+            const [limitsRes, catalogRes, whRes] = await Promise.all([
                 fetch('/api/settings/stock-limits'),
-                fetch('/api/settings/catalog')
+                fetch('/api/settings/catalog'),
+                fetch('/api/settings/warehouses')
             ]);
             const limits = limitsRes.ok ? await limitsRes.json() : {};
             const catalog = catalogRes.ok ? await catalogRes.json() : [];
-            const types = Array.from(new Set(catalog.map(c => c.type).filter(Boolean)));
+            const warehouses = whRes.ok ? await whRes.json() : [];
+            stockLimits = limits;
+
             listBody.innerHTML = '';
-            if (types.length === 0) {
-                listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay tipos de equipos definidos en el catálogo</td></tr>';
+            const validCatalog = catalog.filter(c => c.type && c.model);
+            if (validCatalog.length === 0) {
+                listBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay modelos definidos en el catálogo</td></tr>';
                 return;
             }
-            types.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(t)}</strong></td>
-                    <td style="width: 150px;">
-                        <input type="number" class="form-control stock-limit-input" data-type="${escapeHtml(t)}" value="${limits[t] || 0}" min="0">
-                    </td>
-                `;
-                listBody.appendChild(tr);
+
+            const whList = warehouses.map(w => w.name);
+            whList.unshift('Sin Almacén / Por Defecto');
+
+            validCatalog.forEach(item => {
+                const brand = item.brand || '';
+                const model = item.model || '';
+                const type = item.type || '';
+
+                whList.forEach(wh => {
+                    const key = `${wh} | ${brand} ${model}`;
+                    const defaultKey = `Sin Almacén / Por Defecto | ${brand} ${model}`;
+                    const currentVal = limits[key] !== undefined ? limits[key] : (wh === 'Sin Almacén / Por Defecto' && limits[defaultKey] !== undefined ? limits[defaultKey] : 0);
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${escapeHtml(type)}</strong></td>
+                        <td>${escapeHtml(brand || '-')}</td>
+                        <td><span style="font-weight: 600;">${escapeHtml(model)}</span></td>
+                        <td><span class="badge ${wh === 'Sin Almacén / Por Defecto' ? 'badge-secondary' : 'badge-info'}"><i class="fa-solid fa-warehouse"></i> ${escapeHtml(wh)}</span></td>
+                        <td style="width: 140px; text-align: center;">
+                            <input type="number" class="form-control stock-limit-input" data-key="${escapeHtml(key)}" value="${currentVal}" min="0" style="text-align: center;">
+                        </td>
+                    `;
+                    listBody.appendChild(tr);
+                });
             });
         } catch(e) {
             console.error('Error loading stock limits config:', e);
@@ -4809,10 +4849,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-save-stock-limits')?.addEventListener('click', async () => {
         const inputs = document.querySelectorAll('.stock-limit-input');
-        const payload = {};
+        const payload = { ...stockLimits };
         inputs.forEach(inp => {
-            const type = inp.getAttribute('data-type');
-            payload[type] = parseInt(inp.value, 10) || 0;
+            const key = inp.getAttribute('data-key');
+            const val = parseInt(inp.value, 10) || 0;
+            if (key) {
+                payload[key] = val;
+            }
         });
         try {
             const res = await fetch('/api/settings/stock-limits', {

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
                 await fetchSettings();
+                await fetchStockLimits();
                 await fetchCatalog();
                 await fetchInactivitySettings();
                 await populateSidebarWarehouses();
@@ -59,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
+                await fetchStockLimits();
                 await fetchInactivitySettings();
                 await populateSidebarWarehouses();
                 await fetchDevices();
@@ -4393,27 +4395,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const listBody = document.getElementById('settings-stock-limits-list');
         if (!listBody) return;
         try {
-            const [limitsRes, catalogRes] = await Promise.all([
+            const [limitsRes, catalogRes, whRes] = await Promise.all([
                 fetch('/api/settings/stock-limits'),
-                fetch('/api/settings/catalog')
+                fetch('/api/settings/catalog'),
+                fetch('/api/settings/warehouses')
             ]);
             const limits = limitsRes.ok ? await limitsRes.json() : {};
             const catalog = catalogRes.ok ? await catalogRes.json() : [];
-            const types = Array.from(new Set(catalog.map(c => c.type).filter(Boolean)));
+            const warehouses = whRes.ok ? await whRes.json() : [];
+            stockLimits = limits;
+
             listBody.innerHTML = '';
-            if (types.length === 0) {
-                listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay tipos de equipos definidos en el catálogo</td></tr>';
+            const validCatalog = catalog.filter(c => c.type && c.model);
+            if (validCatalog.length === 0) {
+                listBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay modelos definidos en el catálogo</td></tr>';
                 return;
             }
-            types.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(t)}</strong></td>
-                    <td style="width: 150px;">
-                        <input type="number" class="form-control stock-limit-input" data-type="${escapeHtml(t)}" value="${limits[t] || 0}" min="0">
-                    </td>
-                `;
-                listBody.appendChild(tr);
+
+            const whList = warehouses.map(w => w.name);
+            whList.unshift('Sin Almacén / Por Defecto');
+
+            validCatalog.forEach(item => {
+                const brand = item.brand || '';
+                const model = item.model || '';
+                const type = item.type || '';
+
+                whList.forEach(wh => {
+                    const key = `${wh} | ${brand} ${model}`;
+                    const defaultKey = `Sin Almacén / Por Defecto | ${brand} ${model}`;
+                    const currentVal = limits[key] !== undefined ? limits[key] : (wh === 'Sin Almacén / Por Defecto' && limits[defaultKey] !== undefined ? limits[defaultKey] : 0);
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${escapeHtml(type)}</strong></td>
+                        <td>${escapeHtml(brand || '-')}</td>
+                        <td><span style="font-weight: 600;">${escapeHtml(model)}</span></td>
+                        <td><span class="badge ${wh === 'Sin Almacén / Por Defecto' ? 'badge-secondary' : 'badge-info'}"><i class="fa-solid fa-warehouse"></i> ${escapeHtml(wh)}</span></td>
+                        <td style="width: 140px; text-align: center;">
+                            <input type="number" class="form-control stock-limit-input" data-key="${escapeHtml(key)}" value="${currentVal}" min="0" style="text-align: center;">
+                        </td>
+                    `;
+                    listBody.appendChild(tr);
+                });
             });
         } catch(e) {
             console.error('Error loading stock limits config:', e);
@@ -4422,10 +4445,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-save-stock-limits')?.addEventListener('click', async () => {
         const inputs = document.querySelectorAll('.stock-limit-input');
-        const payload = {};
+        const payload = { ...stockLimits };
         inputs.forEach(inp => {
-            const type = inp.getAttribute('data-type');
-            payload[type] = parseInt(inp.value, 10) || 0;
+            const key = inp.getAttribute('data-key');
+            const val = parseInt(inp.value, 10) || 0;
+            if (key) {
+                payload[key] = val;
+            }
         });
         try {
             const res = await fetch('/api/settings/stock-limits', {

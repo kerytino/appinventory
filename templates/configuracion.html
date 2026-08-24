@@ -164,12 +164,25 @@
         </div>
 
         <div id="settings-tab-stock-limits" class="settings-card" style="display: none;">
-             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Límites de Stock</h3>
+             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                 <h3 class="section-title" style="margin: 0;">Límites de Stock Mínimo</h3>
+                 <button id="btn-save-stock-limits" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Límites</button>
+             </div>
+             <p class="text-secondary" style="font-size: 14px; margin-bottom: var(--spacing-lg);">
+                 Configura la cantidad mínima requerida en resguardo para cada modelo por almacén. Si la cantidad disponible es menor o igual a este número, se activará la alerta de <strong>Stock Crítico</strong>.
+             </p>
              <div class="table-container"><table class="data-table">
-                 <thead><tr><th>Categoría (Tipo)</th><th>Stock Mínimo</th></tr></thead>
+                 <thead>
+                     <tr>
+                         <th>Tipo</th>
+                         <th>Marca</th>
+                         <th>Modelo</th>
+                         <th>Almacén</th>
+                         <th style="width: 140px; text-align: center;">Stock Mínimo</th>
+                     </tr>
+                 </thead>
                  <tbody id="settings-stock-limits-list"></tbody>
              </table></div>
-             <div style="margin-top: 16px;"><button id="btn-save-stock-limits" class="btn btn-primary">Guardar Límites</button></div>
         </div>
 
         <div id="settings-tab-catalog" class="settings-card" style="display: none;">
