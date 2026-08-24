@@ -96,6 +96,11 @@
                 </div>
 
                 <div class="form-group full-width">
+                    <label class="form-label" for="device-min-stock">Stock Mínimo (Alerta de Stock Bajo) <i class="fa-solid fa-bell" style="color: var(--color-warning); font-size: 12px;"></i></label>
+                    <input class="form-control" type="number" id="device-min-stock" min="0" value="0" placeholder="0 (Alerta si el stock en almacén es menor o igual a este número)">
+                </div>
+
+                <div class="form-group full-width">
                     <label class="form-label" for="device-description">Descripción / Especificaciones</label>
                     <textarea class="form-control" id="device-description" rows="3" placeholder="Detalles técnicos, notas, etc."></textarea>
                 </div>

@@ -667,6 +667,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const found = matchingModels.find(m => m.toUpperCase() === currentModelVal.toUpperCase());
             if (found) modelSelect.value = found;
         }
+
+        updateMinStockSuggestion();
+    }
+
+    function updateMinStockSuggestion() {
+        const brand = (document.getElementById('device-brand')?.value || '').trim();
+        const model = (document.getElementById('device-model')?.value || '').trim();
+        const warehouse = (document.getElementById('device-warehouse')?.value || '').trim();
+        const minStockInput = document.getElementById('device-min-stock');
+        if (!minStockInput) return;
+        
+        if (brand && model && brand !== '__new__' && model !== '__new__') {
+            const specificKey = `${warehouse || 'Sin Almacén / Por Defecto'} | ${brand} ${model}`;
+            const defaultKey = `Sin Almacén / Por Defecto | ${brand} ${model}`;
+            if (stockLimits[specificKey] !== undefined) {
+                minStockInput.value = stockLimits[specificKey];
+            } else if (stockLimits[defaultKey] !== undefined) {
+                minStockInput.value = stockLimits[defaultKey];
+            } else {
+                minStockInput.value = 0;
+            }
+        }
     }
 
     async function quickAddType() {
@@ -812,7 +834,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         toggleDynamicFields();
+        updateMinStockSuggestion();
     }
+
+    document.getElementById('device-warehouse')?.addEventListener('input', updateMinStockSuggestion);
+    document.getElementById('device-warehouse')?.addEventListener('change', updateMinStockSuggestion);
 
     function toggleDynamicFields() {
         const status = document.getElementById('device-status').value;
@@ -1620,6 +1646,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 showToast('Equipo registrado', 'success');
             }
+
+            // Save Stock Mínimo to stock_limits configuration
+            const minStockInput = document.getElementById('device-min-stock');
+            if (minStockInput && data.brand && data.model && data.brand !== '__new__' && data.model !== '__new__') {
+                const minStockVal = parseInt(minStockInput.value) || 0;
+                const wh = data.warehouse || 'Sin Almacén / Por Defecto';
+                const specificKey = `${wh} | ${data.brand} ${data.model}`;
+                const defaultKey = `Sin Almacén / Por Defecto | ${data.brand} ${data.model}`;
+                
+                stockLimits[specificKey] = minStockVal;
+                if (stockLimits[defaultKey] === undefined) {
+                    stockLimits[defaultKey] = minStockVal;
+                }
+                
+                try {
+                    await fetch('/api/settings/stock-limits', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(stockLimits)
+                    });
+                    if (typeof renderStockLimitsConfig === 'function') {
+                        renderStockLimitsConfig();
+                    }
+                } catch(e) {
+                    console.error("Error updating stock limits:", e);
+                }
+            }
+
             closeModal();
             fetchDevices();
         } catch (err) {
