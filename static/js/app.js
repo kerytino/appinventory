@@ -3793,13 +3793,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (res.ok) {
-                if (data.email_error) {
-                    showToast(`${data.message}: ${data.email_error}`, 'error');
-                } else {
-                    showToast(data.message, 'success');
-                }
+                showToast(data.message, 'success');
             } else {
-                showToast(data.error || 'Error al guardar configuración SMTP', 'error');
+                if (data.email_error) {
+                    showToast(`${data.message || 'Error'}: ${data.email_error}`, 'error');
+                } else {
+                    showToast(data.error || data.message || 'Error al guardar configuración SMTP', 'error');
+                }
             }
         } catch (e) {
             showToast('Error de conexión', 'error');
