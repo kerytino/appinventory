@@ -258,23 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateDeviceTypeDropdown() {
-        const select = document.getElementById('device-type');
-        if (!select) return;
-        
-        const currentVal = select.value;
-        select.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
-        
+        const typeList = document.getElementById('type-options');
+        if (!typeList) return;
+        typeList.innerHTML = '';
         const allTypes = getCombinedDeviceTypes();
         allTypes.forEach(type => {
             const opt = document.createElement('option');
             opt.value = type;
-            opt.textContent = type === 'Sensor' ? 'Sensor / YoLink' : (type === 'Cableado' ? 'Cableado / Bobina' : type);
-            select.appendChild(opt);
+            typeList.appendChild(opt);
         });
-        
-        if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
-            select.value = currentVal;
-        }
     }
 
     async function fetchStockLimits() {
@@ -542,62 +534,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSelect = document.getElementById('device-model');
 
     function updateBrandModelSuggestions(selectedBrand = null, selectedModel = null) {
-        const type = deviceTypeSelect.value;
+        const typeInput = document.getElementById('device-type');
+        const brandList = document.getElementById('brand-options');
+        const modelList = document.getElementById('model-options');
+        const brandInput = document.getElementById('device-brand');
+        const modelInput = document.getElementById('device-model');
+        
+        if (!typeInput || !brandList || !modelList || !brandInput || !modelInput) return;
+        
+        const type = typeInput.value;
         
         // 1. Populate Brands matching Type from catalog
         const matchingBrands = [...new Set(
             equipmentCatalog.filter(c => c.type === type && c.brand).map(c => c.brand)
         )].sort();
         
-        const currentBrandVal = selectedBrand || brandSelect.value;
-        brandSelect.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
-        
+        brandList.innerHTML = '';
         matchingBrands.forEach(b => {
             const opt = document.createElement('option');
             opt.value = b;
-            opt.textContent = b;
-            brandSelect.appendChild(opt);
+            brandList.appendChild(opt);
         });
         
-        if (currentBrandVal && !matchingBrands.includes(currentBrandVal)) {
-            const opt = document.createElement('option');
-            opt.value = currentBrandVal;
-            opt.textContent = currentBrandVal;
-            brandSelect.appendChild(opt);
-            brandSelect.value = currentBrandVal;
-        } else if (currentBrandVal && matchingBrands.includes(currentBrandVal)) {
-            brandSelect.value = currentBrandVal;
-        }
-        
         // 2. Populate Models matching Type & Brand from catalog
-        const brand = brandSelect.value;
+        const brand = brandInput.value || selectedBrand;
         const matchingModels = [...new Set(
             equipmentCatalog.filter(c => c.type === type && c.brand === brand && c.model).map(c => c.model)
         )].sort();
         
-        const currentModelVal = selectedModel || modelSelect.value;
-        modelSelect.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
-        
+        modelList.innerHTML = '';
         matchingModels.forEach(m => {
             const opt = document.createElement('option');
             opt.value = m;
-            opt.textContent = m;
-            modelSelect.appendChild(opt);
+            modelList.appendChild(opt);
         });
         
-        if (currentModelVal && !matchingModels.includes(currentModelVal)) {
-            const opt = document.createElement('option');
-            opt.value = currentModelVal;
-            opt.textContent = currentModelVal;
-            modelSelect.appendChild(opt);
-            modelSelect.value = currentModelVal;
-        } else if (currentModelVal && matchingModels.includes(currentModelVal)) {
-            modelSelect.value = currentModelVal;
-        }
+        if (selectedBrand) brandInput.value = selectedBrand;
+        if (selectedModel) modelInput.value = selectedModel;
     }
     
-    deviceTypeSelect.addEventListener('change', () => updateBrandModelSuggestions());
-    brandSelect.addEventListener('change', () => updateBrandModelSuggestions());
+    const typeInput = document.getElementById('device-type');
+    const brandInput = document.getElementById('device-brand');
+    
+    if (typeInput) typeInput.addEventListener('input', () => updateBrandModelSuggestions());
+    if (brandInput) brandInput.addEventListener('input', () => updateBrandModelSuggestions());
 
     function openModal(mode = 'add', device = null) {
         populateDeviceTypeDropdown();

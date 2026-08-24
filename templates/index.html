@@ -761,10 +761,9 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="device-type">Tipo de Equipo</label>
-                        <select id="device-type" required>
-                            <option value="" disabled selected>Seleccionar...</option>
-                        </select>
+                        <label for="device-type">Tipo de Equipo <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="device-type" class="form-input" list="type-options" required placeholder="Ej: Switch, Access Point">
+                        <datalist id="type-options"></datalist>
                     </div>
                     <div class="form-group">
                         <label for="device-status">Estado</label>
@@ -820,15 +819,13 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="device-brand">Marca <span style="color:var(--danger)">*</span></label>
-                        <select id="device-brand" required>
-                            <option value="" disabled selected>Selecciona tipo primero...</option>
-                        </select>
+                        <input type="text" id="device-brand" class="form-input" list="brand-options" required placeholder="Ej: Cisco, Ruckus">
+                        <datalist id="brand-options"></datalist>
                     </div>
                     <div class="form-group">
                         <label for="device-model">Modelo <span style="color:var(--danger)">*</span></label>
-                        <select id="device-model" required>
-                            <option value="" disabled selected>Selecciona marca primero...</option>
-                        </select>
+                        <input type="text" id="device-model" class="form-input" list="model-options" required placeholder="Ej: CBS350">
+                        <datalist id="model-options"></datalist>
                     </div>
                 </div>
 
@@ -1254,7 +1251,7 @@
     <!-- Toast Notification -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="{{ url_for('static', filename='js/main_v2.js?v=1786718568') }}"></script>
+    <script src="{{ url_for('static', filename='js/main_v2.js') }}?v=1786718569"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
