@@ -1416,15 +1416,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchInp && !searchInp.value) searchInp.value = urlStatus;
         }
 
-        if (urlWarehouse && !currentWarehouseFilter) {
-            currentWarehouseFilter = urlWarehouse;
+        let activeWarehouse = (urlWarehouse !== null ? urlWarehouse : (typeof currentWarehouseFilter !== 'undefined' ? currentWarehouseFilter : null));
+        if (activeWarehouse === 'all' || activeWarehouse === '' || activeWarehouse === 'null') {
+            activeWarehouse = null;
         }
 
         let devicesToRender = allDevices;
-        if (currentWarehouseFilter) {
+        if (activeWarehouse) {
             devicesToRender = allDevices.filter(d => 
                 (d.status === 'En Stock' || d.status === 'Reparado') && 
-                d.warehouse === currentWarehouseFilter
+                (d.warehouse || '').trim().toUpperCase() === activeWarehouse.trim().toUpperCase()
             );
         }
 
