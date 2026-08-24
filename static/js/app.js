@@ -844,24 +844,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const status = document.getElementById('device-status').value;
         const groupWarehouse = document.getElementById('group-warehouse');
         const groupLocation = document.getElementById('group-location');
+        const whInput = document.getElementById('device-warehouse');
+        const locInput = document.getElementById('device-location');
+        const dispInput = document.getElementById('device-dispatched-by');
         
-        if (status === 'En Stock' || status === 'Reparado') {
-            groupWarehouse.style.display = 'block';
-        } else {
-            groupWarehouse.style.display = 'none';
+        const isStock = status === 'En Stock' || status === 'Reparado';
+        const isDeployed = status === 'Despachado / Instalado';
+        
+        if (groupWarehouse) {
+            groupWarehouse.style.display = isStock ? 'block' : 'none';
         }
+        if (whInput) whInput.required = isStock;
 
-        if (status === 'Despachado / Instalado') {
-            groupLocation.style.display = 'block';
-            if (document.getElementById('group-dispatched-by')) {
-                document.getElementById('group-dispatched-by').style.display = 'block';
-            }
-        } else {
-            groupLocation.style.display = 'none';
-            if (document.getElementById('group-dispatched-by')) {
-                document.getElementById('group-dispatched-by').style.display = 'none';
-            }
+        if (groupLocation) {
+            groupLocation.style.display = isDeployed ? 'block' : 'none';
         }
+        if (locInput) locInput.required = isDeployed;
+        
+        if (document.getElementById('group-dispatched-by')) {
+            document.getElementById('group-dispatched-by').style.display = isDeployed ? 'block' : 'none';
+        }
+        if (dispInput) dispInput.required = isDeployed;
 
         // Siempre mostrar el contador de reparaciones para que se pueda ver/editar
         const groupRepairCount = document.getElementById('group-repair-count');
@@ -1615,6 +1618,26 @@ document.addEventListener('DOMContentLoaded', () => {
             warranty_received_date: document.getElementById('device-warranty-received').value,
             warranty_provider: document.getElementById('device-warranty-provider') ? document.getElementById('device-warranty-provider').value : ''
         };
+
+        // Validate required fields by status
+        if ((data.status === 'En Stock' || data.status === 'Reparado') && !data.warehouse.trim()) {
+            showToast('El Almacén de Resguardo es obligatorio para equipos en Stock', 'error');
+            document.getElementById('device-warehouse').focus();
+            return;
+        }
+
+        if (data.status === 'Despachado / Instalado') {
+            if (!data.location.trim()) {
+                showToast('La Ubicación (Hotel) es obligatoria para equipos despachados', 'error');
+                document.getElementById('device-location').focus();
+                return;
+            }
+            if (!data.dispatched_by.trim()) {
+                showToast('El Técnico responsable es obligatorio para equipos despachados', 'error');
+                document.getElementById('device-dispatched-by').focus();
+                return;
+            }
+        }
 
         // Clean up status-dependent fields before sending
         if (data.status === 'En Stock' || data.status === 'Reparado') {

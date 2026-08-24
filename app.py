@@ -630,6 +630,12 @@ def get_devices():
 @app.route('/api/devices', methods=['POST'])
 def add_device():
     data = request.json
+    status = data.get('status', 'En Stock')
+    warehouse = (data.get('warehouse') or '').strip()
+    
+    if status in ['En Stock', 'Reparado'] and not warehouse:
+        return jsonify({'error': 'El Almacén de Resguardo es obligatorio para equipos en Stock'}), 400
+        
     new_device = Device(
         name=data['name'],
         device_type=data['type'],
@@ -637,10 +643,10 @@ def add_device():
         model=data.get('model', ''),
         serial_number=data.get('serial_number', ''),
         mac_address=data.get('mac_address', ''),
-        status=data['status'],
+        status=status,
         repair_count=int(data.get('repair_count', 0)),
         location=data.get('location', ''),
-        warehouse=data.get('warehouse', ''),
+        warehouse=warehouse,
         dispatched_by=data.get('dispatched_by', ''),
         warranty_sent_by=data.get('warranty_sent_by', ''),
         warranty_provider=data.get('warranty_provider', ''),
@@ -687,8 +693,11 @@ def update_device(device_id):
     
     new_status = data.get('status', old_status)
     new_quantity = int(data.get('quantity', old_quantity)) if 'quantity' in data else old_quantity
-    new_warehouse = data.get('warehouse', old_warehouse)
+    new_warehouse = (data.get('warehouse') if 'warehouse' in data else (old_warehouse or '')).strip()
     new_location = data.get('location', old_location)
+    
+    if new_status in ['En Stock', 'Reparado'] and not new_warehouse:
+        return jsonify({'error': 'El Almacén de Resguardo es obligatorio para equipos en Stock'}), 400
     
     is_different_location = (new_status != old_status) or (new_warehouse != old_warehouse) or (new_location != old_location)
     
