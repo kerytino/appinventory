@@ -534,11 +534,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(entry)
             });
-            if (typeof fetchCatalogConfig === 'function') {
-                await fetchCatalogConfig();
-            } else {
-                const res = await fetch('/api/settings/catalog');
-                if (res.ok) equipmentCatalog = await res.json();
+            const res = await fetch('/api/settings/catalog');
+            if (res.ok) {
+                equipmentCatalog = await res.json();
+                if (typeof renderCatalogConfig === 'function') renderCatalogConfig(equipmentCatalog);
+                if (typeof renderCatalogList === 'function') renderCatalogList();
             }
         } catch (e) {
             console.error("Error saving catalog entry:", e);
@@ -4459,12 +4459,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 5. Catalog Settings Management ---
     async function fetchCatalogConfig() {
-        const listBody = document.getElementById('settings-catalog-list');
-        if (!listBody) return;
         try {
             const res = await fetch('/api/settings/catalog');
             if (res.ok) {
                 const catalog = await res.json();
+                equipmentCatalog = catalog;
                 renderCatalogConfig(catalog);
             }
         } catch(e) {
