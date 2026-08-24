@@ -3915,6 +3915,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><strong><i class="fa-solid fa-warehouse" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(w.name)}</strong></td>
                 <td><span class="badge badge-info">${escapeHtml(w.hotel || 'Sin Hotel')}</span></td>
                 <td style="text-align: right;">
+                    <button class="btn-icon btn-edit-warehouse" data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-hotel="${escapeHtml(w.hotel || '')}" title="Editar Almacén" style="color: var(--color-primary); margin-right: 8px;">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
                     <button class="btn-icon btn-delete-warehouse" data-id="${w.id}" data-name="${escapeHtml(w.name)}" title="Eliminar Almacén" style="color: var(--color-danger);">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -3942,7 +3945,74 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // Edit warehouse handlers
+        listBody.querySelectorAll('.btn-edit-warehouse').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                const hotel = btn.getAttribute('data-hotel');
+                
+                document.getElementById('warehouse-edit-id').value = id;
+                document.getElementById('warehouse-edit-name').value = name;
+                
+                // Populate hotels dropdown in edit modal
+                const editHotelSelect = document.getElementById('warehouse-edit-hotel');
+                if (editHotelSelect) {
+                    editHotelSelect.innerHTML = '<option value="">Sin Hotel (Opcional)</option>';
+                    const hotels = document.getElementById('input-new-warehouse-hotel')?.options;
+                    if (hotels) {
+                        Array.from(hotels).forEach(opt => {
+                            if(opt.value) {
+                                const newOpt = document.createElement('option');
+                                newOpt.value = opt.value;
+                                newOpt.textContent = opt.textContent;
+                                editHotelSelect.appendChild(newOpt);
+                            }
+                        });
+                    }
+                    editHotelSelect.value = hotel;
+                }
+                
+                document.getElementById('warehouse-edit-modal').classList.add('active');
+            });
+        });
     }
+
+    // Modal warehouse close events
+    document.getElementById('btn-close-warehouse-edit')?.addEventListener('click', () => {
+        document.getElementById('warehouse-edit-modal').classList.remove('active');
+    });
+    document.getElementById('btn-cancel-warehouse-edit')?.addEventListener('click', () => {
+        document.getElementById('warehouse-edit-modal').classList.remove('active');
+    });
+
+    document.getElementById('warehouse-edit-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('warehouse-edit-id').value;
+        const name = document.getElementById('warehouse-edit-name').value.trim();
+        const hotel = document.getElementById('warehouse-edit-hotel').value;
+        
+        if (!name) return;
+        try {
+            const res = await fetch(`/api/settings/warehouses/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, hotel })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Almacén editado correctamente`, 'success');
+                document.getElementById('warehouse-edit-modal').classList.remove('active');
+                fetchWarehousesConfig();
+                fetchSettings(); // Update general cache
+            } else {
+                showToast(data.error || 'Error al editar almacén', 'error');
+            }
+        } catch(e) {
+            showToast('Error de conexión', 'error');
+        }
+    });
 
     document.getElementById('form-add-warehouse')?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -4166,6 +4236,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><strong>${escapeHtml(item.brand)}</strong></td>
                 <td>${escapeHtml(item.model)}</td>
                 <td style="text-align: right;">
+                    <button class="btn-icon btn-edit-catalog" data-type="${escapeHtml(item.type)}" data-brand="${escapeHtml(item.brand)}" data-model="${escapeHtml(item.model)}" title="Editar del Catálogo" style="color: var(--color-primary); margin-right: 8px;">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
                     <button class="btn-icon btn-delete-catalog" data-type="${escapeHtml(item.type)}" data-brand="${escapeHtml(item.brand)}" data-model="${escapeHtml(item.model)}" title="Eliminar del Catálogo" style="color: var(--color-danger);">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -4198,7 +4271,69 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // Edit catalog handlers
+        listBody.querySelectorAll('.btn-edit-catalog').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.getAttribute('data-type');
+                const brand = btn.getAttribute('data-brand');
+                const model = btn.getAttribute('data-model');
+                
+                document.getElementById('catalog-edit-old-type').value = type;
+                document.getElementById('catalog-edit-old-brand').value = brand;
+                document.getElementById('catalog-edit-old-model').value = model;
+                
+                document.getElementById('catalog-edit-type').value = type;
+                document.getElementById('catalog-edit-brand').value = brand;
+                document.getElementById('catalog-edit-model').value = model;
+                
+                document.getElementById('catalog-edit-modal').classList.add('active');
+            });
+        });
     }
+
+    // Modal catalog close events
+    document.getElementById('btn-close-catalog-edit')?.addEventListener('click', () => {
+        document.getElementById('catalog-edit-modal').classList.remove('active');
+    });
+    document.getElementById('btn-cancel-catalog-edit')?.addEventListener('click', () => {
+        document.getElementById('catalog-edit-modal').classList.remove('active');
+    });
+
+    document.getElementById('catalog-edit-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const oldType = document.getElementById('catalog-edit-old-type').value;
+        const oldBrand = document.getElementById('catalog-edit-old-brand').value;
+        const oldModel = document.getElementById('catalog-edit-old-model').value;
+        
+        const type = document.getElementById('catalog-edit-type').value.trim();
+        const brand = document.getElementById('catalog-edit-brand').value.trim();
+        const model = document.getElementById('catalog-edit-model').value.trim();
+        
+        if (!type || !brand || !model) return;
+        
+        try {
+            const res = await fetch('/api/settings/catalog', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    old: { type: oldType, brand: oldBrand, model: oldModel },
+                    new: { type, brand, model }
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Catálogo editado correctamente`, 'success');
+                document.getElementById('catalog-edit-modal').classList.remove('active');
+                fetchCatalogConfig();
+                fetchCatalogDropdowns();
+            } else {
+                showToast(data.error || 'Error al editar catálogo', 'error');
+            }
+        } catch(e) {
+            showToast('Error de conexión', 'error');
+        }
+    });
 
     document.getElementById('form-add-catalog')?.addEventListener('submit', async (e) => {
         e.preventDefault();

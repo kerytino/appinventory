@@ -1421,6 +1421,26 @@ def add_warehouse():
     db.session.commit()
     return jsonify(w.to_dict()), 201
 
+@app.route('/api/settings/warehouses/<int:id>', methods=['PUT'])
+def edit_warehouse(id):
+    if session.get('role') != 'Admin':
+        return jsonify({'error': 'No autorizado'}), 403
+    w = Warehouse.query.get_or_404(id)
+    data = request.json
+    name = data.get('name', '').strip()
+    hotel = data.get('hotel', '').strip()
+    if not name:
+        return jsonify({'error': 'El nombre es obligatorio'}), 400
+    
+    existing = Warehouse.query.filter_by(name=name).first()
+    if existing and existing.id != id:
+        return jsonify({'error': 'Ya existe un almacén con ese nombre'}), 400
+        
+    w.name = name
+    w.hotel = hotel
+    db.session.commit()
+    return jsonify(w.to_dict()), 200
+
 @app.route('/api/settings/warehouses/<int:id>', methods=['DELETE'])
 def delete_warehouse(id):
     w = Warehouse.query.get_or_404(id)
@@ -1719,6 +1739,54 @@ def save_catalog_entry():
             return jsonify({'message': 'Modelo agregado correctamente al catálogo'}), 200
         else:
             return jsonify({'error': 'El modelo ya existe en el catálogo'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/catalog', methods=['PUT'])
+def edit_catalog_entry():
+    if session.get('role') != 'Admin':
+        return jsonify({'error': 'No autorizado'}), 403
+    try:
+        payload = request.json
+        old_entry = payload.get('old')
+        new_entry = payload.get('new')
+        if not old_entry or not new_entry:
+            return jsonify({'error': 'Faltan datos de edición'}), 400
+            
+        catalog = []
+        if os.path.exists(CATALOG_FILE):
+            with open(CATALOG_FILE, 'r', encoding='utf-8') as f:
+                catalog = json.load(f)
+                
+        # Check duplicate if the new item differs
+        if old_entry != new_entry:
+            exists = any(
+                item.get('type') == new_entry.get('type') and 
+                item.get('brand') == new_entry.get('brand') and 
+                item.get('model') == new_entry.get('model') 
+                for item in catalog
+            )
+            if exists:
+                return jsonify({'error': 'El nuevo modelo ya existe en el catálogo'}), 400
+
+        # Replace
+        found = False
+        for i, item in enumerate(catalog):
+            if (item.get('type') == old_entry.get('type') and 
+                item.get('brand') == old_entry.get('brand') and 
+                item.get('model') == old_entry.get('model')):
+                catalog[i] = new_entry
+                found = True
+                break
+                
+        if found:
+            with open(CATALOG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(catalog, f, indent=4, ensure_ascii=False)
+            log_activity(current_username(), 'Catálogo Equipos', f"Se editó modelo: {old_entry.get('model')} -> {new_entry.get('model')}")
+            return jsonify({'message': 'Modelo actualizado correctamente'}), 200
+        else:
+            return jsonify({'error': 'No se encontró la entrada original'}), 404
+            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

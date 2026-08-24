@@ -255,4 +255,69 @@
 
     </div>
 </div>
+
+<!-- Modal editar almacén -->
+<div class="modal-overlay" id="warehouse-edit-modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <div>
+                <h3 style="margin:0;">Editar Almacén</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Modifica los detalles del almacén</p>
+            </div>
+            <button class="btn-close" id="btn-close-warehouse-edit"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="warehouse-edit-form" style="display:flex; flex-direction:column; gap:16px; padding-top:12px;">
+            <input type="hidden" id="warehouse-edit-id">
+            <div class="form-group">
+                <label class="form-label">Nombre del almacén</label>
+                <input type="text" id="warehouse-edit-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Hotel (Opcional)</label>
+                <select id="warehouse-edit-hotel" class="form-control">
+                    <option value="">Sin Hotel (Opcional)</option>
+                    <!-- Injected by JS -->
+                </select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-warehouse-edit">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal editar catálogo -->
+<div class="modal-overlay" id="catalog-edit-modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <div>
+                <h3 style="margin:0;">Editar Modelo de Catálogo</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Modifica el tipo, marca o modelo</p>
+            </div>
+            <button class="btn-close" id="btn-close-catalog-edit"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="catalog-edit-form" style="display:flex; flex-direction:column; gap:16px; padding-top:12px;">
+            <input type="hidden" id="catalog-edit-old-type">
+            <input type="hidden" id="catalog-edit-old-brand">
+            <input type="hidden" id="catalog-edit-old-model">
+            <div class="form-group">
+                <label class="form-label">Tipo</label>
+                <input type="text" id="catalog-edit-type" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Marca</label>
+                <input type="text" id="catalog-edit-brand" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Modelo</label>
+                <input type="text" id="catalog-edit-model" class="form-control" required>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-catalog-edit">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
