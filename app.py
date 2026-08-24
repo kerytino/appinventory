@@ -1836,7 +1836,7 @@ def run_inactivity_alert_job():
             <div style='font-family:Arial,sans-serif;max-width:700px;margin:auto;'>
                 <div style='background:#c0392b;color:white;padding:20px;border-radius:8px 8px 0 0;'>
                     <h2 style='margin:0;'>ALERTA AUTOMATICA - Pendientes con Inactividad Vencida</h2>
-                    <p style='margin:5px 0 0 0;opacity:0.85;'>NetVault - Seguimiento Operativo</p>
+                    <p style='margin:5px 0 0 0;opacity:0.85;'>APP-INVENTORY - Seguimiento Operativo</p>
                 </div>
                 <div style='border:1px solid #ddd;border-top:none;padding:20px;background:#fff;'>
                     <p>Se detectaron <strong>{len(stale_tasks)} pendiente(s)</strong> que superaron su tiempo limite de inactividad (SLA) al <strong>{now_str}</strong>:</p>
@@ -1852,14 +1852,14 @@ def run_inactivity_alert_job():
                         </thead>
                         <tbody>{rows}</tbody>
                     </table>
-                    <p style='margin-top:20px;'>Por favor ingresa a <strong>NetVault</strong> para actualizar los avances de estos pendientes.</p>
-                    <p style='color:#888;font-size:11px;'>Este correo fue generado automaticamente por el scheduler de alertas de NetVault. Intervalo configurado: cada {alert_interval_hours} hora(s).</p>
+                    <p style='margin-top:20px;'>Por favor ingresa a <strong>APP-INVENTORY</strong> para actualizar los avances de estos pendientes.</p>
+                    <p style='color:#888;font-size:11px;'>Este correo fue generado automaticamente por el scheduler de alertas de APP-INVENTORY. Intervalo configurado: cada {alert_interval_hours} hora(s).</p>
                 </div>
             </div>
             """
             
             success, msg = send_email_alert(
-                subject=f"[NetVault] ALERTA: {len(stale_tasks)} Pendiente(s) con Inactividad Vencida",
+                subject=f"[APP-INVENTORY] ALERTA: {len(stale_tasks)} Pendiente(s) con Inactividad Vencida",
                 body=body
             )
             
@@ -1976,8 +1976,8 @@ def save_email_settings():
         test_msg = ""
         if send_test:
             success, msg = send_email_alert(
-                subject="[NetVault] Correo de Prueba de Notificaciones",
-                body="<h3>Configuración SMTP Exitosa</h3><p>Este es un correo de prueba enviado desde NetVault para confirmar la recepción de alertas de seguimiento operativo.</p>",
+                subject="[APP-INVENTORY] Correo de Prueba de Notificaciones",
+                body="<h3>Configuración SMTP Exitosa</h3><p>Este es un correo de prueba enviado desde APP-INVENTORY para confirmar la recepción de alertas de seguimiento operativo.</p>",
                 ignore_enabled=True,
                 override_settings=data
             )
@@ -2020,9 +2020,9 @@ def check_inactivity_tasks():
                 {rows}
             </tbody>
         </table>
-        <p><br>Por favor ingresa a NetVault para coordinar los avances.</p>
+        <p><br>Por favor ingresa a APP-INVENTORY para coordinar los avances.</p>
         """
-        send_email_alert("[NetVault] ALERTA: Pendientes e Inactividad Operativa", body)
+        send_email_alert("[APP-INVENTORY] ALERTA: Pendientes e Inactividad Operativa", body)
         
     return jsonify({'stale_tasks': stale_tasks, 'count': len(stale_tasks)})
 
