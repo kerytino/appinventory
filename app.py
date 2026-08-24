@@ -82,10 +82,13 @@ def send_email_alert(subject, body, recipients=None, ignore_enabled=False, overr
         return False, "No hay correos destinatarios especificados."
 
     try:
+        import email.utils
         msg = MIMEMultipart()
         msg['From'] = settings.get('sender_email') or settings.get('smtp_user')
         msg['To'] = ", ".join(recipient_list)
         msg['Subject'] = subject
+        msg['Date'] = email.utils.formatdate(localtime=True)
+        msg['Message-ID'] = email.utils.make_msgid()
         
         msg.attach(MIMEText(body, 'html'))
 
