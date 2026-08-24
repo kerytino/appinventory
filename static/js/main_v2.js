@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
+                await fetchSettings();
+                await fetchCatalog();
                 await fetchInactivitySettings();
                 await populateSidebarWarehouses();
                 await fetchDevices();
@@ -200,20 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getCombinedDeviceTypes() {
         const typesSet = new Set();
-        // 1. Types from predefined catalog
-        equipmentCatalog.forEach(c => {
-            if (c.type) typesSet.add(c.type);
+        (equipmentCatalog || []).forEach(c => {
+            if (c.type && c.type.trim()) {
+                typesSet.add(c.type.trim().toUpperCase());
+            }
         });
-        // 2. Types from database devices
-        allDevices.forEach(d => {
-            if (d.type) typesSet.add(d.type);
-        });
-        
-        const sortedTypes = Array.from(typesSet).filter(t => t !== 'Otro').sort();
-        if (typesSet.has('Otro')) {
-            sortedTypes.push('Otro');
-        }
-        return sortedTypes;
+        return Array.from(typesSet).sort();
     }
 
     function getCombinedCatalogModels() {
@@ -522,53 +516,244 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSelect = document.getElementById('device-model');
 
     function updateBrandModelSuggestions(selectedBrand = null, selectedModel = null) {
-        const typeInput = document.getElementById('device-type');
-        const brandList = document.getElementById('brand-options');
-        const modelList = document.getElementById('model-options');
-        const brandInput = document.getElementById('device-brand');
-        const modelInput = document.getElementById('device-model');
+    async function saveCatalogEntryQuick(entry) {
+        try {
+            await fetch('/api/settings/catalog', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entry)
+            });
+            if (typeof fetchCatalogConfig === 'function') {
+                await fetchCatalogConfig();
+            } else {
+                const res = await fetch('/api/settings/catalog');
+                if (res.ok) equipmentCatalog = await res.json();
+            }
+        } catch (e) {
+            console.error("Error saving catalog entry:", e);
+        }
+    }
+
+    function populateDeviceTypeDropdown(selectedType = null) {
+        const typeSelect = document.getElementById('device-type');
+        if (!typeSelect) return;
         
-        if (!typeInput || !brandList || !modelList || !brandInput || !modelInput) return;
+        const currentVal = selectedType || typeSelect.value;
+        typeSelect.innerHTML = '<option value="" disabled selected>Seleccionar tipo...</option>';
         
-        const type = typeInput.value;
+        const allTypes = getCombinedDeviceTypes();
+        allTypes.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            if (t === currentVal) opt.selected = true;
+            typeSelect.appendChild(opt);
+        });
         
-        // 1. Populate Brands matching Type from catalog
+        const newOpt = document.createElement('option');
+        newOpt.value = '__new__';
+        newOpt.textContent = '+ Agregar nuevo tipo...';
+        newOpt.style.fontWeight = 'bold';
+        newOpt.style.color = '#2563eb';
+        typeSelect.appendChild(newOpt);
+        
+        if (currentVal && allTypes.includes(currentVal)) {
+            typeSelect.value = currentVal;
+        }
+    }
+
+    function updateBrandModelSuggestions(selectedBrand = null, selectedModel = null) {
+        const typeSelect = document.getElementById('device-type');
+        const brandSelect = document.getElementById('device-brand');
+        const modelSelect = document.getElementById('device-model');
+        
+        if (!typeSelect || !brandSelect || !modelSelect) return;
+        
+        const type = (typeSelect.value || '').trim();
+        
+        if (!type || type === '__new__') {
+            brandSelect.innerHTML = '<option value="" disabled selected>Selecciona tipo primero...</option>';
+            brandSelect.disabled = true;
+            modelSelect.innerHTML = '<option value="" disabled selected>Selecciona marca primero...</option>';
+            modelSelect.disabled = true;
+            return;
+        }
+        
+        brandSelect.disabled = false;
+        
+        // 1. Populate Brands matching Type from catalog (case-insensitive)
+        const typeUpper = type.toUpperCase();
         const matchingBrands = [...new Set(
-            equipmentCatalog.filter(c => c.type === type && c.brand).map(c => c.brand)
+            equipmentCatalog
+                .filter(c => c.type && c.type.trim().toUpperCase() === typeUpper && c.brand && c.brand.trim())
+                .map(c => c.brand.trim())
         )].sort();
         
-        brandList.innerHTML = '';
+        const currentBrandVal = selectedBrand !== null ? selectedBrand : brandSelect.value;
+        brandSelect.innerHTML = '<option value="" disabled selected>Seleccionar marca...</option>';
+        
         matchingBrands.forEach(b => {
             const opt = document.createElement('option');
             opt.value = b;
-            brandList.appendChild(opt);
+            opt.textContent = b;
+            if (currentBrandVal && b.toUpperCase() === currentBrandVal.toUpperCase()) opt.selected = true;
+            brandSelect.appendChild(opt);
         });
         
+        const newBrandOpt = document.createElement('option');
+        newBrandOpt.value = '__new__';
+        newBrandOpt.textContent = '+ Agregar nueva marca...';
+        newBrandOpt.style.fontWeight = 'bold';
+        newBrandOpt.style.color = '#2563eb';
+        brandSelect.appendChild(newBrandOpt);
+        
+        if (matchingBrands.length === 1 && (!currentBrandVal || currentBrandVal === '__new__')) {
+            brandSelect.value = matchingBrands[0];
+        } else if (currentBrandVal) {
+            const found = matchingBrands.find(b => b.toUpperCase() === currentBrandVal.toUpperCase());
+            if (found) brandSelect.value = found;
+        }
+        
         // 2. Populate Models matching Type & Brand from catalog
-        const brand = brandInput.value || selectedBrand;
+        const activeBrand = (brandSelect.value || '').trim();
+        if (!activeBrand || activeBrand === '__new__') {
+            modelSelect.innerHTML = '<option value="" disabled selected>Selecciona marca primero...</option>';
+            modelSelect.disabled = true;
+            return;
+        }
+        
+        modelSelect.disabled = false;
+        const brandUpper = activeBrand.toUpperCase();
         const matchingModels = [...new Set(
-            equipmentCatalog.filter(c => c.type === type && c.brand === brand && c.model).map(c => c.model)
+            equipmentCatalog
+                .filter(c => c.type && c.type.trim().toUpperCase() === typeUpper && 
+                             c.brand && c.brand.trim().toUpperCase() === brandUpper && 
+                             c.model && c.model.trim())
+                .map(c => c.model.trim())
         )].sort();
         
-        modelList.innerHTML = '';
+        const currentModelVal = selectedModel !== null ? selectedModel : modelSelect.value;
+        modelSelect.innerHTML = '<option value="" disabled selected>Seleccionar modelo...</option>';
+        
         matchingModels.forEach(m => {
             const opt = document.createElement('option');
             opt.value = m;
-            modelList.appendChild(opt);
+            opt.textContent = m;
+            if (currentModelVal && m.toUpperCase() === currentModelVal.toUpperCase()) opt.selected = true;
+            modelSelect.appendChild(opt);
         });
         
-        if (selectedBrand) brandInput.value = selectedBrand;
-        if (selectedModel) modelInput.value = selectedModel;
+        const newModelOpt = document.createElement('option');
+        newModelOpt.value = '__new__';
+        newModelOpt.textContent = '+ Agregar nuevo modelo...';
+        newModelOpt.style.fontWeight = 'bold';
+        newModelOpt.style.color = '#2563eb';
+        modelSelect.appendChild(newModelOpt);
+        
+        if (matchingModels.length === 1 && (!currentModelVal || currentModelVal === '__new__')) {
+            modelSelect.value = matchingModels[0];
+        } else if (currentModelVal) {
+            const found = matchingModels.find(m => m.toUpperCase() === currentModelVal.toUpperCase());
+            if (found) modelSelect.value = found;
+        }
+    }
+
+    async function quickAddType() {
+        const newType = prompt("Ingrese el nombre del nuevo Tipo de Equipo (ej: FIREWALL, ACCESS POINT, SWITCH):");
+        if (!newType || !newType.trim()) {
+            populateDeviceTypeDropdown();
+            return;
+        }
+        const cleanType = newType.trim().toUpperCase();
+        await saveCatalogEntryQuick({ type: cleanType, brand: '', model: '' });
+        populateDeviceTypeDropdown(cleanType);
+        updateBrandModelSuggestions();
+    }
+
+    async function quickAddBrand() {
+        const typeSelect = document.getElementById('device-type');
+        const currentType = typeSelect ? typeSelect.value : '';
+        if (!currentType || currentType === '__new__') {
+            alert('Por favor selecciona primero un Tipo de Equipo.');
+            updateBrandModelSuggestions();
+            return;
+        }
+        const newBrand = prompt(`Ingrese la nueva Marca para ${currentType} (ej: CISCO, RUCKUS, UBIQUITI):`);
+        if (!newBrand || !newBrand.trim()) {
+            updateBrandModelSuggestions();
+            return;
+        }
+        const cleanBrand = newBrand.trim().toUpperCase();
+        await saveCatalogEntryQuick({ type: currentType, brand: cleanBrand, model: '' });
+        updateBrandModelSuggestions(cleanBrand, null);
+    }
+
+    async function quickAddModel() {
+        const typeSelect = document.getElementById('device-type');
+        const brandSelect = document.getElementById('device-brand');
+        const currentType = typeSelect ? typeSelect.value : '';
+        const currentBrand = brandSelect ? brandSelect.value : '';
+        if (!currentType || currentType === '__new__' || !currentBrand || currentBrand === '__new__') {
+            alert('Por favor selecciona primero un Tipo y una Marca.');
+            updateBrandModelSuggestions();
+            return;
+        }
+        const newModel = prompt(`Ingrese el nuevo Modelo para ${currentBrand} (${currentType}):`);
+        if (!newModel || !newModel.trim()) {
+            updateBrandModelSuggestions();
+            return;
+        }
+        const cleanModel = newModel.trim();
+        await saveCatalogEntryQuick({ type: currentType, brand: currentBrand, model: cleanModel });
+        updateBrandModelSuggestions(currentBrand, cleanModel);
+    }
+
+    const typeSelectEl = document.getElementById('device-type');
+    const brandSelectEl = document.getElementById('device-brand');
+    const modelSelectEl = document.getElementById('device-model');
+    
+    if (typeSelectEl) {
+        typeSelectEl.addEventListener('change', () => {
+            if (typeSelectEl.value === '__new__') {
+                quickAddType();
+            } else {
+                updateBrandModelSuggestions();
+            }
+        });
     }
     
-    const typeInput = document.getElementById('device-type');
-    const brandInput = document.getElementById('device-brand');
+    if (brandSelectEl) {
+        brandSelectEl.addEventListener('change', () => {
+            if (brandSelectEl.value === '__new__') {
+                quickAddBrand();
+            } else {
+                updateBrandModelSuggestions();
+            }
+        });
+    }
     
-    if (typeInput) typeInput.addEventListener('input', () => updateBrandModelSuggestions());
-    if (brandInput) brandInput.addEventListener('input', () => updateBrandModelSuggestions());
+    if (modelSelectEl) {
+        modelSelectEl.addEventListener('change', () => {
+            if (modelSelectEl.value === '__new__') {
+                quickAddModel();
+            }
+        });
+    }
+    
+    const btnQuickType = document.getElementById('btn-quick-add-type');
+    const btnQuickBrand = document.getElementById('btn-quick-add-brand');
+    const btnQuickModel = document.getElementById('btn-quick-add-model');
+    
+    if (btnQuickType) btnQuickType.addEventListener('click', quickAddType);
+    if (btnQuickBrand) btnQuickBrand.addEventListener('click', quickAddBrand);
+    if (btnQuickModel) btnQuickModel.addEventListener('click', quickAddModel);
 
-    function openModal(mode = 'add', device = null) {
-        populateDeviceTypeDropdown();
+    async function openModal(mode = 'add', device = null) {
+        try {
+            const res = await fetch('/api/settings/catalog');
+            if (res.ok) equipmentCatalog = await res.json();
+        } catch(e){}
+        populateDeviceTypeDropdown(device ? device.type : null);
         modal.classList.add('active');
         
         const statusSelect = document.getElementById('device-status');
@@ -3104,6 +3289,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.textContent = h.name;
                 hotelSelect.appendChild(opt);
             });
+            const newHotelOpt = document.createElement('option');
+            newHotelOpt.value = '__new__';
+            newHotelOpt.textContent = '+ Agregar nuevo hotel...';
+            newHotelOpt.style.fontWeight = 'bold';
+            newHotelOpt.style.color = '#2563eb';
+            hotelSelect.appendChild(newHotelOpt);
         }
 
         const techSelect = document.getElementById('task-tech-select');
@@ -3115,6 +3306,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.textContent = t.name;
                 techSelect.appendChild(opt);
             });
+            const newTechOpt = document.createElement('option');
+            newTechOpt.value = '__new__';
+            newTechOpt.textContent = '+ Agregar nuevo técnico...';
+            newTechOpt.style.fontWeight = 'bold';
+            newTechOpt.style.color = '#2563eb';
+            techSelect.appendChild(newTechOpt);
         }
 
         const form = document.getElementById('task-form');
@@ -3155,6 +3352,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
         taskModal.classList.add('active');
     }
+
+    document.getElementById('task-hotel-select')?.addEventListener('change', async (e) => {
+        if (e.target.value === '__new__') {
+            const name = prompt('Ingrese el nombre del nuevo Hotel / Ubicación:');
+            if (name && name.trim()) {
+                const sigla = prompt('Ingrese la sigla del hotel (ej: HPA):') || name.trim().substring(0, 3).toUpperCase();
+                try {
+                    await fetch('/api/settings/hotels', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: name.trim(), sigla: sigla.trim().toUpperCase() })
+                    });
+                    await fetchSettings();
+                    const hotelSelect = document.getElementById('task-hotel-select');
+                    if (hotelSelect) {
+                        hotelSelect.innerHTML = '<option value="">Seleccionar Hotel...</option>';
+                        allHotels.forEach(h => {
+                            const opt = document.createElement('option');
+                            opt.value = h.name;
+                            opt.textContent = h.name;
+                            hotelSelect.appendChild(opt);
+                        });
+                        const newHotelOpt = document.createElement('option');
+                        newHotelOpt.value = '__new__';
+                        newHotelOpt.textContent = '+ Agregar nuevo hotel...';
+                        newHotelOpt.style.fontWeight = 'bold';
+                        newHotelOpt.style.color = '#2563eb';
+                        hotelSelect.appendChild(newHotelOpt);
+                        hotelSelect.value = name.trim();
+                    }
+                } catch (err) {
+                    console.error('Error adding hotel:', err);
+                }
+            } else {
+                e.target.value = '';
+            }
+        }
+    });
+
+    document.getElementById('task-tech-select')?.addEventListener('change', async (e) => {
+        if (e.target.value === '__new__') {
+            const name = prompt('Ingrese el nombre del nuevo Técnico:');
+            if (name && name.trim()) {
+                try {
+                    await fetch('/api/settings/technicians', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: name.trim() })
+                    });
+                    await fetchSettings();
+                    const techSelect = document.getElementById('task-tech-select');
+                    if (techSelect) {
+                        techSelect.innerHTML = '<option value="">Sin Asignar</option>';
+                        allTechnicians.forEach(t => {
+                            const opt = document.createElement('option');
+                            opt.value = t.name;
+                            opt.textContent = t.name;
+                            techSelect.appendChild(opt);
+                        });
+                        const newTechOpt = document.createElement('option');
+                        newTechOpt.value = '__new__';
+                        newTechOpt.textContent = '+ Agregar nuevo técnico...';
+                        newTechOpt.style.fontWeight = 'bold';
+                        newTechOpt.style.color = '#2563eb';
+                        techSelect.appendChild(newTechOpt);
+                        techSelect.value = name.trim();
+                    }
+                } catch (err) {
+                    console.error('Error adding technician:', err);
+                }
+            } else {
+                e.target.value = '';
+            }
+        }
+    });
 
     document.getElementById('task-priority-select')?.addEventListener('change', (e) => {
         const priorityDefaults = { 'Urgente': 24, 'Alta': 48, 'Media': 72, 'Baja': 168 };

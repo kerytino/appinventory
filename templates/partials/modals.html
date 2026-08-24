@@ -15,8 +15,22 @@
 
                 <div class="form-group">
                     <label class="form-label" for="device-type">Tipo de Equipo <span style="color:var(--color-danger)">*</span></label>
-                    <input class="form-control" type="text" id="device-type" required list="type-options" placeholder="Ej: Switch, Access Point">
-                    <datalist id="type-options"></datalist>
+                    <select class="form-control" id="device-type" required>
+                        <option value="" disabled selected>Seleccionar...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="device-brand">Marca <span style="color:var(--color-danger)">*</span></label>
+                    <select class="form-control" id="device-brand" required>
+                        <option value="" disabled selected>Selecciona tipo primero...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="device-model">Modelo <span style="color:var(--color-danger)">*</span></label>
+                    <select class="form-control" id="device-model" required>
+                        <option value="" disabled selected>Selecciona marca primero...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="device-status">Estado <span style="color:var(--color-danger)">*</span></label>
@@ -29,18 +43,19 @@
                     </select>
                 </div>
 
-                <div class="form-group" id="group-location" style="display: none;">
-                    <label class="form-label" for="device-location">Ubicación (Hotel) <span style="color:var(--color-danger)">*</span></label>
-                    <input type="text" id="device-location" class="form-control" list="hotel-options" placeholder="Ej: Recepción, Rack Principal...">
-                    <datalist id="hotel-options"></datalist>
-                </div>
-                <div class="form-group" id="group-warehouse" style="display: none;">
+                <div class="form-group full-width" id="group-warehouse" style="display: none;">
                     <label class="form-label" for="device-warehouse">Almacén de Resguardo <span style="color:var(--color-danger)">*</span></label>
                     <input type="text" id="device-warehouse" class="form-control" list="warehouse-options" placeholder="Ej: Almacén IT General">
                     <datalist id="warehouse-options"></datalist>
                     <datalist id="technician-options"></datalist>
                 </div>
-                <div class="form-group full-width" id="group-dispatched-by" style="display: none;">
+
+                <div class="form-group" id="group-location" style="display: none;">
+                    <label class="form-label" for="device-location">Ubicación (Hotel) <span style="color:var(--color-danger)">*</span></label>
+                    <input type="text" id="device-location" class="form-control" list="hotel-options" placeholder="Ej: Recepción, Rack Principal...">
+                    <datalist id="hotel-options"></datalist>
+                </div>
+                <div class="form-group" id="group-dispatched-by" style="display: none;">
                     <label class="form-label" for="device-dispatched-by">Despachado por (Técnico responsable) <span style="color:var(--color-danger)">*</span></label>
                     <input type="text" id="device-dispatched-by" class="form-control" list="technician-options" placeholder="Nombre del responsable">
                 </div>
@@ -60,17 +75,6 @@
                         <label class="form-label" for="device-warranty-received">Fecha Recepción</label>
                         <input type="date" id="device-warranty-received" class="form-control">
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="device-brand">Marca <span style="color:var(--color-danger)">*</span></label>
-                    <input class="form-control" type="text" id="device-brand" required list="brand-options" placeholder="Ej: Cisco, Ruckus">
-                    <datalist id="brand-options"></datalist>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="device-model">Modelo <span style="color:var(--color-danger)">*</span></label>
-                    <input class="form-control" type="text" id="device-model" required list="model-options" placeholder="Ej: CBS350">
-                    <datalist id="model-options"></datalist>
                 </div>
 
                 <div class="form-group">

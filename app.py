@@ -49,6 +49,38 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 EMAIL_SETTINGS_FILE = os.path.join(basedir, 'email_settings.json')
 ALERT_STATE_FILE = os.path.join(basedir, 'alert_state.json')
+CATALOG_FILE = os.path.join(basedir, 'equipment_catalog.json')
+
+def ensure_catalog_entry(device_type, brand='', model=''):
+    if not device_type or not device_type.strip():
+        return
+    try:
+        catalog = []
+        if os.path.exists(CATALOG_FILE):
+            with open(CATALOG_FILE, 'r', encoding='utf-8') as f:
+                catalog = json.load(f)
+        
+        dtype = device_type.strip()
+        dbrand = (brand or '').strip()
+        dmodel = (model or '').strip()
+        
+        exists = any(
+            item.get('type') == dtype and
+            item.get('brand') == dbrand and
+            item.get('model') == dmodel
+            for item in catalog
+        )
+        if not exists:
+            catalog.append({
+                'type': dtype,
+                'brand': dbrand,
+                'model': dmodel
+            })
+            with open(CATALOG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(catalog, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error updating catalog: {e}")
+
 
 def load_email_settings():
     if os.path.exists(EMAIL_SETTINGS_FILE):
@@ -636,6 +668,9 @@ def add_device():
     
     # Consolidate if duplicate exists
     final_device = merge_device_if_duplicate(new_device.id)
+    
+    # Auto-add to catalog if new type/brand/model
+    ensure_catalog_entry(final_device.device_type, final_device.brand, final_device.model)
     
     log_activity(current_username(), 'Creación de Equipo', f'Equipo {final_device.name} (S/N: {final_device.serial_number}) añadido.')
     return jsonify(final_device.to_dict()), 201
@@ -1505,16 +1540,30 @@ def delete_hotel(id):
 
 @app.route('/api/settings/technicians', methods=['GET'])
 def get_technicians():
-    items = Technician.query.all()
-    return jsonify([i.to_dict() for i in items])
+    items = Technician.query.order_by(Technician.name).all()
+    tech_names = {i.name.strip().lower() for i in items if i.name}
+    result = [i.to_dict() for i in items]
+    
+    users = User.query.all()
+    for u in users:
+        if u.username and u.username.strip().lower() not in tech_names:
+            result.append({'id': f'user_{u.id}', 'name': u.username, 'source': 'user'})
+            tech_names.add(u.username.strip().lower())
+            
+    return jsonify(result)
 
 @app.route('/api/settings/technicians', methods=['POST'])
 def add_technician():
     data = request.json
-    item = Technician(name=data['name'])
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'El nombre del técnico es requerido'}), 400
+    if Technician.query.filter_by(name=name).first():
+        return jsonify({'error': 'Ya existe un técnico con ese nombre'}), 400
+    item = Technician(name=name)
     db.session.add(item)
     db.session.commit()
-    log_activity(current_username(), 'Nuevo Almacén', f'Almacén {item.name} creado.')
+    log_activity(current_username(), 'Nuevo Técnico', f'Técnico {item.name} creado.')
     return jsonify(item.to_dict()), 201
 
 @app.route('/api/settings/technicians/<int:id>', methods=['DELETE'])
@@ -1715,30 +1764,38 @@ def get_catalog():
 
 @app.route('/api/settings/catalog', methods=['POST'])
 def save_catalog_entry():
-    if session.get('role') != 'Admin':
-        return jsonify({'error': 'No autorizado'}), 403
     try:
         entry = request.json
+        if not entry or not entry.get('type'):
+            return jsonify({'error': 'El tipo de equipo es obligatorio'}), 400
         catalog = []
         if os.path.exists(CATALOG_FILE):
             with open(CATALOG_FILE, 'r', encoding='utf-8') as f:
                 catalog = json.load(f)
         
+        dtype = entry.get('type', '').strip()
+        dbrand = entry.get('brand', '').strip()
+        dmodel = entry.get('model', '').strip()
+        
         # Check duplicate
         exists = any(
-            item.get('type') == entry.get('type') and 
-            item.get('brand') == entry.get('brand') and 
-            item.get('model') == entry.get('model') 
+            item.get('type') == dtype and 
+            item.get('brand') == dbrand and 
+            item.get('model') == dmodel 
             for item in catalog
         )
         if not exists:
-            catalog.append(entry)
+            catalog.append({
+                'type': dtype,
+                'brand': dbrand,
+                'model': dmodel
+            })
             with open(CATALOG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(catalog, f, indent=4, ensure_ascii=False)
-            log_activity(current_username(), 'Catálogo Equipos', f"Se agregó modelo al catálogo: {entry.get('brand')} {entry.get('model')} ({entry.get('type')})")
-            return jsonify({'message': 'Modelo agregado correctamente al catálogo'}), 200
+            log_activity(current_username(), 'Catálogo Equipos', f"Se agregó al catálogo: {dbrand} {dmodel} ({dtype})")
+            return jsonify({'message': 'Agregado correctamente al catálogo'}), 200
         else:
-            return jsonify({'error': 'El modelo ya existe en el catálogo'}), 400
+            return jsonify({'message': 'Ya existía en el catálogo'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

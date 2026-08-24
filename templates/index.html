@@ -762,8 +762,24 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="device-type">Tipo de Equipo <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="device-type" class="form-input" list="type-options" required placeholder="Ej: Switch, Access Point">
-                        <datalist id="type-options"></datalist>
+                        <select id="device-type" class="form-input" required>
+                            <option value="" disabled selected>Seleccionar...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="device-brand">Marca <span style="color:var(--danger)">*</span></label>
+                        <select id="device-brand" class="form-input" required>
+                            <option value="" disabled selected>Selecciona tipo primero...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="device-model">Modelo <span style="color:var(--danger)">*</span></label>
+                        <select id="device-model" class="form-input" required>
+                            <option value="" disabled selected>Selecciona marca primero...</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="device-status">Estado</label>
@@ -813,19 +829,6 @@
                     <div class="form-group" id="group-repair-count" style="display: none;">
                         <label for="device-repair-count">Veces Reparado <i class="fa-solid fa-wrench"></i></label>
                         <input type="number" id="device-repair-count" min="0" value="0" readonly title="Se incrementa automáticamente">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="device-brand">Marca <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="device-brand" class="form-input" list="brand-options" required placeholder="Ej: Cisco, Ruckus">
-                        <datalist id="brand-options"></datalist>
-                    </div>
-                    <div class="form-group">
-                        <label for="device-model">Modelo <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="device-model" class="form-input" list="model-options" required placeholder="Ej: CBS350">
-                        <datalist id="model-options"></datalist>
                     </div>
                 </div>
 
