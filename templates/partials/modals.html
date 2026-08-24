@@ -15,9 +15,8 @@
 
                 <div class="form-group">
                     <label class="form-label" for="device-type">Tipo de Equipo <span style="color:var(--color-danger)">*</span></label>
-                    <select class="form-control" id="device-type" required>
-                        <option value="" disabled selected>Seleccionar...</option>
-                    </select>
+                    <input class="form-control" type="text" id="device-type" required list="type-options" placeholder="Ej: Switch, Access Point">
+                    <datalist id="type-options"></datalist>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="device-status">Estado <span style="color:var(--color-danger)">*</span></label>
@@ -65,15 +64,13 @@
 
                 <div class="form-group">
                     <label class="form-label" for="device-brand">Marca <span style="color:var(--color-danger)">*</span></label>
-                    <select class="form-control" id="device-brand" required>
-                        <option value="" disabled selected>Selecciona tipo primero...</option>
-                    </select>
+                    <input class="form-control" type="text" id="device-brand" required list="brand-options" placeholder="Ej: Cisco, Ruckus">
+                    <datalist id="brand-options"></datalist>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="device-model">Modelo <span style="color:var(--color-danger)">*</span></label>
-                    <select class="form-control" id="device-model" required>
-                        <option value="" disabled selected>Selecciona marca primero...</option>
-                    </select>
+                    <input class="form-control" type="text" id="device-model" required list="model-options" placeholder="Ej: CBS350">
+                    <datalist id="model-options"></datalist>
                 </div>
 
                 <div class="form-group">
