@@ -843,15 +843,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const groupWarranty = document.getElementById('group-warranty');
         if (groupWarranty) {
-            if (status === 'Reparación / Garantía' || status === 'Reparado') {
-                groupWarranty.style.display = 'flex';
+            if (status === 'En Reparación / Garantía' || status === 'Reparación / Garantía') {
+                groupWarranty.style.display = 'grid';
             } else {
                 groupWarranty.style.display = 'none';
             }
         }
     }
 
-    document.getElementById('device-type')?.addEventListener('change', toggleDynamicFields);
+    document.getElementById('device-status')?.addEventListener('change', toggleDynamicFields);
 
     document.getElementById('device-quantity')?.addEventListener('input', () => {
         const id = document.getElementById('device-id').value;
