@@ -36,6 +36,11 @@
             <i class="fa-solid fa-handshake"></i>
             <span>Préstamos y Demos</span>
         </a>
+
+        <a href="{{ url_for('herramientas') }}" class="nav-item {% if request.endpoint == 'herramientas' %}active{% endif %}" id="nav-tools">
+            <i class="fa-solid fa-toolbox"></i>
+            <span>Herramientas IT</span>
+        </a>
         
         <a href="{{ url_for('despacho') }}" class="nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" id="nav-dispatch">
             <i class="fa-solid fa-truck-ramp-box"></i>

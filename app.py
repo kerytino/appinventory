@@ -491,6 +491,48 @@ class LoanDevice(db.Model):
             'is_near_expiry': is_near_expiry
         }
 
+class Tool(db.Model):
+    id                   = db.Column(db.Integer, primary_key=True)
+    code                 = db.Column(db.String(50), nullable=True, default='')  # Ej: HER-001
+    name                 = db.Column(db.String(150), nullable=False)
+    category             = db.Column(db.String(100), nullable=False, default='General')  # Fibra Óptica, Redes, Medición, Eléctrico, Manual
+    brand                = db.Column(db.String(100), nullable=True, default='')
+    model                = db.Column(db.String(100), nullable=True, default='')
+    serial_number        = db.Column(db.String(100), nullable=True, default='')
+    condition            = db.Column(db.String(50), nullable=False, default='Buena')  # Excelente, Buena, Regular, Desgastada
+    status               = db.Column(db.String(50), nullable=False, default='Disponible')  # Disponible, En Uso / Asignada, En Mantenimiento, Dañada, Extraviada
+    assigned_to          = db.Column(db.String(100), nullable=True, default='')  # Técnico que la tiene
+    assigned_date        = db.Column(db.String(50), nullable=True, default='')   # YYYY-MM-DD
+    location             = db.Column(db.String(100), nullable=True, default='')  # Hotel o Área de trabajo actual
+    warehouse            = db.Column(db.String(100), nullable=True, default='Taller IT')  # Almacén o Taller de resguardo habitual
+    value                = db.Column(db.Float, nullable=False, default=0.0)      # Costo de compra en USD
+    quantity             = db.Column(db.Integer, nullable=False, default=1)
+    last_maintenance_date = db.Column(db.String(50), nullable=True, default='')
+    notes                = db.Column(db.Text, nullable=True, default='')
+    date_added           = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'code': self.code or f"HER-{self.id:03d}",
+            'name': self.name,
+            'category': self.category or 'General',
+            'brand': self.brand or '',
+            'model': self.model or '',
+            'serial_number': self.serial_number or '',
+            'condition': self.condition or 'Buena',
+            'status': self.status or 'Disponible',
+            'assigned_to': self.assigned_to or '',
+            'assigned_date': self.assigned_date or '',
+            'location': self.location or '',
+            'warehouse': self.warehouse or 'Taller IT',
+            'value': self.value,
+            'quantity': self.quantity,
+            'last_maintenance_date': self.last_maintenance_date or '',
+            'notes': self.notes or '',
+            'date_added': self.date_added.strftime('%Y-%m-%d %H:%M:%S') if self.date_added else ''
+        }
+
 def log_activity(username, action, details=""):
     try:
         log = ActivityLog(username=username, action=action, details=details)
@@ -732,6 +774,10 @@ def reparaciones():
 def prestamos():
     return render_template('prestamos.html')
 
+@app.route('/herramientas')
+def herramientas():
+    return render_template('herramientas.html')
+
 @app.route('/configuracion')
 def configuracion():
     return render_template('configuracion.html')
@@ -957,6 +1003,158 @@ def convert_loan_to_inventory(loan_id):
         'device': final_dev.to_dict(),
         'loan': loan.to_dict()
     })
+
+# --- APIS PARA CONTROL DE HERRAMIENTAS DE TRABAJO ---
+@app.route('/api/tools', methods=['GET'])
+def get_tools():
+    status = request.args.get('status')
+    category = request.args.get('category')
+    tech = request.args.get('technician')
+    warehouse = request.args.get('warehouse')
+
+    query = Tool.query
+    if status and status != 'all':
+        query = query.filter_by(status=status)
+    if category and category != 'all':
+        query = query.filter_by(category=category)
+    if tech and tech != 'all':
+        query = query.filter_by(assigned_to=tech)
+    if warehouse and warehouse != 'all':
+        query = query.filter_by(warehouse=warehouse)
+
+    tools = query.order_by(Tool.name.asc()).all()
+    all_tools = Tool.query.all()
+    
+    total_count = sum(t.quantity for t in all_tools)
+    available_count = sum(t.quantity for t in all_tools if t.status == 'Disponible')
+    in_use_count = sum(t.quantity for t in all_tools if t.status == 'En Uso / Asignada')
+    maintenance_count = sum(t.quantity for t in all_tools if t.status == 'En Mantenimiento')
+    total_val = sum((t.value or 0.0) * t.quantity for t in all_tools)
+
+    return jsonify({
+        'tools': [t.to_dict() for t in tools],
+        'stats': {
+            'total': total_count,
+            'available': available_count,
+            'in_use': in_use_count,
+            'maintenance': maintenance_count,
+            'total_value': total_val
+        }
+    })
+
+@app.route('/api/tools', methods=['POST'])
+def create_tool():
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'El nombre de la herramienta es obligatorio'}), 400
+
+    new_tool = Tool(
+        code=(data.get('code') or '').strip(),
+        name=name,
+        category=(data.get('category') or 'General').strip(),
+        brand=(data.get('brand') or '').strip(),
+        model=(data.get('model') or '').strip(),
+        serial_number=(data.get('serial_number') or '').strip(),
+        condition=(data.get('condition') or 'Buena').strip(),
+        status=(data.get('status') or 'Disponible').strip(),
+        assigned_to=(data.get('assigned_to') or '').strip(),
+        assigned_date=(data.get('assigned_date') or '').strip(),
+        location=(data.get('location') or '').strip(),
+        warehouse=(data.get('warehouse') or 'Taller IT').strip(),
+        value=float(data.get('value', 0.0)),
+        quantity=int(data.get('quantity', 1)),
+        last_maintenance_date=(data.get('last_maintenance_date') or '').strip(),
+        notes=(data.get('notes') or '').strip()
+    )
+    db.session.add(new_tool)
+    db.session.commit()
+    log_activity(current_username(), 'Registro de Herramienta', f'Herramienta {new_tool.name} ({new_tool.code or new_tool.serial_number}) registrada.')
+    return jsonify(new_tool.to_dict()), 201
+
+@app.route('/api/tools/<int:tool_id>', methods=['PUT'])
+def update_tool(tool_id):
+    tool = Tool.query.get_or_404(tool_id)
+    data = request.json or {}
+    
+    if 'name' in data: tool.name = data['name'].strip()
+    if 'code' in data: tool.code = (data.get('code') or '').strip()
+    if 'category' in data: tool.category = (data.get('category') or 'General').strip()
+    if 'brand' in data: tool.brand = (data.get('brand') or '').strip()
+    if 'model' in data: tool.model = (data.get('model') or '').strip()
+    if 'serial_number' in data: tool.serial_number = (data.get('serial_number') or '').strip()
+    if 'condition' in data: tool.condition = (data.get('condition') or 'Buena').strip()
+    if 'status' in data: tool.status = (data.get('status') or 'Disponible').strip()
+    if 'assigned_to' in data: tool.assigned_to = (data.get('assigned_to') or '').strip()
+    if 'assigned_date' in data: tool.assigned_date = (data.get('assigned_date') or '').strip()
+    if 'location' in data: tool.location = (data.get('location') or '').strip()
+    if 'warehouse' in data: tool.warehouse = (data.get('warehouse') or '').strip()
+    if 'value' in data: tool.value = float(data.get('value', 0.0))
+    if 'quantity' in data: tool.quantity = int(data.get('quantity', 1))
+    if 'last_maintenance_date' in data: tool.last_maintenance_date = (data.get('last_maintenance_date') or '').strip()
+    if 'notes' in data: tool.notes = (data.get('notes') or '').strip()
+
+    db.session.commit()
+    log_activity(current_username(), 'Edición de Herramienta', f'Herramienta #{tool.id} ({tool.name}) actualizada.')
+    return jsonify(tool.to_dict())
+
+@app.route('/api/tools/<int:tool_id>', methods=['DELETE'])
+def delete_tool(tool_id):
+    tool = Tool.query.get_or_404(tool_id)
+    name = tool.name
+    db.session.delete(tool)
+    db.session.commit()
+    log_activity(current_username(), 'Eliminar Herramienta', f'Herramienta #{tool_id} ({name}) eliminada.')
+    return jsonify({'success': True, 'message': f'Herramienta #{tool_id} eliminada.'})
+
+@app.route('/api/tools/<int:tool_id>/assign', methods=['POST'])
+def assign_tool(tool_id):
+    tool = Tool.query.get_or_404(tool_id)
+    data = request.json or {}
+    tech = (data.get('assigned_to') or '').strip()
+    loc = (data.get('location') or '').strip()
+    date_str = data.get('assigned_date') or datetime.utcnow().strftime('%Y-%m-%d')
+    notes = (data.get('notes') or '').strip()
+
+    if not tech:
+        return jsonify({'error': 'El técnico responsable es obligatorio'}), 400
+
+    tool.status = 'En Uso / Asignada'
+    tool.assigned_to = tech
+    tool.assigned_date = date_str
+    tool.location = loc
+    if notes:
+        existing_notes = tool.notes or ''
+        tool.notes = f"{existing_notes}\n[{date_str}] Asignada a {tech} (Lugar: {loc or 'N/A'}): {notes}".strip()
+
+    db.session.commit()
+    log_activity(current_username(), 'Asignación de Herramienta', f'Herramienta #{tool.id} ({tool.name}) asignada a {tech} ({loc}).')
+    return jsonify(tool.to_dict())
+
+@app.route('/api/tools/<int:tool_id>/return', methods=['POST'])
+def return_tool(tool_id):
+    tool = Tool.query.get_or_404(tool_id)
+    data = request.json or {}
+    condition = (data.get('condition') or tool.condition or 'Buena').strip()
+    warehouse = (data.get('warehouse') or tool.warehouse or 'Taller IT').strip()
+    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    notes = (data.get('notes') or '').strip()
+
+    prev_tech = tool.assigned_to or 'Técnico'
+    tool.status = 'Disponible'
+    tool.assigned_to = ''
+    tool.assigned_date = ''
+    tool.location = ''
+    tool.warehouse = warehouse
+    tool.condition = condition
+
+    if notes:
+        existing_notes = tool.notes or ''
+        tool.notes = f"{existing_notes}\n[{date_str}] Devuelta por {prev_tech} (Estado: {condition}, Almacén: {warehouse}): {notes}".strip()
+
+    db.session.commit()
+    log_activity(current_username(), 'Devolución de Herramienta', f'Herramienta #{tool.id} ({tool.name}) devuelta a {warehouse}.')
+    return jsonify(tool.to_dict())
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices():
