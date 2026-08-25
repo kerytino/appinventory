@@ -18,39 +18,39 @@
                         <i class="fa-solid fa-circle-info"></i> 1. Identificación y Clasificación
                     </div>
 
-                    <!-- Fila Superior: SKU, Marca, Modelo -->
-                    <div style="display: grid; grid-template-columns: 1fr 1.3fr 1.3fr; gap: 16px; margin-bottom: 16px;">
+                    <!-- Fila Superior: Categoría/Tipo, Marca, Modelo (Cascada del Catálogo) -->
+                    <div style="display: grid; grid-template-columns: 1.1fr 1.2fr 1.3fr; gap: 16px; margin-bottom: 16px;">
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-sku" style="font-weight: 700; color: var(--color-primary); font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-barcode" style="margin-right: 4px;"></i>Código SKU:
+                            <label class="form-label" for="device-type" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">
+                                <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría / Tipo: <span style="color:var(--color-danger)">*</span>
                             </label>
-                            <input class="form-control" type="text" id="device-sku" placeholder="Ej: SRV-HP-01" style="font-family: monospace; font-weight: 700; height: 40px;">
+                            <select class="form-control" id="device-type" required style="height: 40px; font-weight: 600;">
+                                <option value="" disabled selected>Selecciona categoría...</option>
+                            </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-brand" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-tag" style="color: #f59e0b; margin-right: 4px;"></i>Marca: <span style="color:var(--color-danger)">*</span>
                             </label>
-                            <input class="form-control" type="text" id="device-brand" required placeholder="Ej: HP Enterprise, MikroTik..." list="list-brands-devices" style="height: 40px;">
+                            <input class="form-control" type="text" id="device-brand" required placeholder="Ej: Cisco, HP, Ruckus..." list="list-brands-devices" style="height: 40px;">
                             <datalist id="list-brands-devices"></datalist>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-model" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-microchip" style="color: #10b981; margin-right: 4px;"></i>Modelo / Nº de Parte: <span style="color:var(--color-danger)">*</span>
                             </label>
-                            <input class="form-control" type="text" id="device-model" required placeholder="Ej: ProLiant DL380..." list="list-models-devices" style="height: 40px;">
+                            <input class="form-control" type="text" id="device-model" required placeholder="Ej: R510, Catalyst 2960..." list="list-models-devices" style="height: 40px;">
                             <datalist id="list-models-devices"></datalist>
                         </div>
                     </div>
 
-                    <!-- Fila Intermedia: Categoría y Nombre Comercial -->
-                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 16px;">
+                    <!-- Fila Intermedia: Código SKU y Nombre Comercial -->
+                    <div style="display: grid; grid-template-columns: 1fr 2.3fr; gap: 16px; margin-bottom: 16px;">
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-type" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría / Tipo: <span style="color:var(--color-danger)">*</span>
+                            <label class="form-label" for="device-sku" style="font-weight: 700; color: var(--color-primary); font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-barcode" style="margin-right: 4px;"></i>Código SKU:
                             </label>
-                            <select class="form-control" id="device-type" required style="height: 40px;">
-                                <option value="" disabled selected>Selecciona una categoría...</option>
-                            </select>
+                            <input class="form-control" type="text" id="device-sku" placeholder="Ej: SRV-HP-01" style="font-family: monospace; font-weight: 700; height: 40px;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-name" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
