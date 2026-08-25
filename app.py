@@ -381,6 +381,70 @@ class OperationalTaskStep(db.Model):
             'completed_by': self.completed_by
         }
 
+class LoanDevice(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    device_type = db.Column(db.String(50), nullable=False)
+    brand = db.Column(db.String(100), nullable=True, default='')
+    model = db.Column(db.String(100), nullable=True, default='')
+    serial_number = db.Column(db.String(100), nullable=True, default='')
+    mac_address = db.Column(db.String(50), nullable=True, default='')
+    provider = db.Column(db.String(150), nullable=False, default='') # Proveedor del demo/préstamo
+    status = db.Column(db.String(50), nullable=False, default='En Evaluación / Stock') # 'En Evaluación / Stock', 'En Pruebas / Instalado', 'Devuelto al Proveedor', 'Comprado / Adquirido', 'Averiado'
+    warehouse = db.Column(db.String(100), nullable=True, default='')
+    location = db.Column(db.String(200), nullable=True, default='')
+    dispatched_by = db.Column(db.String(100), nullable=True, default='')
+    received_date = db.Column(db.String(50), nullable=True, default='') # YYYY-MM-DD
+    expected_return_date = db.Column(db.String(50), nullable=True, default='') # YYYY-MM-DD
+    returned_date = db.Column(db.String(50), nullable=True, default='') # YYYY-MM-DD
+    value = db.Column(db.Float, nullable=False, default=0.0)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    notes = db.Column(db.Text, nullable=True, default='')
+    date_added = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        days_remaining = None
+        is_overdue = False
+        is_near_expiry = False
+        
+        if self.expected_return_date and self.status in ['En Evaluación / Stock', 'En Pruebas / Instalado']:
+            try:
+                exp = datetime.strptime(self.expected_return_date, '%Y-%m-%d').date()
+                today = datetime.utcnow().date()
+                delta = (exp - today).days
+                days_remaining = delta
+                if delta < 0:
+                    is_overdue = True
+                elif delta <= 5:
+                    is_near_expiry = True
+            except Exception:
+                pass
+
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.device_type,
+            'brand': self.brand or '',
+            'model': self.model or '',
+            'serial_number': self.serial_number or '',
+            'mac_address': self.mac_address or '',
+            'provider': self.provider or '',
+            'status': self.status,
+            'warehouse': self.warehouse or '',
+            'location': self.location or '',
+            'dispatched_by': self.dispatched_by or '',
+            'received_date': self.received_date or '',
+            'expected_return_date': self.expected_return_date or '',
+            'returned_date': self.returned_date or '',
+            'value': self.value,
+            'quantity': self.quantity,
+            'notes': self.notes or '',
+            'date_added': self.date_added.strftime('%Y-%m-%d %H:%M:%S') if self.date_added else '',
+            'days_remaining': days_remaining,
+            'is_overdue': is_overdue,
+            'is_near_expiry': is_near_expiry
+        }
+
 def log_activity(username, action, details=""):
     try:
         log = ActivityLog(username=username, action=action, details=details)
@@ -618,9 +682,221 @@ def pendientes():
 def reparaciones():
     return render_template('reparaciones.html')
 
+@app.route('/prestamos')
+def prestamos():
+    return render_template('prestamos.html')
+
 @app.route('/configuracion')
 def configuracion():
     return render_template('configuracion.html')
+
+# --- APIS PARA PRÉSTAMOS Y DEMOS ---
+@app.route('/api/loans', methods=['GET'])
+def get_loans():
+    status = request.args.get('status')
+    warehouse = request.args.get('warehouse')
+    provider = request.args.get('provider')
+    
+    query = LoanDevice.query
+    if status and status != 'all':
+        query = query.filter_by(status=status)
+    if warehouse and warehouse != 'all':
+        query = query.filter_by(warehouse=warehouse)
+    if provider and provider != 'all':
+        query = query.filter_by(provider=provider)
+        
+    loans = query.order_by(LoanDevice.id.desc()).all()
+    return jsonify([l.to_dict() for l in loans])
+
+@app.route('/api/loans', methods=['POST'])
+def add_loan():
+    data = request.json
+    name = (data.get('name') or '').strip()
+    dtype = (data.get('type') or '').strip()
+    
+    if not name or not dtype:
+        return jsonify({'error': 'El Nombre y Tipo de Equipo son requeridos'}), 400
+        
+    status = data.get('status', 'En Evaluación / Stock')
+    warehouse = (data.get('warehouse') or '').strip()
+    
+    new_loan = LoanDevice(
+        name=name,
+        device_type=dtype,
+        brand=(data.get('brand') or '').strip(),
+        model=(data.get('model') or '').strip(),
+        serial_number=(data.get('serial_number') or '').strip(),
+        mac_address=(data.get('mac_address') or '').strip(),
+        provider=(data.get('provider') or '').strip(),
+        status=status,
+        warehouse=warehouse,
+        location=(data.get('location') or '').strip(),
+        dispatched_by=(data.get('dispatched_by') or '').strip(),
+        received_date=data.get('received_date', datetime.utcnow().strftime('%Y-%m-%d')),
+        expected_return_date=data.get('expected_return_date', ''),
+        returned_date=data.get('returned_date', ''),
+        value=float(data.get('value', 0.0)),
+        quantity=int(data.get('quantity', 1)),
+        notes=(data.get('notes') or '').strip()
+    )
+    
+    db.session.add(new_loan)
+    db.session.commit()
+    
+    ensure_catalog_entry(new_loan.device_type, new_loan.brand, new_loan.model)
+    log_activity(current_username(), 'Registro de Préstamo / Demo', f'Equipo Demo {new_loan.name} (Proveedor: {new_loan.provider}) registrado.')
+    return jsonify(new_loan.to_dict()), 201
+
+@app.route('/api/loans/<int:loan_id>', methods=['PUT'])
+def update_loan(loan_id):
+    loan = LoanDevice.query.get_or_404(loan_id)
+    data = request.json
+    
+    if 'name' in data: loan.name = data['name'].strip()
+    if 'type' in data: loan.device_type = data['type'].strip()
+    if 'brand' in data: loan.brand = (data.get('brand') or '').strip()
+    if 'model' in data: loan.model = (data.get('model') or '').strip()
+    if 'serial_number' in data: loan.serial_number = (data.get('serial_number') or '').strip()
+    if 'mac_address' in data: loan.mac_address = (data.get('mac_address') or '').strip()
+    if 'provider' in data: loan.provider = (data.get('provider') or '').strip()
+    if 'status' in data: loan.status = data['status']
+    if 'warehouse' in data: loan.warehouse = (data.get('warehouse') or '').strip()
+    if 'location' in data: loan.location = (data.get('location') or '').strip()
+    if 'dispatched_by' in data: loan.dispatched_by = (data.get('dispatched_by') or '').strip()
+    if 'received_date' in data: loan.received_date = data.get('received_date', '')
+    if 'expected_return_date' in data: loan.expected_return_date = data.get('expected_return_date', '')
+    if 'returned_date' in data: loan.returned_date = data.get('returned_date', '')
+    if 'value' in data: loan.value = float(data.get('value', 0.0))
+    if 'quantity' in data: loan.quantity = int(data.get('quantity', 1))
+    if 'notes' in data: loan.notes = (data.get('notes') or '').strip()
+    
+    db.session.commit()
+    ensure_catalog_entry(loan.device_type, loan.brand, loan.model)
+    log_activity(current_username(), 'Edición de Préstamo / Demo', f'Equipo Demo #{loan.id} ({loan.name}) actualizado.')
+    return jsonify(loan.to_dict())
+
+@app.route('/api/loans/<int:loan_id>', methods=['DELETE'])
+def delete_loan(loan_id):
+    loan = LoanDevice.query.get_or_404(loan_id)
+    name = loan.name
+    prov = loan.provider
+    db.session.delete(loan)
+    db.session.commit()
+    log_activity(current_username(), 'Eliminación de Préstamo / Demo', f'Equipo Demo #{loan_id} ({name}, Proveedor: {prov}) eliminado.')
+    return jsonify({'success': True, 'message': f'Equipo Demo #{loan_id} eliminado.'})
+
+@app.route('/api/loans/<int:loan_id>/dispatch', methods=['POST'])
+def dispatch_loan(loan_id):
+    loan = LoanDevice.query.get_or_404(loan_id)
+    data = request.json or {}
+    
+    loc = (data.get('location') or '').strip()
+    disp = (data.get('dispatched_by') or '').strip()
+    notes = (data.get('notes') or '').strip()
+    
+    if not loc:
+        return jsonify({'error': 'La ubicación o destino de prueba es obligatorio'}), 400
+        
+    loan.status = 'En Pruebas / Instalado'
+    loan.location = loc
+    loan.dispatched_by = disp
+    loan.warehouse = ''
+    if notes:
+        existing_notes = loan.notes or ''
+        ts = datetime.utcnow().strftime('%Y-%m-%d')
+        loan.notes = f"{existing_notes}\n[{ts} Despacho a Pruebas] Destino: {loc}. Responsable: {disp}. {notes}".strip()
+        
+    db.session.commit()
+    log_activity(current_username(), 'Despacho de Demo a Pruebas', f'Equipo Demo #{loan.id} ({loan.name}) enviado a pruebas en {loc} por {disp}.')
+    return jsonify(loan.to_dict())
+
+@app.route('/api/loans/<int:loan_id>/return-to-warehouse', methods=['POST'])
+def return_loan_to_warehouse(loan_id):
+    loan = LoanDevice.query.get_or_404(loan_id)
+    data = request.json or {}
+    
+    wh = (data.get('warehouse') or '').strip()
+    notes = (data.get('notes') or '').strip()
+    
+    if not wh:
+        return jsonify({'error': 'El almacén de resguardo es obligatorio'}), 400
+        
+    old_loc = loan.location
+    loan.status = 'En Evaluación / Stock'
+    loan.warehouse = wh
+    loan.location = ''
+    loan.dispatched_by = ''
+    if notes:
+        existing_notes = loan.notes or ''
+        ts = datetime.utcnow().strftime('%Y-%m-%d')
+        loan.notes = f"{existing_notes}\n[{ts} Retorno a Almacén] Reingresado a {wh} desde {old_loc}. {notes}".strip()
+        
+    db.session.commit()
+    log_activity(current_username(), 'Retorno de Demo a Almacén', f'Equipo Demo #{loan.id} ({loan.name}) regresó a {wh} desde {old_loc}.')
+    return jsonify(loan.to_dict())
+
+@app.route('/api/loans/<int:loan_id>/return-to-provider', methods=['POST'])
+def return_loan_to_provider(loan_id):
+    loan = LoanDevice.query.get_or_404(loan_id)
+    data = request.json or {}
+    
+    ret_date = data.get('returned_date') or datetime.utcnow().strftime('%Y-%m-%d')
+    notes = (data.get('notes') or '').strip()
+    
+    loan.status = 'Devuelto al Proveedor'
+    loan.returned_date = ret_date
+    if notes:
+        existing_notes = loan.notes or ''
+        ts = datetime.utcnow().strftime('%Y-%m-%d')
+        loan.notes = f"{existing_notes}\n[{ts} Devolución al Proveedor] Fecha de entrega: {ret_date}. {notes}".strip()
+        
+    db.session.commit()
+    log_activity(current_username(), 'Devolución de Demo a Proveedor', f'Equipo Demo #{loan.id} ({loan.name}) devuelto formalmente al proveedor {loan.provider}.')
+    return jsonify(loan.to_dict())
+
+@app.route('/api/loans/<int:loan_id>/convert-to-inventory', methods=['POST'])
+def convert_loan_to_inventory(loan_id):
+    loan = LoanDevice.query.get_or_404(loan_id)
+    data = request.json or {}
+    
+    target_status = data.get('status', 'En Stock' if loan.status == 'En Evaluación / Stock' else 'Despachado / Instalado')
+    target_warehouse = data.get('warehouse', loan.warehouse) if target_status in ['En Stock', 'Reparado'] else ''
+    target_location = data.get('location', loan.location) if target_status == 'Despachado / Instalado' else ''
+    
+    if target_status in ['En Stock', 'Reparado'] and not target_warehouse:
+        target_warehouse = 'ALMACEN ADM' # fallback si no se especifico
+        
+    new_device = Device(
+        name=loan.name,
+        device_type=loan.device_type,
+        brand=loan.brand,
+        model=loan.model,
+        serial_number=loan.serial_number,
+        mac_address=loan.mac_address,
+        status=target_status,
+        warehouse=target_warehouse,
+        location=target_location,
+        dispatched_by=loan.dispatched_by if target_status == 'Despachado / Instalado' else '',
+        description=f"Adquirido tras período de evaluación demo (Proveedor original: {loan.provider}). {loan.notes or ''}".strip(),
+        value=float(data.get('value', loan.value)),
+        quantity=int(data.get('quantity', loan.quantity))
+    )
+    
+    loan.status = 'Comprado / Adquirido'
+    db.session.add(new_device)
+    db.session.commit()
+    
+    # Consolidar si es duplicado en inventario
+    final_dev = merge_device_if_duplicate(new_device.id)
+    ensure_catalog_entry(final_dev.device_type, final_dev.brand, final_dev.model)
+    
+    log_activity(current_username(), 'Conversión Demo a Inventario', f'Equipo Demo #{loan.id} ({loan.name}) comprado/adquirido y transferido a Inventario General como #{final_dev.id}.')
+    return jsonify({
+        'success': True,
+        'message': f'Equipo #{loan.id} transferido exitosamente al Inventario General como #{final_dev.id}',
+        'device': final_dev.to_dict(),
+        'loan': loan.to_dict()
+    })
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices():

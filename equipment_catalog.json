@@ -13,5 +13,10 @@
         "type": "CABLEADO",
         "brand": "GENERIC",
         "model": "SC-LC-UPC-2M"
+    },
+    {
+        "type": "SWITCH",
+        "brand": "CISCO",
+        "model": "C9300-48P-E"
     }
 ]

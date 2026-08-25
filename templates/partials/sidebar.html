@@ -31,6 +31,11 @@
             <i class="fa-solid fa-screwdriver-wrench"></i>
             <span>Reparaciones</span>
         </a>
+
+        <a href="{{ url_for('prestamos') }}" class="nav-item {% if request.endpoint == 'prestamos' %}active{% endif %}" id="nav-loans">
+            <i class="fa-solid fa-handshake"></i>
+            <span>Préstamos y Demos</span>
+        </a>
         
         <a href="{{ url_for('despacho') }}" class="nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" id="nav-dispatch">
             <i class="fa-solid fa-truck-ramp-box"></i>
