@@ -4283,15 +4283,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function populateProviderLinkDropdown() {
         const linkSelect = document.getElementById('provider-modal-link-device');
         if (!linkSelect) return;
-        linkSelect.innerHTML = '<option value="">Cargando artículos del inventario...</option>';
-        
-        let devices = (typeof allDevices !== 'undefined' && Array.isArray(allDevices) && allDevices.length > 0) 
-            ? allDevices 
-            : (window.allDevices && Array.isArray(window.allDevices) && window.allDevices.length > 0)
-                ? window.allDevices
-                : [];
-                
-        if (devices.length === 0) {
+        let devices = window.allDevices || [];
+        if (!devices || devices.length === 0) {
             try {
                 const res = await fetch('/api/devices');
                 if (res.ok) {
@@ -4312,13 +4305,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     seen.add(key);
                     const opt = document.createElement('option');
                     const cost = d.value ? (d.value / (d.quantity || 1)).toFixed(2) : '0.00';
+                    const prodName = `${d.name} (${d.brand || ''} ${d.model || ''})`.trim();
+                    const prodCode = `EQ-${d.id}`;
+                    
+                    const isAlreadyLinked = currentProviderModalProducts.some(p => {
+                        const pName = (p.name || '').trim().toLowerCase();
+                        const curName = prodName.toLowerCase();
+                        const pCode = (p.code || '').trim().toLowerCase();
+                        const curCode = prodCode.toLowerCase();
+                        return (pName && curName && pName === curName) || (pCode && curCode && pCode !== '-' && curCode !== '-' && pCode === curCode);
+                    });
+
                     const prodData = {
-                        code: `EQ-${d.id}`,
-                        name: `${d.name} (${d.brand || ''} ${d.model || ''})`.trim(),
+                        code: prodCode,
+                        name: prodName,
                         cost: cost
                     };
                     opt.value = JSON.stringify(prodData);
-                    opt.textContent = `${d.name} [${d.brand || '-'} / ${d.model || '-'}] - Costo ref: $${cost}`;
+                    if (isAlreadyLinked) {
+                        opt.textContent = `✓ [Ya vinculado] ${d.name} [${d.brand || '-'} / ${d.model || '-'}] - $${cost}`;
+                        opt.disabled = true;
+                        opt.style.color = 'var(--color-text-secondary)';
+                    } else {
+                        opt.textContent = `${d.name} [${d.brand || '-'} / ${d.model || '-'}] - Costo ref: $${cost}`;
+                    }
                     linkSelect.appendChild(opt);
                 }
             });
@@ -4334,9 +4344,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         form.reset();
         currentProviderModalProducts = [];
-
-        // Asynchronously populate inventory link dropdown
-        populateProviderLinkDropdown();
 
         if (mode === 'edit' && provider) {
             document.getElementById('provider-modal-title').textContent = `Editar Proveedor: ${provider.name}`;
@@ -4358,6 +4365,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentProviderModalProducts = [];
         }
 
+        populateProviderLinkDropdown();
         renderProviderModalProducts();
         modal.classList.add('active');
         window._providerModalCallback = onSavedCallback;
@@ -4386,6 +4394,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.querySelector('button')?.addEventListener('click', () => {
                 currentProviderModalProducts.splice(index, 1);
                 renderProviderModalProducts();
+                populateProviderLinkDropdown();
             });
             tbody.appendChild(tr);
         });
@@ -4400,9 +4409,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const item = JSON.parse(linkSelect.value);
+            const isAlreadyLinked = currentProviderModalProducts.some(p => {
+                const pName = (p.name || '').trim().toLowerCase();
+                const iName = (item.name || '').trim().toLowerCase();
+                const pCode = (p.code || '').trim().toLowerCase();
+                const iCode = (item.code || '').trim().toLowerCase();
+                return (pName && iName && pName === iName) || (pCode && iCode && pCode !== '-' && iCode !== '-' && pCode === iCode);
+            });
+
+            if (isAlreadyLinked) {
+                showToast(`El artículo "${item.name}" ya está vinculado a este proveedor`, 'warning');
+                return;
+            }
+
             currentProviderModalProducts.push(item);
             renderProviderModalProducts();
+            populateProviderLinkDropdown();
             linkSelect.value = '';
+            showToast(`Artículo "${item.name}" vinculado al proveedor`, 'success');
         } catch(e) {}
     });
 
@@ -4417,17 +4441,35 @@ document.addEventListener('DOMContentLoaded', () => {
             nameInp?.focus();
             return;
         }
+
+        const code = codeInp ? codeInp.value.trim() || '-' : '-';
+
+        const isAlreadyLinked = currentProviderModalProducts.some(p => {
+            const pName = (p.name || '').trim().toLowerCase();
+            const iName = name.toLowerCase();
+            const pCode = (p.code || '').trim().toLowerCase();
+            const iCode = code.toLowerCase();
+            return (pName && iName && pName === iName) || (pCode && iCode && pCode !== '-' && iCode !== '-' && pCode === iCode);
+        });
+
+        if (isAlreadyLinked) {
+            showToast(`El producto "${name}" ya está registrado para este proveedor`, 'warning');
+            return;
+        }
+
         const item = {
-            code: codeInp ? codeInp.value.trim() || '-' : '-',
+            code: code,
             name: name,
             cost: costInp ? parseFloat(costInp.value) || 0.0 : 0.0
         };
         currentProviderModalProducts.push(item);
         renderProviderModalProducts();
+        populateProviderLinkDropdown();
         
         if (codeInp) codeInp.value = '';
         if (nameInp) nameInp.value = '';
         if (costInp) costInp.value = '';
+        showToast(`Producto "${name}" agregado a la lista del proveedor`, 'success');
     });
 
     // Close & Cancel Modal
