@@ -57,6 +57,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function populateWarehouseDropdown(selectElem, selectedVal = 'Taller IT') {
+        if (!selectElem) return;
+        selectElem.innerHTML = '';
+        
+        const whNames = ['Taller IT'];
+        (auxiliaryData.warehouses || []).forEach(w => {
+            if (w.name && !whNames.includes(w.name)) {
+                whNames.push(w.name);
+            }
+        });
+
+        if (selectedVal && !whNames.includes(selectedVal)) {
+            whNames.push(selectedVal);
+        }
+
+        whNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            if (selectedVal && name.toLowerCase() === selectedVal.toLowerCase()) {
+                opt.selected = true;
+            }
+            selectElem.appendChild(opt);
+        });
+
+        if (selectedVal) {
+            selectElem.value = selectedVal;
+        }
+    }
+
     function populateDatalistsAndFilters() {
         // Techs
         const techList = document.getElementById('list-techs-tools');
@@ -80,23 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
             filterTech.value = currentVal;
         }
 
-        // Warehouses
-        const whList = document.getElementById('list-warehouses-tools');
-        if (whList) {
-            whList.innerHTML = '';
-            auxiliaryData.warehouses.forEach(w => {
-                const opt = document.createElement('option');
-                opt.value = w.name;
-                whList.appendChild(opt);
-            });
-        }
+        // Warehouses Filter
         if (filterWarehouse) {
             const currentVal = filterWarehouse.value;
             filterWarehouse.innerHTML = '<option value="all">Almacén / Taller: Todos</option>';
-            auxiliaryData.warehouses.forEach(w => {
+            const allWhs = ['Taller IT', ...(auxiliaryData.warehouses || []).map(w => w.name).filter(Boolean)];
+            [...new Set(allWhs)].forEach(name => {
                 const opt = document.createElement('option');
-                opt.value = w.name;
-                opt.textContent = w.name;
+                opt.value = name;
+                opt.textContent = name;
                 filterWarehouse.appendChild(opt);
             });
             filterWarehouse.value = currentVal;
@@ -112,6 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 hotList.appendChild(opt);
             });
         }
+
+        // Populate modal selects
+        populateWarehouseDropdown(document.getElementById('tool-warehouse'), 'Taller IT');
+        populateWarehouseDropdown(document.getElementById('return-warehouse'), 'Taller IT');
     }
 
     async function fetchTools() {
@@ -315,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const res = await fetch(`/api/tools/${id}`, { method: 'DELETE' });
                     if (res.ok) {
                         showToast(`Herramienta "${name}" eliminada`, 'success');
-                        fetchTools();
+                        await fetchTools();
                     } else {
                         showToast('Error al eliminar herramienta', 'error');
                     }
@@ -328,8 +354,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openToolModal(mode = 'add', tool = null) {
         formTool.reset();
+        const whSelect = document.getElementById('tool-warehouse');
         if (mode === 'edit' && tool) {
-            document.getElementById('tool-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color: var(--color-primary); margin-right: 8px;"></i>Editar Herramienta: ${escapeHtml(tool.name)}`;
+            document.getElementById('tool-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color: var(--color-primary); margin-right: 8px;"></i><span>Editar Herramienta: ${escapeHtml(tool.name)}</span>`;
             document.getElementById('tool-id').value = tool.id;
             document.getElementById('tool-code').value = tool.code || '';
             document.getElementById('tool-name').value = tool.name || '';
@@ -339,14 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tool-serial').value = tool.serial_number || '';
             document.getElementById('tool-condition').value = tool.condition || 'Buena';
             document.getElementById('tool-status').value = tool.status || 'Disponible';
-            document.getElementById('tool-warehouse').value = tool.warehouse || 'Taller IT';
+            populateWarehouseDropdown(whSelect, tool.warehouse || 'Taller IT');
             document.getElementById('tool-value').value = tool.value || 0;
             document.getElementById('tool-quantity').value = tool.quantity || 1;
             document.getElementById('tool-notes').value = tool.notes || '';
         } else {
-            document.getElementById('tool-modal-title').innerHTML = `<i class="fa-solid fa-toolbox" style="color: var(--color-primary); margin-right: 8px;"></i>Nueva Herramienta de Trabajo`;
+            document.getElementById('tool-modal-title').innerHTML = `<i class="fa-solid fa-toolbox" style="color: var(--color-primary); margin-right: 8px;"></i><span>Nueva Herramienta de Trabajo</span>`;
             document.getElementById('tool-id').value = '';
-            document.getElementById('tool-warehouse').value = 'Taller IT';
+            populateWarehouseDropdown(whSelect, 'Taller IT');
             document.getElementById('tool-quantity').value = 1;
             document.getElementById('tool-value').value = '0.00';
             document.getElementById('tool-condition').value = 'Buena';
@@ -370,7 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('return-tool-id').value = tool.id;
         document.getElementById('return-tool-name').textContent = tool.name;
         document.getElementById('return-tool-details').textContent = `Actualmente en poder de: ${tool.assigned_to || 'Técnico'} | Ubicación: ${tool.location || 'N/A'}`;
-        document.getElementById('return-warehouse').value = tool.warehouse || 'Taller IT';
+        const returnWhSelect = document.getElementById('return-warehouse');
+        populateWarehouseDropdown(returnWhSelect, tool.warehouse || 'Taller IT');
         document.getElementById('return-condition').value = tool.condition || 'Buena';
         returnModal.classList.add('active');
     }
@@ -440,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     showToast(id ? 'Herramienta actualizada' : 'Herramienta registrada exitosamente', 'success');
                     closeToolM();
-                    fetchTools();
+                    await fetchTools();
                 } else {
                     showToast(data.error || 'Error al guardar herramienta', 'error');
                 }
@@ -470,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     showToast(`Herramienta asignada a ${payload.assigned_to}`, 'success');
                     closeAssignM();
-                    fetchTools();
+                    await fetchTools();
                 } else {
                     showToast(data.error || 'Error al asignar', 'error');
                 }
@@ -499,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     showToast('Herramienta devuelta al taller exitosamente', 'success');
                     closeReturnM();
-                    fetchTools();
+                    await fetchTools();
                 } else {
                     showToast(data.error || 'Error al devolver', 'error');
                 }

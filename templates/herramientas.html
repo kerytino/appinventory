@@ -269,8 +269,9 @@
                             <label class="form-label" for="tool-warehouse" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-warehouse" style="color: #6366f1; margin-right: 4px;"></i>Almacén / Resguardo:
                             </label>
-                            <input type="text" id="tool-warehouse" class="form-control" placeholder="Ej: Taller IT" list="list-warehouses-tools" value="Taller IT" style="height: 38px;">
-                            <datalist id="list-warehouses-tools"></datalist>
+                            <select id="tool-warehouse" class="form-control" style="height: 38px; font-weight: 600;">
+                                <option value="Taller IT">Taller IT</option>
+                            </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="tool-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
@@ -391,9 +392,11 @@
                 <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label class="form-label" for="return-warehouse" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                            <i class="fa-solid fa-warehouse" style="color: #10b981; margin-right: 4px;"></i>Almacén / Taller Destino:
+                            <i class="fa-solid fa-warehouse" style="color: #10b981; margin-right: 4px;"></i>Almacén / Taller Destino: <span style="color: var(--color-danger);">*</span>
                         </label>
-                        <input type="text" id="return-warehouse" class="form-control" value="Taller IT" list="list-warehouses-tools" required style="height: 40px;">
+                        <select id="return-warehouse" class="form-control" required style="height: 40px; font-weight: 600;">
+                            <option value="Taller IT">Taller IT</option>
+                        </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label class="form-label" for="return-condition" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
@@ -428,5 +431,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/herramientas.js') }}?v=5.6.3"></script>
+<script src="{{ url_for('static', filename='js/herramientas.js') }}?v=5.6.4"></script>
 {% endblock %}
