@@ -1935,17 +1935,8 @@ def delete_hotel(id):
 
 @app.route('/api/settings/technicians', methods=['GET'])
 def get_technicians():
-    items = Technician.query.order_by(Technician.name).all()
-    tech_names = {i.name.strip().lower() for i in items if i.name}
-    result = [i.to_dict() for i in items]
-    
-    users = User.query.all()
-    for u in users:
-        if u.username and u.username.strip().lower() not in tech_names:
-            result.append({'id': f'user_{u.id}', 'name': u.username, 'source': 'user'})
-            tech_names.add(u.username.strip().lower())
-            
-    return jsonify(result)
+    items = Technician.query.order_by(Technician.name.asc()).all()
+    return jsonify([i.to_dict() for i in items])
 
 @app.route('/api/settings/technicians', methods=['POST'])
 def add_technician():
