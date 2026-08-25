@@ -635,6 +635,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getMinStockLimit(warehouse, brand, model) {
+        if (typeof stockLimits === 'undefined' || !stockLimits) return 0;
+        const cleanBrand = (brand || '').trim().toUpperCase();
+        const cleanModel = (model || '').trim().toUpperCase();
+        const cleanWh = (warehouse || '').trim().toUpperCase();
+        
+        // Try specific warehouse key
+        if (cleanWh && cleanWh !== 'SIN ALMACÉN / POR DEFECTO') {
+            for (const [key, val] of Object.entries(stockLimits)) {
+                const parts = key.split(' | ');
+                if (parts.length > 1) {
+                    const kWh = parts[0].trim().toUpperCase();
+                    const kMod = parts.slice(1).join(' | ').trim().toUpperCase();
+                    if (kWh === cleanWh && (kMod === `${cleanBrand} ${cleanModel}` || kMod === cleanModel)) {
+                        return parseInt(val) || 0;
+                    }
+                }
+            }
+        }
+        
+        // Try default / any warehouse key
+        for (const [key, val] of Object.entries(stockLimits)) {
+            const parts = key.split(' | ');
+            const kMod = (parts.length > 1 ? parts.slice(1).join(' | ') : key).trim().toUpperCase();
+            if (kMod === `${cleanBrand} ${cleanModel}` || kMod === cleanModel) {
+                const num = parseInt(val) || 0;
+                if (num > 0) return num;
+            }
+        }
+        return 0;
+    }
+
+    function updateMinStockSuggestion() {
+        const brand = (document.getElementById('device-brand')?.value || '').trim();
+        const model = (document.getElementById('device-model')?.value || '').trim();
+        const warehouse = (document.getElementById('device-warehouse')?.value || '').trim();
+        const minStockInput = document.getElementById('device-min-stock');
+        if (!minStockInput) return;
+        
+        if (brand && model && brand !== '__new__' && model !== '__new__') {
+            minStockInput.value = getMinStockLimit(warehouse, brand, model);
+        }
+    }
+
     // Button + Proveedor in device modal
     document.getElementById('btn-device-open-new-provider')?.addEventListener('click', () => {
         if (typeof window.openProviderModal === 'function') {
