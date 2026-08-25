@@ -2,83 +2,181 @@
 
 {% block title %}Despachar Equipo | The Excellence Collection{% endblock %}
 {% block page_title %}Módulo de Despacho{% endblock %}
-{% block page_subtitle %}Busca y despacha equipos del stock a sus destinos{% endblock %}
+{% block page_subtitle %}Busca y despacha equipos del stock a sus destinos u hoteles{% endblock %}
+
+{% block extra_css %}
+<style>
+.dispatch-flow {
+    max-width: 800px;
+    margin: 0 auto;
+}
+.flow-steps {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin-bottom: 28px;
+}
+.flow-steps::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: var(--color-border);
+    z-index: 1;
+}
+.flow-steps .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2;
+}
+.flow-steps .step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+.flow-steps .step-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    transition: all 0.3s ease;
+}
+.flow-steps .step.active .step-circle {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+.flow-steps .step.active .step-label {
+    color: var(--color-primary);
+    font-weight: 700;
+}
+.dispatch-search-box {
+    position: relative;
+}
+.dispatch-search-results-box {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    margin-top: 6px;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div id="view-dispatch" class="view-section active">
     
     <div class="dispatch-flow">
         
+        <!-- Flow Steps -->
         <div class="flow-steps">
             <div class="step active">
                 <div class="step-circle">1</div>
-                <span class="step-label">Seleccionar equipo</span>
+                <span class="step-label">1. Seleccionar equipo</span>
             </div>
             <div class="step">
                 <div class="step-circle">2</div>
-                <span class="step-label">Datos del despacho</span>
+                <span class="step-label">2. Datos del despacho</span>
             </div>
             <div class="step">
                 <div class="step-circle">3</div>
-                <span class="step-label">Confirmar</span>
+                <span class="step-label">3. Confirmación</span>
             </div>
         </div>
 
-        <div style="background: var(--color-surface); padding: var(--spacing-xl); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
+        <div style="background: var(--color-surface); padding: 28px; border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
             <form id="dispatch-module-form">
-                <!-- 01 Search -->
-                <div class="form-group" style="position: relative; margin-bottom: var(--spacing-xl);">
-                    <label for="dispatch-search-input" class="form-label" style="font-size: 16px;">Buscar Equipo en Stock (Nombre, Modelo, S/N, MAC)</label>
+                
+                <!-- 01 Search Input Group -->
+                <div class="form-group dispatch-search-box" id="dispatch-search-group" style="margin-bottom: 24px;">
+                    <label for="dispatch-search-input" class="form-label" style="font-size: 15px; font-weight: 700; margin-bottom: 8px; display: block;">
+                        <i class="fa-solid fa-magnifying-glass" style="color: var(--color-primary); margin-right: 6px;"></i>Buscar Equipo en Stock (Nombre, Modelo, S/N, MAC, Almacén)
+                    </label>
                     <div style="position: relative;">
-                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 16px; top: 14px; color: var(--color-text-secondary);"></i>
-                        <input type="text" id="dispatch-search-input" class="form-control" placeholder="Ej: Cisco, SN12345, F8:E4..." autocomplete="off" style="padding-left: 44px; padding-top: 12px; padding-bottom: 12px; font-size: 16px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 16px; top: 14px; color: var(--color-text-secondary); font-size: 15px;"></i>
+                        <input type="text" id="dispatch-search-input" class="form-control" placeholder="Escribe para buscar... Ej: Cisco, SN12345, F8:E4, Switch..." autocomplete="off" style="padding-left: 44px; height: 46px; font-size: 15px; font-weight: 600;">
                     </div>
-                    <div id="dispatch-search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 250px; overflow-y: auto; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-md); border-radius: var(--radius-md); margin-top: var(--spacing-xs);">
-                        <!-- Injected by JS -->
+                    <div id="dispatch-search-results" class="dispatch-search-results-box" style="display: none;">
+                        <!-- Injected live by JS -->
                     </div>
                 </div>
 
-                <!-- 02 Selected Device Info -->
-                <div id="dispatch-selected-device-card" style="display: none; background-color: var(--color-info-light); border: 1px solid var(--color-info); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-xl);">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                <!-- 02 Selected Device Info Card -->
+                <div id="dispatch-selected-device-card" style="display: none; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <div>
-                            <h4 id="dispatch-card-title" class="section-title" style="color: var(--color-info); margin-bottom: 4px;"></h4>
-                            <p id="dispatch-card-details" class="text-secondary"></p>
+                            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-primary); display: block; margin-bottom: 2px;">
+                                <i class="fa-solid fa-circle-check"></i> Equipo Seleccionado para Despacho
+                            </span>
+                            <h4 id="dispatch-card-title" style="margin: 0 0 4px 0; color: var(--color-text); font-size: 1.1rem; font-weight: 800;"></h4>
+                            <p id="dispatch-card-details" style="margin: 0; font-size: 13px; color: var(--color-text-secondary);"></p>
                         </div>
-                        <button type="button" id="dispatch-btn-change-device" class="btn btn-outline" style="border-color: var(--color-info); color: var(--color-info);">
-                            <i class="fa-solid fa-xmark"></i> Cambiar
+                        <button type="button" id="dispatch-btn-change-device" class="btn btn-outline" style="border-color: #ef4444; color: #ef4444; font-weight: 700; height: 36px; padding: 0 14px;">
+                            <i class="fa-solid fa-arrow-rotate-left"></i> Cambiar Equipo
                         </button>
                     </div>
                 </div>
                 <input type="hidden" id="dispatch-selected-id">
 
-                <!-- 03 Dispatch Details -->
-                <div id="dispatch-details-fields" style="display: none; border-top: 1px solid var(--color-border); padding-top: var(--spacing-xl);">
+                <!-- 03 Dispatch Details Fields -->
+                <div id="dispatch-details-fields" style="display: none; border-top: 1px solid var(--color-border); padding-top: 24px;">
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
-                        <div class="form-group">
-                            <label for="dispatch-input-quantity" class="form-label">Cantidad a Despachar <span style="color: var(--color-danger);">*</span></label>
-                            <input type="number" id="dispatch-input-quantity" class="form-control" min="1" required>
-                            <span id="dispatch-available-qty-label" class="text-secondary" style="display: block; margin-top: 4px; color: var(--color-info);"></span>
+                    <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="dispatch-input-quantity" class="form-label" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-cubes" style="color: var(--color-primary); margin-right: 4px;"></i>Cantidad a Despachar <span style="color: var(--color-danger);">*</span>
+                            </label>
+                            <input type="number" id="dispatch-input-quantity" class="form-control" min="1" required style="height: 40px; font-weight: 700; font-family: monospace; font-size: 15px;">
+                            <span id="dispatch-available-qty-label" class="text-secondary" style="display: block; margin-top: 6px; font-size: 12px; color: #10b981; font-weight: 600;"></span>
                         </div>
-                        <div class="form-group">
-                            <label for="dispatch-input-hotel" class="form-label">Destino (Hotel / Lugar) <span style="color: var(--color-danger);">*</span></label>
-                            <input type="text" id="dispatch-input-hotel" class="form-control" list="hotel-options" required placeholder="Ej: Excellence Punta Cana">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="dispatch-input-hotel" class="form-label" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-hotel" style="color: #10b981; margin-right: 4px;"></i>Destino (Hotel / Locación) <span style="color: var(--color-danger);">*</span>
+                            </label>
+                            <input type="text" id="dispatch-input-hotel" class="form-control" list="hotel-options" required placeholder="Ej: Excellence Punta Cana, IDF 2..." style="height: 40px; font-weight: 600;">
+                            <datalist id="hotel-options"></datalist>
                         </div>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: var(--spacing-lg);">
-                        <label for="dispatch-input-tech" class="form-label">Técnico Responsable <span style="color: var(--color-danger);">*</span></label>
-                        <input type="text" id="dispatch-input-tech" class="form-control" list="technician-options" required placeholder="Nombre del técnico...">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="dispatch-input-tech" class="form-label" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                            <i class="fa-solid fa-user-check" style="color: #6366f1; margin-right: 4px;"></i>Técnico Responsable / Quien Recibe <span style="color: var(--color-danger);">*</span>
+                        </label>
+                        <input type="text" id="dispatch-input-tech" class="form-control" list="technician-options" required placeholder="Nombre del técnico o instalador..." style="height: 40px; font-weight: 600;">
+                        <datalist id="technician-options"></datalist>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: var(--spacing-xl);">
-                        <label for="dispatch-input-notes" class="form-label">Notas / Comentarios de Entrega</label>
-                        <textarea id="dispatch-input-notes" class="form-control" rows="3" placeholder="Detalles sobre el despacho, ticket, etc."></textarea>
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label for="dispatch-input-notes" class="form-label" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                            <i class="fa-solid fa-note-sticky" style="color: #64748b; margin-right: 4px;"></i>Notas / Comentarios del Despacho (Ticket, motivo...)
+                        </label>
+                        <textarea id="dispatch-input-notes" class="form-control" rows="3" placeholder="Ej: Reemplazo por avería según ticket #4819, entregado para configuración en rack principal..." style="resize: vertical; min-height: 70px;"></textarea>
                     </div>
 
-                    <div style="display: flex; justify-content: flex-end;">
-                        <button type="submit" class="btn btn-primary" style="padding: 12px 24px; font-size: 16px;">
+                    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                        <button type="submit" class="btn btn-primary" style="padding: 10px 28px; font-size: 15px; font-weight: 700; background: var(--color-primary); border-color: var(--color-primary); box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);">
                             <i class="fa-solid fa-paper-plane"></i> Confirmar Despacho
                         </button>
                     </div>
@@ -88,4 +186,8 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/despacho.js') }}?v=5.6.7"></script>
 {% endblock %}
