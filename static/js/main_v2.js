@@ -4291,11 +4291,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 4. Providers Settings Management ---
     // --- 4. Providers Settings & Modal Management (Matches Design Mockup) ---
     let currentProviderModalProducts = [];
 
-    window.openProviderModal = function(mode = 'add', provider = null, initialName = '', onSavedCallback = null) {
+    async function populateProviderLinkDropdown() {
+        const linkSelect = document.getElementById('provider-modal-link-device');
+        if (!linkSelect) return;
+        linkSelect.innerHTML = '<option value="">Cargando artículos del inventario...</option>';
+        
+        let devices = (typeof allDevices !== 'undefined' && Array.isArray(allDevices) && allDevices.length > 0) 
+            ? allDevices 
+            : (window.allDevices && Array.isArray(window.allDevices) && window.allDevices.length > 0)
+                ? window.allDevices
+                : [];
+                
+        if (devices.length === 0) {
+            try {
+                const res = await fetch('/api/devices');
+                if (res.ok) {
+                    devices = await res.json();
+                    window.allDevices = devices;
+                }
+            } catch(e) {
+                console.error('Error loading devices for provider modal:', e);
+            }
+        }
+        
+        linkSelect.innerHTML = '<option value="">+ Vincular artículo existente del inventario...</option>';
+        if (devices && devices.length > 0) {
+            const seen = new Set();
+            devices.forEach(d => {
+                const key = `${d.name} - ${d.type} - ${d.brand || ''} ${d.model || ''}`.trim();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    const opt = document.createElement('option');
+                    const cost = d.value ? (d.value / (d.quantity || 1)).toFixed(2) : '0.00';
+                    const prodData = {
+                        code: `EQ-${d.id}`,
+                        name: `${d.name} (${d.brand || ''} ${d.model || ''})`.trim(),
+                        cost: cost
+                    };
+                    opt.value = JSON.stringify(prodData);
+                    opt.textContent = `${d.name} [${d.brand || '-'} / ${d.model || '-'}] - Costo ref: $${cost}`;
+                    linkSelect.appendChild(opt);
+                }
+            });
+        } else {
+            linkSelect.innerHTML = '<option value="">No hay artículos en inventario (puedes añadir manualmente abajo)</option>';
+        }
+    }
+
+    window.openProviderModal = async function(mode = 'add', provider = null, initialName = '', onSavedCallback = null) {
         const modal = document.getElementById('provider-modal');
         const form = document.getElementById('form-provider-details');
         if (!modal || !form) return;
@@ -4303,29 +4349,8 @@ document.addEventListener('DOMContentLoaded', () => {
         form.reset();
         currentProviderModalProducts = [];
 
-        // Populate inventory link dropdown
-        const linkSelect = document.getElementById('provider-modal-link-device');
-        if (linkSelect) {
-            linkSelect.innerHTML = '<option value="">+ Vincular artículo existente del inventario...</option>';
-            if (window.allDevices && window.allDevices.length > 0) {
-                const seen = new Set();
-                window.allDevices.forEach(d => {
-                    const key = `${d.type} - ${d.brand || ''} ${d.model || ''}`.trim();
-                    if (!seen.has(key)) {
-                        seen.add(key);
-                        const opt = document.createElement('option');
-                        const prodData = {
-                            code: `EQ-${d.id}`,
-                            name: `${d.name} (${d.brand || ''} ${d.model || ''})`.trim(),
-                            cost: d.value ? (d.value / (d.quantity || 1)).toFixed(2) : '0.00'
-                        };
-                        opt.value = JSON.stringify(prodData);
-                        opt.textContent = `${d.name} [${d.brand || '-'} / ${d.model || '-'}] - Costo ref: $${prodData.cost}`;
-                        linkSelect.appendChild(opt);
-                    }
-                });
-            }
-        }
+        // Asynchronously populate inventory link dropdown
+        populateProviderLinkDropdown();
 
         if (mode === 'edit' && provider) {
             document.getElementById('provider-modal-title').textContent = `Editar Proveedor: ${provider.name}`;
