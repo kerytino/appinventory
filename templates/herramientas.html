@@ -1,163 +1,175 @@
 {% extends "base.html" %}
 
 {% block title %}Control de Herramientas IT | The Excellence Collection{% endblock %}
+{% block page_title %}Control de Herramientas IT{% endblock %}
+{% block page_subtitle %}Gestión, asignación a técnicos, mantenimiento y resguardo del inventario de herramientas operativas de IT{% endblock %}
 
 {% block content %}
-<div class="view-header">
-    <div class="view-header-title">
-        <h1><i class="fa-solid fa-toolbox" style="color: var(--color-primary); margin-right: 10px;"></i>Control de Herramientas y Equipos de Uso Interno</h1>
-        <p>Gestión, asignación a técnicos, mantenimiento y resguardo del inventario de herramientas operativas de IT.</p>
+<div id="view-tools" class="view-section active">
+    <!-- Notice Banner -->
+    <div style="background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="display: flex; gap: 14px; align-items: center;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(37, 99, 235, 0.12); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0;">
+                <i class="fa-solid fa-toolbox"></i>
+            </div>
+            <div>
+                <h3 style="color: var(--color-primary); margin: 0 0 3px 0; font-size: 1.1rem; font-weight: 700;">Control de Herramientas y Equipos de Uso Interno</h3>
+                <p style="color: var(--color-text-secondary); margin: 0; font-size: 0.88rem;">
+                    Monitorea el instrumental de fibra, redes, certificadores y herramientas de trabajo asignadas a los técnicos de soporte e infraestructura.
+                </p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-secondary" id="btn-export-tools-csv">
+                <i class="fa-solid fa-file-csv"></i> <span>Exportar CSV</span>
+            </button>
+            <button class="btn btn-primary" id="btn-open-new-tool">
+                <i class="fa-solid fa-plus"></i> <span>+ Nueva Herramienta</span>
+            </button>
+        </div>
     </div>
-    <div class="view-header-actions">
-        <button class="btn btn-secondary" id="btn-export-tools-csv">
-            <i class="fa-solid fa-file-csv"></i> <span>Exportar CSV</span>
-        </button>
-        <button class="btn btn-primary" id="btn-open-new-tool">
-            <i class="fa-solid fa-plus"></i> <span>Nueva Herramienta</span>
-        </button>
-    </div>
-</div>
 
-<!-- KPI Cards -->
-<div class="stats-grid" style="margin-bottom: 24px;">
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <span class="stat-card-title">Total de Herramientas</span>
-            <div class="stat-card-icon" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">
+    <!-- KPIs Row -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Total Herramientas</span>
+                <h3 id="kpi-total-tools" style="font-size: 1.75rem; font-weight: 800; margin: 4px 0 2px 0; color: var(--color-text);">0</h3>
+                <span id="kpi-total-qty" style="font-size: 0.8rem; color: var(--color-text-secondary);">0 unidades registradas</span>
+            </div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(37, 99, 235, 0.12); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                 <i class="fa-solid fa-toolbox"></i>
             </div>
         </div>
-        <div class="stat-card-value" id="kpi-total-tools">0</div>
-        <div class="stat-card-subtitle" id="kpi-total-qty">0 unidades registradas</div>
-    </div>
 
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <span class="stat-card-title">Disponibles en Taller</span>
-            <div class="stat-card-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+        <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Disponibles en Taller</span>
+                <h3 id="kpi-available-tools" style="font-size: 1.75rem; font-weight: 800; margin: 4px 0 2px 0; color: #10b981;">0</h3>
+                <span style="font-size: 0.8rem; color: #10b981; font-weight: 600;">Listas para uso</span>
+            </div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(16, 185, 129, 0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                 <i class="fa-solid fa-warehouse"></i>
             </div>
         </div>
-        <div class="stat-card-value" id="kpi-available-tools" style="color: #10b981;">0</div>
-        <div class="stat-card-subtitle">Listas para ser utilizadas</div>
-    </div>
 
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <span class="stat-card-title">En Uso / Asignadas</span>
-            <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+        <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">En Uso / Asignadas</span>
+                <h3 id="kpi-in-use-tools" style="font-size: 1.75rem; font-weight: 800; margin: 4px 0 2px 0; color: #f59e0b;">0</h3>
+                <span style="font-size: 0.8rem; color: #f59e0b; font-weight: 600;">En poder de técnicos</span>
+            </div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(245, 158, 11, 0.12); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                 <i class="fa-solid fa-user-gear"></i>
             </div>
         </div>
-        <div class="stat-card-value" id="kpi-in-use-tools" style="color: #f59e0b;">0</div>
-        <div class="stat-card-subtitle">En poder de técnicos / en campo</div>
-    </div>
 
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <span class="stat-card-title">En Mantenimiento</span>
-            <div class="stat-card-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+        <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">En Mantenimiento</span>
+                <h3 id="kpi-maintenance-tools" style="font-size: 1.75rem; font-weight: 800; margin: 4px 0 2px 0; color: #ef4444;">0</h3>
+                <span style="font-size: 0.8rem; color: #ef4444; font-weight: 600;">Calibración o avería</span>
+            </div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                 <i class="fa-solid fa-screwdriver-wrench"></i>
             </div>
         </div>
-        <div class="stat-card-value" id="kpi-maintenance-tools" style="color: #ef4444;">0</div>
-        <div class="stat-card-subtitle">Calibración o reparación</div>
-    </div>
 
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <span class="stat-card-title">Inversión en Herramientas</span>
-            <div class="stat-card-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
-                <i class="fa-solid fa-dollar-sign"></i>
+        <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Valor Total Activo</span>
+                <h3 id="kpi-total-value" style="font-size: 1.5rem; font-weight: 800; margin: 4px 0 2px 0; color: #8b5cf6;">RD$ 0.00</h3>
+                <span style="font-size: 0.8rem; color: var(--color-text-secondary);">Costo acumulado</span>
+            </div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <i class="fa-solid fa-money-bill-wave"></i>
             </div>
         </div>
-        <div class="stat-card-value" id="kpi-total-value" style="font-size: 20px;">$0.00</div>
-        <div class="stat-card-subtitle">Valor total acumulado</div>
     </div>
-</div>
 
-<!-- Toolbar Filters -->
-<div class="card" style="margin-bottom: 24px; padding: 16px;">
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
-        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; flex: 1;">
-            <div class="search-input-wrapper" style="min-width: 250px; flex: 1;">
-                <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="tool-search-input" class="search-input" placeholder="Buscar por nombre, código, marca, modelo, serial...">
+    <!-- Toolbar Filters -->
+    <div class="card" style="margin-bottom: 24px; padding: 16px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface);">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; flex: 1;">
+                <div class="search-input-wrapper" style="min-width: 260px; flex: 1; position: relative;">
+                    <i class="fa-solid fa-magnifying-glass search-icon" style="position: absolute; left: 14px; top: 12px; color: var(--color-text-secondary);"></i>
+                    <input type="text" id="tool-search-input" class="form-control search-input" placeholder="Buscar por nombre, código, marca, modelo, serial..." style="padding-left: 38px; height: 40px;">
+                </div>
+
+                <select id="filter-tool-status" class="form-control" style="width: auto; min-width: 170px; height: 40px;">
+                    <option value="all">Estado: Todos</option>
+                    <option value="Disponible">Disponible</option>
+                    <option value="En Uso / Asignada">En Uso / Asignada</option>
+                    <option value="En Mantenimiento">En Mantenimiento</option>
+                    <option value="Dañada">Dañada / Reemplazo</option>
+                    <option value="Extraviada">Extraviada</option>
+                </select>
+
+                <select id="filter-tool-category" class="form-control" style="width: auto; min-width: 170px; height: 40px;">
+                    <option value="all">Categoría: Todas</option>
+                    <option value="Fibra Óptica">Fibra Óptica</option>
+                    <option value="Redes / Cableado">Redes / Cableado</option>
+                    <option value="Medición y Certificación">Medición y Certificación</option>
+                    <option value="Herramienta Eléctrica">Herramienta Eléctrica</option>
+                    <option value="Herramienta Manual">Herramienta Manual</option>
+                    <option value="Audio / Video">Audio / Video</option>
+                    <option value="General">General / Otros</option>
+                </select>
+
+                <select id="filter-tool-technician" class="form-control" style="width: auto; min-width: 170px; height: 40px;">
+                    <option value="all">Técnico: Todos</option>
+                </select>
+
+                <select id="filter-tool-warehouse" class="form-control" style="width: auto; min-width: 170px; height: 40px;">
+                    <option value="all">Almacén / Taller: Todos</option>
+                </select>
             </div>
 
-            <select id="filter-tool-status" class="form-control" style="width: auto; min-width: 170px;">
-                <option value="all">Estado: Todos</option>
-                <option value="Disponible">Disponible</option>
-                <option value="En Uso / Asignada">En Uso / Asignada</option>
-                <option value="En Mantenimiento">En Mantenimiento</option>
-                <option value="Dañada">Dañada / Reemplazo</option>
-                <option value="Extraviada">Extraviada</option>
-            </select>
-
-            <select id="filter-tool-category" class="form-control" style="width: auto; min-width: 170px;">
-                <option value="all">Categoría: Todas</option>
-                <option value="Fibra Óptica">Fibra Óptica</option>
-                <option value="Redes / Cableado">Redes / Cableado</option>
-                <option value="Medición y Certificación">Medición y Certificación</option>
-                <option value="Herramienta Eléctrica">Herramienta Eléctrica</option>
-                <option value="Herramienta Manual">Herramienta Manual</option>
-                <option value="Audio / Video">Audio / Video</option>
-                <option value="General">General / Otros</option>
-            </select>
-
-            <select id="filter-tool-technician" class="form-control" style="width: auto; min-width: 170px;">
-                <option value="all">Técnico: Todos</option>
-            </select>
-
-            <select id="filter-tool-warehouse" class="form-control" style="width: auto; min-width: 170px;">
-                <option value="all">Almacén / Taller: Todos</option>
-            </select>
+            <button class="btn btn-secondary" id="btn-reset-tool-filters" title="Limpiar Filtros" style="height: 40px;">
+                <i class="fa-solid fa-rotate-left"></i> <span>Limpiar</span>
+            </button>
         </div>
-
-        <button class="btn btn-secondary" id="btn-reset-tool-filters" title="Limpiar Filtros">
-            <i class="fa-solid fa-rotate-left"></i> <span>Limpiar</span>
-        </button>
     </div>
-</div>
 
-<!-- Table Card -->
-<div class="card">
-    <div class="table-responsive">
-        <table class="data-table" id="tools-table">
-            <thead>
-                <tr>
-                    <th style="width: 100px;">CÓDIGO</th>
-                    <th>HERRAMIENTA / EQUIPO</th>
-                    <th>CATEGORÍA</th>
-                    <th>MARCA / MODELO</th>
-                    <th>SERIAL (S/N)</th>
-                    <th>RESGUARDO / UBICACIÓN</th>
-                    <th style="text-align: center;">ESTADO</th>
-                    <th>ASIGNADO A</th>
-                    <th style="text-align: center;">CONDICIÓN</th>
-                    <th style="text-align: right;">VALOR REF.</th>
-                    <th style="text-align: right; width: 140px;">ACCIONES</th>
-                </tr>
-            </thead>
-            <tbody id="tools-tbody">
-                <tr>
-                    <td colspan="11" style="text-align: center; padding: 40px; color: var(--color-text-secondary);">
-                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px; display: block;"></i>
-                        Cargando catálogo de herramientas...
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- Table Card -->
+    <div class="card" style="border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div class="table-responsive">
+            <table class="data-table" id="tools-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--color-border); background: rgba(0,0,0,0.02);">
+                        <th style="width: 110px; padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">CÓDIGO</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">HERRAMIENTA / EQUIPO</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">CATEGORÍA</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">MARCA / MODELO</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">SERIAL (S/N)</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">RESGUARDO / UBICACIÓN</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: center;">ESTADO</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">ASIGNADO A</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: center;">CONDICIÓN</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: right;">VALOR UNIT.</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: right; width: 150px;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="tools-tbody">
+                    <tr>
+                        <td colspan="11" style="text-align: center; padding: 40px; color: var(--color-text-secondary);">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px; display: block;"></i>
+                            Cargando catálogo de herramientas...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <!-- MODAL: REGISTRAR / EDITAR HERRAMIENTA -->
 <div class="modal-overlay" id="tool-modal">
-    <div class="modal-card" style="max-width: 680px;">
+    <div class="modal-card" style="max-width: 720px; border-radius: 16px;">
         <div class="modal-header">
-            <div class="modal-title" id="tool-modal-title">
-                <i class="fa-solid fa-toolbox" style="color: var(--color-primary); margin-right: 8px;"></i>
-                Nueva Herramienta de Trabajo
+            <div class="modal-title" id="tool-modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700;">
+                <i class="fa-solid fa-toolbox" style="color: var(--color-primary);"></i>
+                <span>Nueva Herramienta de Trabajo</span>
             </div>
             <button type="button" class="btn-close-modal" id="btn-close-tool-modal">
                 <i class="fa-solid fa-xmark"></i>
@@ -165,93 +177,128 @@
         </div>
         <form id="form-tool">
             <input type="hidden" id="tool-id">
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 18px; padding: 22px;">
                 
-                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="tool-code">Código Interno</label>
-                        <input type="text" id="tool-code" class="form-control" placeholder="Ej: HER-001">
+                <!-- SECCIÓN 1: Identificación y Clasificación -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-circle-info"></i> 1. Identificación de la Herramienta
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-name">Nombre de la Herramienta <span style="color: var(--color-danger);">*</span></label>
-                        <input type="text" id="tool-name" class="form-control" placeholder="Ej: Fusionadora de Fibra Óptica" required>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 2.2fr; gap: 14px; margin-bottom: 14px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-code" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-barcode" style="color: var(--color-primary); margin-right: 4px;"></i>Código Interno:
+                            </label>
+                            <input type="text" id="tool-code" class="form-control" placeholder="Ej: HER-001" style="font-family: monospace; font-weight: 700; height: 38px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-name" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                Nombre / Descripción del Instrumental: <span style="color: var(--color-danger);">*</span>
+                            </label>
+                            <input type="text" id="tool-name" class="form-control" placeholder="Ej: Fusionadora de Fibra Óptica" required style="font-weight: 600; height: 38px;">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-category" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría: <span style="color: var(--color-danger);">*</span>
+                            </label>
+                            <select id="tool-category" class="form-control" required style="height: 38px;">
+                                <option value="Fibra Óptica">Fibra Óptica</option>
+                                <option value="Redes / Cableado">Redes / Cableado</option>
+                                <option value="Medición y Certificación">Medición y Certificación</option>
+                                <option value="Herramienta Eléctrica">Herramienta Eléctrica</option>
+                                <option value="Herramienta Manual">Herramienta Manual</option>
+                                <option value="Audio / Video">Audio / Video</option>
+                                <option value="General" selected>General / Otros</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-brand" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-tag" style="color: #f59e0b; margin-right: 4px;"></i>Marca:
+                            </label>
+                            <input type="text" id="tool-brand" class="form-control" placeholder="Ej: Fujikura, Fluke, DeWalt" style="height: 38px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-model" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-microchip" style="color: #10b981; margin-right: 4px;"></i>Modelo / Versión:
+                            </label>
+                            <input type="text" id="tool-model" class="form-control" placeholder="Ej: 70S+, DSX-8000" style="height: 38px;">
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="tool-category">Categoría <span style="color: var(--color-danger);">*</span></label>
-                        <select id="tool-category" class="form-control" required>
-                            <option value="Fibra Óptica">Fibra Óptica</option>
-                            <option value="Redes / Cableado">Redes / Cableado</option>
-                            <option value="Medición y Certificación">Medición y Certificación</option>
-                            <option value="Herramienta Eléctrica">Herramienta Eléctrica</option>
-                            <option value="Herramienta Manual">Herramienta Manual</option>
-                            <option value="Audio / Video">Audio / Video</option>
-                            <option value="General" selected>General / Otros</option>
-                        </select>
+                <!-- SECCIÓN 2: Estado, Resguardo y Existencia -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-cubes"></i> 2. Estado, Resguardo y Costo
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-brand">Marca</label>
-                        <input type="text" id="tool-brand" class="form-control" placeholder="Ej: Fujikura, Fluke, DeWalt">
+
+                    <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-serial" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-fingerprint" style="margin-right: 4px;"></i>Serial (S/N):
+                            </label>
+                            <input type="text" id="tool-serial" class="form-control" placeholder="Ej: SN-93821093" style="font-family: monospace; height: 38px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-condition" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Condición Física:</label>
+                            <select id="tool-condition" class="form-control" style="height: 38px;">
+                                <option value="Excelente">Excelente</option>
+                                <option value="Buena" selected>Buena</option>
+                                <option value="Regular">Regular</option>
+                                <option value="Desgastada">Desgastada</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-status" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Estado Operativo:</label>
+                            <select id="tool-status" class="form-control" style="height: 38px;">
+                                <option value="Disponible" selected>Disponible</option>
+                                <option value="En Uso / Asignada">En Uso / Asignada</option>
+                                <option value="En Mantenimiento">En Mantenimiento</option>
+                                <option value="Dañada">Dañada / Reemplazo</option>
+                                <option value="Extraviada">Extraviada</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-model">Modelo</label>
-                        <input type="text" id="tool-model" class="form-control" placeholder="Ej: 70S+, DSX-8000">
+
+                    <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-warehouse" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-warehouse" style="color: #6366f1; margin-right: 4px;"></i>Almacén / Resguardo:
+                            </label>
+                            <input type="text" id="tool-warehouse" class="form-control" placeholder="Ej: Taller IT" list="list-warehouses-tools" value="Taller IT" style="height: 38px;">
+                            <datalist id="list-warehouses-tools"></datalist>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Ref. (RD$):
+                            </label>
+                            <input type="number" step="0.01" min="0" id="tool-value" class="form-control" placeholder="0.00" style="height: 38px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="tool-quantity" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-boxes-stacked" style="margin-right: 4px;"></i>Cantidad:
+                            </label>
+                            <input type="number" min="1" id="tool-quantity" class="form-control" value="1" required style="height: 38px;">
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="tool-serial">Serial (S/N)</label>
-                        <input type="text" id="tool-serial" class="form-control" placeholder="Ej: SN-93821093">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-condition">Condición Física</label>
-                        <select id="tool-condition" class="form-control">
-                            <option value="Excelente">Excelente</option>
-                            <option value="Buena" selected>Buena</option>
-                            <option value="Regular">Regular</option>
-                            <option value="Desgastada">Desgastada</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-status">Estado Operativo</label>
-                        <select id="tool-status" class="form-control">
-                            <option value="Disponible" selected>Disponible</option>
-                            <option value="En Uso / Asignada">En Uso / Asignada</option>
-                            <option value="En Mantenimiento">En Mantenimiento</option>
-                            <option value="Dañada">Dañada / Reemplazo</option>
-                            <option value="Extraviada">Extraviada</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="tool-warehouse">Lugar de Resguardo Habitual</label>
-                        <input type="text" id="tool-warehouse" class="form-control" placeholder="Ej: Taller IT, Almacén General" list="list-warehouses-tools" value="Taller IT">
-                        <datalist id="list-warehouses-tools"></datalist>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-value">Valor / Costo ($ USD)</label>
-                        <input type="number" step="0.01" min="0" id="tool-value" class="form-control" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="tool-quantity">Cantidad</label>
-                        <input type="number" min="1" id="tool-quantity" class="form-control" value="1" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="tool-notes">Notas, Accesorios y Observaciones</label>
-                    <textarea id="tool-notes" class="form-control" rows="3" placeholder="Ej: Incluye cortadora de precisión, estuche rígido, cargador y 2 baterías..."></textarea>
+                <!-- SECCIÓN 3: Notas y Accesorios -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="tool-notes" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-clipboard-list" style="color: #64748b; margin-right: 4px;"></i>Accesorios incluidos y Observaciones:
+                    </label>
+                    <textarea id="tool-notes" class="form-control" rows="2" placeholder="Ej: Incluye cortadora de precisión, estuche rígido, cargador y 2 baterías..." style="resize: vertical; min-height: 56px;"></textarea>
                 </div>
             </div>
 
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px;">
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 22px; border-top: 1px solid var(--color-border); background: var(--color-surface);">
                 <button type="button" class="btn btn-secondary" id="btn-cancel-tool-modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" style="padding: 0 20px; font-weight: 700;">
                     <i class="fa-solid fa-save"></i> <span>Guardar Herramienta</span>
                 </button>
             </div>
@@ -261,11 +308,11 @@
 
 <!-- MODAL: ASIGNAR HERRAMIENTA A TÉCNICO -->
 <div class="modal-overlay" id="tool-assign-modal">
-    <div class="modal-card" style="max-width: 520px;">
+    <div class="modal-card" style="max-width: 540px; border-radius: 16px;">
         <div class="modal-header">
-            <div class="modal-title">
-                <i class="fa-solid fa-hand-holding-hand" style="color: var(--color-primary); margin-right: 8px;"></i>
-                Asignar Herramienta a Técnico
+            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700;">
+                <i class="fa-solid fa-hand-holding-hand" style="color: #f59e0b;"></i>
+                <span>Asignar Herramienta a Técnico</span>
             </div>
             <button type="button" class="btn-close-modal" id="btn-close-assign-modal">
                 <i class="fa-solid fa-xmark"></i>
@@ -273,39 +320,47 @@
         </div>
         <form id="form-tool-assign">
             <input type="hidden" id="assign-tool-id">
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
-                <div style="background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 8px; padding: 12px;">
-                    <div style="font-weight: 700; color: var(--color-text);" id="assign-tool-name">Herramienta</div>
-                    <div style="font-size: 13px; color: var(--color-text-secondary);" id="assign-tool-details">S/N: - | Código: -</div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 22px;">
+                <div style="background: rgba(37, 99, 235, 0.06); border: 1px solid rgba(37, 99, 235, 0.25); border-radius: 10px; padding: 14px;">
+                    <div style="font-weight: 800; font-size: 15px; color: var(--color-primary);" id="assign-tool-name">Herramienta</div>
+                    <div style="font-size: 13px; color: var(--color-text-secondary); margin-top: 3px;" id="assign-tool-details">S/N: - | Código: -</div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="assign-tech">Técnico Responsable <span style="color: var(--color-danger);">*</span></label>
-                    <input type="text" id="assign-tech" class="form-control" placeholder="Selecciona o escribe el técnico..." list="list-techs-tools" required>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="assign-tech" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-user-check" style="color: var(--color-primary); margin-right: 4px;"></i>Técnico Responsable: <span style="color: var(--color-danger);">*</span>
+                    </label>
+                    <input type="text" id="assign-tech" class="form-control" placeholder="Selecciona o escribe el nombre del técnico..." list="list-techs-tools" required style="height: 40px; font-weight: 600;">
                     <datalist id="list-techs-tools"></datalist>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="assign-date">Fecha de Asignación</label>
-                        <input type="date" id="assign-date" class="form-control" required>
+                <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 14px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="assign-date" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                            <i class="fa-solid fa-calendar-day" style="color: #6366f1; margin-right: 4px;"></i>Fecha de Entrega:
+                        </label>
+                        <input type="date" id="assign-date" class="form-control" required style="height: 40px;">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="assign-location">Destino / Hotel / Área</label>
-                        <input type="text" id="assign-location" class="form-control" placeholder="Ej: Excellence Punta Cana, IDF 3" list="list-hotels-tools">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="assign-location" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                            <i class="fa-solid fa-hotel" style="color: #10b981; margin-right: 4px;"></i>Destino / Hotel / Área:
+                        </label>
+                        <input type="text" id="assign-location" class="form-control" placeholder="Ej: Excellence Punta Cana, IDF 3" list="list-hotels-tools" style="height: 40px;">
                         <datalist id="list-hotels-tools"></datalist>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="assign-notes">Motivo / Observaciones del Trabajo</label>
-                    <textarea id="assign-notes" class="form-control" rows="2" placeholder="Ej: Trabajo de empalme de fibra óptica en bloque 4..."></textarea>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="assign-notes" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-comment-dots" style="color: #64748b; margin-right: 4px;"></i>Motivo / Tarea a Realizar:
+                    </label>
+                    <textarea id="assign-notes" class="form-control" rows="2" placeholder="Ej: Empalme de fibra óptica en bloque de habitaciones 4..." style="resize: vertical; min-height: 56px;"></textarea>
                 </div>
             </div>
 
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px;">
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 22px; border-top: 1px solid var(--color-border); background: var(--color-surface);">
                 <button type="button" class="btn btn-secondary" id="btn-cancel-assign-modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background: #f59e0b; border-color: #f59e0b;">
+                <button type="submit" class="btn btn-primary" style="background: #f59e0b; border-color: #f59e0b; color: #fff; font-weight: 700; padding: 0 20px;">
                     <i class="fa-solid fa-check"></i> <span>Confirmar Asignación</span>
                 </button>
             </div>
@@ -315,11 +370,11 @@
 
 <!-- MODAL: RETORNO / DEVOLUCIÓN A TALLER -->
 <div class="modal-overlay" id="tool-return-modal">
-    <div class="modal-card" style="max-width: 520px;">
+    <div class="modal-card" style="max-width: 540px; border-radius: 16px;">
         <div class="modal-header">
-            <div class="modal-title">
-                <i class="fa-solid fa-warehouse" style="color: #10b981; margin-right: 8px;"></i>
-                Devolución al Taller / Almacén
+            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700;">
+                <i class="fa-solid fa-warehouse" style="color: #10b981;"></i>
+                <span>Devolución al Taller / Almacén</span>
             </div>
             <button type="button" class="btn-close-modal" id="btn-close-return-modal">
                 <i class="fa-solid fa-xmark"></i>
@@ -327,20 +382,24 @@
         </div>
         <form id="form-tool-return">
             <input type="hidden" id="return-tool-id">
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
-                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 12px;">
-                    <div style="font-weight: 700; color: var(--color-text);" id="return-tool-name">Herramienta</div>
-                    <div style="font-size: 13px; color: var(--color-text-secondary);" id="return-tool-details">Actualmente en poder de: -</div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 22px;">
+                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 14px;">
+                    <div style="font-weight: 800; font-size: 15px; color: #10b981;" id="return-tool-name">Herramienta</div>
+                    <div style="font-size: 13px; color: var(--color-text-secondary); margin-top: 3px;" id="return-tool-details">Actualmente en poder de: -</div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="return-warehouse">Almacén / Taller de Destino</label>
-                        <input type="text" id="return-warehouse" class="form-control" value="Taller IT" list="list-warehouses-tools" required>
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="return-warehouse" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                            <i class="fa-solid fa-warehouse" style="color: #10b981; margin-right: 4px;"></i>Almacén / Taller Destino:
+                        </label>
+                        <input type="text" id="return-warehouse" class="form-control" value="Taller IT" list="list-warehouses-tools" required style="height: 40px;">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="return-condition">Condición al Devolver</label>
-                        <select id="return-condition" class="form-control">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="return-condition" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                            Condición al Devolver:
+                        </label>
+                        <select id="return-condition" class="form-control" style="height: 40px;">
                             <option value="Excelente">Excelente</option>
                             <option value="Buena" selected>Buena</option>
                             <option value="Regular">Regular</option>
@@ -349,15 +408,17 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="return-notes">Observaciones de Entrega</label>
-                    <textarea id="return-notes" class="form-control" rows="2" placeholder="Ej: Se entrega limpia, completa con todos sus accesorios en orden..."></textarea>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="return-notes" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-clipboard-check" style="color: #64748b; margin-right: 4px;"></i>Observaciones de Entrega:
+                    </label>
+                    <textarea id="return-notes" class="form-control" rows="2" placeholder="Ej: Se entrega limpia, completa con su estuche y todos sus accesorios en orden..." style="resize: vertical; min-height: 56px;"></textarea>
                 </div>
             </div>
 
-            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px;">
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 22px; border-top: 1px solid var(--color-border); background: var(--color-surface);">
                 <button type="button" class="btn btn-secondary" id="btn-cancel-return-modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background: #10b981; border-color: #10b981;">
+                <button type="submit" class="btn btn-primary" style="background: #10b981; border-color: #10b981; color: #fff; font-weight: 700; padding: 0 20px;">
                     <i class="fa-solid fa-box-archive"></i> <span>Registrar Devolución</span>
                 </button>
             </div>
@@ -367,5 +428,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/herramientas.js') }}?v=5.5.5"></script>
+<script src="{{ url_for('static', filename='js/herramientas.js') }}?v=5.6.3"></script>
 {% endblock %}

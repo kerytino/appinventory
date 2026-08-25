@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('kpi-available-tools').textContent = stats.available || 0;
         document.getElementById('kpi-in-use-tools').textContent = stats.in_use || 0;
         document.getElementById('kpi-maintenance-tools').textContent = stats.maintenance || 0;
-        document.getElementById('kpi-total-value').textContent = `$${(stats.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('kpi-total-value').textContent = `RD$ ${(stats.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     function applyFiltersAndRender() {
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="text-align: center;">${statusBadge}</td>
                 <td>${techDisplay}</td>
                 <td style="text-align: center;">${conditionBadge}</td>
-                <td style="text-align: right; font-weight: 600; font-family: monospace;">$${parseFloat(t.value || 0).toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 600; font-family: monospace;">RD$ ${parseFloat(t.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style="text-align: right; white-space: nowrap;">
                     ${primaryActionBtn}
                     <button class="action-btn edit btn-edit-tool" data-id="${t.id}" title="Editar Herramienta" style="margin-right: 4px;">
