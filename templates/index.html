@@ -846,13 +846,18 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="device-value">Valor ($) <span style="color:var(--danger)">*</span></label>
-                        <input type="number" id="device-value" step="0.01" min="0" required placeholder="0.00">
+                        <label for="device-quantity">Cantidad <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="device-quantity" min="1" placeholder="1" value="1" required>
                     </div>
                     <div class="form-group">
-                        <label for="device-quantity">Cantidad <span style="color:var(--color-text-secondary); font-size: 11px;">(Opcional)</span></label>
-                        <input type="number" id="device-quantity" min="1" placeholder="1" value="1">
+                        <label for="device-unit-price">Precio Unitario ($) <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="device-unit-price" step="0.01" min="0" required placeholder="0.00">
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="device-value">Valor Total ($) <small style="color:var(--color-text-secondary); font-weight:normal;">(Cantidad × Precio Unitario)</small></label>
+                    <input type="number" id="device-value" step="0.01" min="0" required placeholder="0.00" style="font-weight: 700; color: var(--color-primary);">
                 </div>
 
                 <div class="form-group">

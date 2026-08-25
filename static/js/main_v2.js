@@ -827,10 +827,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (mode === 'add') {
             document.getElementById('modal-title').innerText = 'Registrar Equipo';
+            document.getElementById('modal-title').innerText = 'Registrar Equipo';
             deviceForm.reset();
             populateWarehouseDropdown();
             document.getElementById('device-id').value = '';
             document.getElementById('device-quantity').value = 1;
+            const unitInput = document.getElementById('device-unit-price');
+            if (unitInput) unitInput.value = '';
+            document.getElementById('device-value').value = '';
             updateBrandModelSuggestions();
             
             if (dispatchedOption) {
@@ -852,8 +856,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('device-serial').value = device.serial_number || '';
             document.getElementById('device-mac').value = device.mac_address || '';
             document.getElementById('device-status').value = device.status;
-            document.getElementById('device-value').value = device.value;
-            document.getElementById('device-quantity').value = device.quantity || 1;
+            
+            const qty = parseInt(device.quantity) || 1;
+            const totalVal = parseFloat(device.value) || 0.0;
+            const unitPrice = qty > 0 ? (totalVal / qty) : totalVal;
+            
+            document.getElementById('device-quantity').value = qty;
+            const unitInput = document.getElementById('device-unit-price');
+            if (unitInput) unitInput.value = unitPrice.toFixed(2);
+            document.getElementById('device-value').value = totalVal.toFixed(2);
+            
             document.getElementById('device-description').value = device.description;
             document.getElementById('device-repair-count').value = device.repair_count || 0;
             document.getElementById('device-location').value = device.location || '';
@@ -917,33 +929,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('device-status')?.addEventListener('change', toggleDynamicFields);
 
-    document.getElementById('device-quantity')?.addEventListener('input', () => {
-        const id = document.getElementById('device-id').value;
-        const brand = brandSelect.value;
-        const model = modelSelect.value;
-        const qty = parseInt(document.getElementById('device-quantity').value) || 0;
+    // --- Sincronización en tiempo real: Cantidad x Precio Unitario = Valor Total ---
+    function syncDevicePriceFromUnit() {
+        const qtyInp = document.getElementById('device-quantity');
+        const unitInp = document.getElementById('device-unit-price');
+        const totalInp = document.getElementById('device-value');
+        if (!qtyInp || !unitInp || !totalInp) return;
 
-        if (id) {
-            const device = allDevices.find(d => d.id === parseInt(id));
-            if (device && (device.quantity || 1) > 0) {
-                const oldQty = device.quantity || 1;
-                const oldValue = device.value || 0.0;
-                const newValue = (qty / oldQty) * oldValue;
-                document.getElementById('device-value').value = newValue.toFixed(2);
-            }
-        } else {
-            if (brand && model) {
-                const match = allDevices.find(d => 
-                    d.brand && d.brand.toLowerCase() === brand.toLowerCase() &&
-                    d.model && d.model.toLowerCase() === model.toLowerCase()
-                );
-                if (match) {
-                    const unitValue = (match.value || 0.0) / (match.quantity || 1);
-                    document.getElementById('device-value').value = (qty * unitValue).toFixed(2);
-                }
-            }
+        const qty = parseFloat(qtyInp.value) || 0;
+        const unit = parseFloat(unitInp.value) || 0;
+        if (unitInp.value !== '') {
+            totalInp.value = (qty * unit).toFixed(2);
         }
-    });
+    }
+
+    function syncDevicePriceFromTotal() {
+        const qtyInp = document.getElementById('device-quantity');
+        const unitInp = document.getElementById('device-unit-price');
+        const totalInp = document.getElementById('device-value');
+        if (!qtyInp || !unitInp || !totalInp) return;
+
+        const qty = parseFloat(qtyInp.value) || 1;
+        const total = parseFloat(totalInp.value) || 0;
+        if (qty > 0 && totalInp.value !== '') {
+            unitInp.value = (total / qty).toFixed(2);
+        }
+    }
+
+    document.getElementById('device-quantity')?.addEventListener('input', syncDevicePriceFromUnit);
+    document.getElementById('device-unit-price')?.addEventListener('input', syncDevicePriceFromUnit);
+    document.getElementById('device-value')?.addEventListener('input', syncDevicePriceFromTotal);
 
     modelSelect.addEventListener('change', () => {
         const id = document.getElementById('device-id').value;
@@ -957,8 +972,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
                 if (match) {
                     const unitValue = (match.value || 0.0) / (match.quantity || 1);
-                    const qty = parseInt(document.getElementById('device-quantity').value) || 1;
-                    document.getElementById('device-value').value = (qty * unitValue).toFixed(2);
+                    const unitInput = document.getElementById('device-unit-price');
+                    if (unitInput) unitInput.value = unitValue.toFixed(2);
+                    syncDevicePriceFromUnit();
                 }
             }
         }
@@ -1560,6 +1576,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isLowStock) {
                 tr.style.backgroundColor = 'rgba(239, 68, 68, 0.03)';
             }
+            const totalVal = parseFloat(d.value) || 0;
+            const qty = parseInt(d.quantity) || 1;
+            const unitVal = qty > 0 ? (totalVal / qty) : totalVal;
+            const valueDisplay = qty > 1 
+                ? `<strong>${formatCurrency(totalVal)}</strong><br><small style="color:var(--color-text-secondary); font-size:11px;">(${formatCurrency(unitVal)} c/u)</small>`
+                : `<strong>${formatCurrency(totalVal)}</strong>`;
+
             tr.innerHTML = `
                 <td>#${d.id}</td>
                 <td><strong>${d.name}</strong> ${repairTag}</td>
@@ -1568,7 +1591,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${d.brand || '-'} / ${d.model || '-'}</td>
                 <td><small>MAC: ${d.mac_address || '-'}<br>S/N: ${d.serial_number || '-'}</small></td>
                 <td>${locationOrWarehouse}</td>
-                <td>${formatCurrency(d.value)}</td>
+                <td>${valueDisplay}</td>
                 <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span>${lowStockBadge}</td>
                 <td>
                     <button class="action-btn edit" title="Editar" onclick="window.editDevice(${d.id})"><i class="fa-solid fa-pen"></i></button>
@@ -1667,6 +1690,17 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         
         const id = document.getElementById('device-id').value;
+        const finalQty = parseInt(document.getElementById('device-quantity').value) || 1;
+        const totalValField = parseFloat(document.getElementById('device-value').value);
+        const unitValField = parseFloat(document.getElementById('device-unit-price')?.value);
+        
+        let calculatedValue = 0;
+        if (!isNaN(totalValField) && totalValField > 0) {
+            calculatedValue = totalValField;
+        } else if (!isNaN(unitValField) && unitValField > 0) {
+            calculatedValue = finalQty * unitValField;
+        }
+
         const data = {
             name: document.getElementById('device-name').value,
             type: document.getElementById('device-type').value,
@@ -1675,8 +1709,8 @@ document.addEventListener('DOMContentLoaded', () => {
             serial_number: document.getElementById('device-serial').value,
             mac_address: document.getElementById('device-mac').value,
             status: document.getElementById('device-status').value,
-            value: document.getElementById('device-value').value,
-            quantity: document.getElementById('device-quantity').value || 1,
+            value: calculatedValue,
+            quantity: finalQty,
             description: document.getElementById('device-description').value,
             warehouse: document.getElementById('device-warehouse').value,
             location: document.getElementById('device-location').value,

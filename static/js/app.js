@@ -842,6 +842,9 @@ document.addEventListener('DOMContentLoaded', () => {
             populateWarehouseDropdown();
             document.getElementById('device-id').value = '';
             document.getElementById('device-quantity').value = 1;
+            const unitInput = document.getElementById('device-unit-price');
+            if (unitInput) unitInput.value = '';
+            document.getElementById('device-value').value = '';
             updateBrandModelSuggestions();
             
             if (dispatchedOption) {
@@ -863,8 +866,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('device-serial').value = device.serial_number || '';
             document.getElementById('device-mac').value = device.mac_address || '';
             document.getElementById('device-status').value = device.status;
-            document.getElementById('device-value').value = device.value;
-            document.getElementById('device-quantity').value = device.quantity || 1;
+            
+            const qty = parseInt(device.quantity) || 1;
+            const totalVal = parseFloat(device.value) || 0.0;
+            const unitPrice = qty > 0 ? (totalVal / qty) : totalVal;
+            
+            document.getElementById('device-quantity').value = qty;
+            const unitInput = document.getElementById('device-unit-price');
+            if (unitInput) unitInput.value = unitPrice.toFixed(2);
+            document.getElementById('device-value').value = totalVal.toFixed(2);
+            
             document.getElementById('device-description').value = device.description;
             document.getElementById('device-repair-count').value = device.repair_count || 0;
             document.getElementById('device-location').value = device.location || '';
@@ -928,33 +939,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('device-status')?.addEventListener('change', toggleDynamicFields);
 
-    document.getElementById('device-quantity')?.addEventListener('input', () => {
-        const id = document.getElementById('device-id').value;
-        const brand = brandSelect.value;
-        const model = modelSelect.value;
-        const qty = parseInt(document.getElementById('device-quantity').value) || 0;
+    // --- Sincronización en tiempo real: Cantidad x Precio Unitario = Valor Total ---
+    function syncDevicePriceFromUnit() {
+        const qtyInp = document.getElementById('device-quantity');
+        const unitInp = document.getElementById('device-unit-price');
+        const totalInp = document.getElementById('device-value');
+        if (!qtyInp || !unitInp || !totalInp) return;
 
-        if (id) {
-            const device = allDevices.find(d => d.id === parseInt(id));
-            if (device && (device.quantity || 1) > 0) {
-                const oldQty = device.quantity || 1;
-                const oldValue = device.value || 0.0;
-                const newValue = (qty / oldQty) * oldValue;
-                document.getElementById('device-value').value = newValue.toFixed(2);
-            }
-        } else {
-            if (brand && model) {
-                const match = allDevices.find(d => 
-                    d.brand && d.brand.toLowerCase() === brand.toLowerCase() &&
-                    d.model && d.model.toLowerCase() === model.toLowerCase()
-                );
-                if (match) {
-                    const unitValue = (match.value || 0.0) / (match.quantity || 1);
-                    document.getElementById('device-value').value = (qty * unitValue).toFixed(2);
-                }
-            }
+        const qty = parseFloat(qtyInp.value) || 0;
+        const unit = parseFloat(unitInp.value) || 0;
+        if (unitInp.value !== '') {
+            totalInp.value = (qty * unit).toFixed(2);
         }
-    });
+    }
+
+    function syncDevicePriceFromTotal() {
+        const qtyInp = document.getElementById('device-quantity');
+        const unitInp = document.getElementById('device-unit-price');
+        const totalInp = document.getElementById('device-value');
+        if (!qtyInp || !unitInp || !totalInp) return;
+
+        const qty = parseFloat(qtyInp.value) || 1;
+        const total = parseFloat(totalInp.value) || 0;
+        if (qty > 0 && totalInp.value !== '') {
+            unitInp.value = (total / qty).toFixed(2);
+        }
+    }
+
+    document.getElementById('device-quantity')?.addEventListener('input', syncDevicePriceFromUnit);
+    document.getElementById('device-unit-price')?.addEventListener('input', syncDevicePriceFromUnit);
+    document.getElementById('device-value')?.addEventListener('input', syncDevicePriceFromTotal);
 
     modelSelect.addEventListener('change', () => {
         const id = document.getElementById('device-id').value;
@@ -968,8 +982,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
                 if (match) {
                     const unitValue = (match.value || 0.0) / (match.quantity || 1);
-                    const qty = parseInt(document.getElementById('device-quantity').value) || 1;
-                    document.getElementById('device-value').value = (qty * unitValue).toFixed(2);
+                    const unitInput = document.getElementById('device-unit-price');
+                    if (unitInput) unitInput.value = unitValue.toFixed(2);
+                    syncDevicePriceFromUnit();
                 }
             }
         }
@@ -1586,6 +1601,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<div style="margin-top: 4px;"><span style="display: inline-flex; align-items: center; gap: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;" title="Stock bajo el límite (${totalModelQty}/${minLimit})"><i class="fa-solid fa-triangle-exclamation"></i> Stock Bajo</span></div>`
                 : '';
 
+            const totalVal = parseFloat(d.value) || 0;
+            const qty = parseInt(d.quantity) || 1;
+            const unitVal = qty > 0 ? (totalVal / qty) : totalVal;
+            const valueDisplay = qty > 1 
+                ? `<strong>${formatCurrency(totalVal)}</strong><br><small style="color:var(--color-text-secondary); font-size:11px;">(${formatCurrency(unitVal)} c/u)</small>`
+                : `<strong>${formatCurrency(totalVal)}</strong>`;
+
             const tr = document.createElement('tr');
             if (isLowStock) {
                 tr.style.backgroundColor = 'rgba(239, 68, 68, 0.03)';
@@ -1598,7 +1620,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${d.brand || '-'} / ${d.model || '-'}</td>
                 <td><small>MAC: ${d.mac_address || '-'}<br>S/N: ${d.serial_number || '-'}</small></td>
                 <td>${locationOrWarehouse}</td>
-                <td>${formatCurrency(d.value)}</td>
+                <td>${valueDisplay}</td>
                 <td><span class="status-badge ${getStatusClass(d.status)}">${d.status}</span>${lowStockBadge}</td>
                 <td>
                     <button class="action-btn edit" title="Editar" onclick="window.editDevice(${d.id})"><i class="fa-solid fa-pen"></i></button>
@@ -1639,12 +1661,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${d.type}</td>
                 <td>${d.hotel || '-'}</td>
                 <td>${d.reason}</td>
-                <td style="color: var(--danger); font-weight:600;">${formatCurrency(d.value)}</td>
-                <td>${d.date_added.split(' ')[0]}</td>
+                <td style="color: var(--color-danger); font-weight:600;">${formatCurrency(d.value)}</td>
+                <td>${d.date_added ? d.date_added.split(' ')[0] : '-'}</td>
             `;
             tbody.appendChild(tr);
         });
-
     }
 
     const hotelFilterElem = document.getElementById('decommission-hotel-filter');
