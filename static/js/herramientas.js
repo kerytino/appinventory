@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('kpi-available-tools').textContent = stats.available || 0;
         document.getElementById('kpi-in-use-tools').textContent = stats.in_use || 0;
         document.getElementById('kpi-maintenance-tools').textContent = stats.maintenance || 0;
-        document.getElementById('kpi-total-value').textContent = `RD$ ${(stats.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('kpi-total-value').textContent = `$ ${(stats.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
     }
 
     function applyFiltersAndRender() {
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="text-align: center;">${statusBadge}</td>
                 <td>${techDisplay}</td>
                 <td style="text-align: center;">${conditionBadge}</td>
-                <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 13px; white-space: nowrap;">RD$ ${parseFloat(t.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 13px; white-space: nowrap;">$${parseFloat(t.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</td>
                 <td style="text-align: right;">
                     <div class="actions-cell-wrapper">
                         ${primaryActionBtn}

@@ -99,7 +99,7 @@
                     <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 16px; margin-bottom: 16px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-cost-price" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Unitario (RD$): <span style="color:var(--color-danger)">*</span>
+                                <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Unitario ($ USD): <span style="color:var(--color-danger)">*</span>
                             </label>
                             <input class="form-control" type="number" id="device-cost-price" step="0.01" min="0" required placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
                         </div>
@@ -111,7 +111,7 @@
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-calculator" style="color: #10b981; margin-right: 4px;"></i>Valor Total Lote (RD$):
+                                <i class="fa-solid fa-calculator" style="color: #10b981; margin-right: 4px;"></i>Valor Total Lote ($ USD):
                             </label>
                             <input class="form-control" type="number" id="device-value" step="0.01" min="0" readonly placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; color: #10b981; background: var(--color-surface); height: 40px; cursor: default;">
                             <input type="hidden" id="device-unit-price" value="0">
@@ -642,7 +642,7 @@
                     <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
                         <input type="text" id="provider-modal-prod-code" class="form-control" placeholder="Código" style="width: 100px;">
                         <input type="text" id="provider-modal-prod-name" class="form-control" placeholder="Nombre de nuevo producto..." style="flex: 1; min-width: 160px;">
-                        <input type="number" step="0.01" min="0" id="provider-modal-prod-cost" class="form-control" placeholder="Costo RD$/USD" style="width: 120px;">
+                        <input type="number" step="0.01" min="0" id="provider-modal-prod-cost" class="form-control" placeholder="Costo ($ USD)" style="width: 130px;">
                         <button type="button" class="btn btn-primary" id="btn-provider-add-custom-prod" style="background: #10b981; border-color: #10b981; white-space: nowrap;">
                             <i class="fa-solid fa-plus"></i> Añadir
                         </button>
