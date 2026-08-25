@@ -2473,8 +2473,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Toasts ---
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toast-container');
+    window.showToast = function(message, type = 'success') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerText = message;
@@ -2484,6 +2490,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.style.animation = 'slideOut 0.3s ease-in forwards';
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    };
+    function showToast(message, type = 'success') {
+        window.showToast(message, type);
     }
 
     // Función dedicada para llenar el select de hotel en la página de Decomiso

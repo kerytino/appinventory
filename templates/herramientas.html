@@ -4,6 +4,61 @@
 {% block page_title %}Control de Herramientas IT{% endblock %}
 {% block page_subtitle %}Gestión, asignación a técnicos, mantenimiento y resguardo del inventario de herramientas operativas de IT{% endblock %}
 
+{% block extra_css %}
+<style>
+.actions-cell-wrapper {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+}
+.tool-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13px;
+}
+.tool-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+.tool-action-btn.assign:hover {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+.tool-action-btn.return:hover {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.4);
+}
+.tool-action-btn.edit:hover {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--color-primary);
+    border-color: rgba(37, 99, 235, 0.4);
+}
+.tool-action-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+.modal-solid-card {
+    background: var(--color-surface, #ffffff) !important;
+    border: 1px solid var(--color-border) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div id="view-tools" class="view-section active">
     <!-- Notice Banner -->
@@ -146,7 +201,7 @@
                         <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: center;">ESTADO</th>
                         <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: left;">ASIGNADO A</th>
                         <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: center;">CONDICIÓN</th>
-                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: right;">VALOR UNIT.</th>
+                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: right; width: 120px;">VALOR UNIT.</th>
                         <th style="padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-align: right; width: 150px;">ACCIONES</th>
                     </tr>
                 </thead>
@@ -163,11 +218,11 @@
     </div>
 </div>
 
-<!-- MODAL: REGISTRAR / EDITAR HERRAMIENTA -->
+<!-- MODAL 1: REGISTRAR / EDITAR HERRAMIENTA -->
 <div class="modal-overlay" id="tool-modal">
-    <div class="modal-card" style="max-width: 720px; border-radius: 16px;">
-        <div class="modal-header">
-            <div class="modal-title" id="tool-modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700;">
+    <div class="modal-content modal-solid-card" style="max-width: 720px;">
+        <div class="modal-header" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 18px 24px;">
+            <div class="modal-title" id="tool-modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem;">
                 <i class="fa-solid fa-toolbox" style="color: var(--color-primary);"></i>
                 <span>Nueva Herramienta de Trabajo</span>
             </div>
@@ -177,10 +232,10 @@
         </div>
         <form id="form-tool">
             <input type="hidden" id="tool-id">
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 18px; padding: 22px;">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 18px; padding: 22px; background: var(--color-surface);">
                 
                 <!-- SECCIÓN 1: Identificación y Clasificación -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
                     <div style="font-size: 12px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
                         <i class="fa-solid fa-circle-info"></i> 1. Identificación de la Herramienta
                     </div>
@@ -231,7 +286,7 @@
                 </div>
 
                 <!-- SECCIÓN 2: Estado, Resguardo y Existencia -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
                     <div style="font-size: 12px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
                         <i class="fa-solid fa-cubes"></i> 2. Estado, Resguardo y Costo
                     </div>
@@ -277,13 +332,13 @@
                             <label class="form-label" for="tool-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Ref. (RD$):
                             </label>
-                            <input type="number" step="0.01" min="0" id="tool-value" class="form-control" placeholder="0.00" style="height: 38px;">
+                            <input type="number" step="0.01" min="0" id="tool-value" class="form-control" placeholder="0.00" style="height: 38px; font-family: monospace; font-weight: 700;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="tool-quantity" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-boxes-stacked" style="margin-right: 4px;"></i>Cantidad:
                             </label>
-                            <input type="number" min="1" id="tool-quantity" class="form-control" value="1" required style="height: 38px;">
+                            <input type="number" min="1" id="tool-quantity" class="form-control" value="1" required style="height: 38px; font-weight: 700;">
                         </div>
                     </div>
                 </div>
@@ -307,12 +362,12 @@
     </div>
 </div>
 
-<!-- MODAL: ASIGNAR HERRAMIENTA A TÉCNICO -->
+<!-- MODAL 2: ASIGNAR HERRAMIENTA A TÉCNICO -->
 <div class="modal-overlay" id="tool-assign-modal">
-    <div class="modal-card" style="max-width: 540px; border-radius: 16px;">
-        <div class="modal-header">
-            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700;">
-                <i class="fa-solid fa-hand-holding-hand" style="color: #f59e0b;"></i>
+    <div class="modal-content modal-solid-card" style="max-width: 540px;">
+        <div class="modal-header" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 18px 24px;">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem;">
+                <i class="fa-solid fa-handshake" style="color: #f59e0b;"></i>
                 <span>Asignar Herramienta a Técnico</span>
             </div>
             <button type="button" class="btn-close-modal" id="btn-close-assign-modal">
@@ -321,8 +376,8 @@
         </div>
         <form id="form-tool-assign">
             <input type="hidden" id="assign-tool-id">
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 22px;">
-                <div style="background: rgba(37, 99, 235, 0.06); border: 1px solid rgba(37, 99, 235, 0.25); border-radius: 10px; padding: 14px;">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 22px; background: var(--color-surface);">
+                <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25); border-radius: 10px; padding: 14px;">
                     <div style="font-weight: 800; font-size: 15px; color: var(--color-primary);" id="assign-tool-name">Herramienta</div>
                     <div style="font-size: 13px; color: var(--color-text-secondary); margin-top: 3px;" id="assign-tool-details">S/N: - | Código: -</div>
                 </div>
@@ -369,11 +424,11 @@
     </div>
 </div>
 
-<!-- MODAL: RETORNO / DEVOLUCIÓN A TALLER -->
+<!-- MODAL 3: RETORNO / DEVOLUCIÓN A TALLER -->
 <div class="modal-overlay" id="tool-return-modal">
-    <div class="modal-card" style="max-width: 540px; border-radius: 16px;">
-        <div class="modal-header">
-            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700;">
+    <div class="modal-content modal-solid-card" style="max-width: 540px;">
+        <div class="modal-header" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 18px 24px;">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem;">
                 <i class="fa-solid fa-warehouse" style="color: #10b981;"></i>
                 <span>Devolución al Taller / Almacén</span>
             </div>
@@ -383,8 +438,8 @@
         </div>
         <form id="form-tool-return">
             <input type="hidden" id="return-tool-id">
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 22px;">
-                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 14px;">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 22px; background: var(--color-surface);">
+                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 14px;">
                     <div style="font-weight: 800; font-size: 15px; color: #10b981;" id="return-tool-name">Herramienta</div>
                     <div style="font-size: 13px; color: var(--color-text-secondary); margin-top: 3px;" id="return-tool-details">Actualmente en poder de: -</div>
                 </div>
@@ -431,5 +486,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/herramientas.js') }}?v=5.6.4"></script>
+<script src="{{ url_for('static', filename='js/herramientas.js') }}?v=5.6.6"></script>
 {% endblock %}

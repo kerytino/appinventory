@@ -11,6 +11,30 @@ document.addEventListener('DOMContentLoaded', () => {
         hotels: []
     };
 
+    // Safe Notification Helper
+    function showToast(message, type = 'success') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerText = message;
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease-in forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     // DOM Elements
     const searchInput = document.getElementById('tool-search-input');
     const filterStatus = document.getElementById('filter-tool-status');
@@ -92,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const techList = document.getElementById('list-techs-tools');
         if (techList) {
             techList.innerHTML = '';
-            auxiliaryData.technicians.forEach(t => {
+            (auxiliaryData.technicians || []).forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t.name;
                 techList.appendChild(opt);
@@ -101,13 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (filterTech) {
             const currentVal = filterTech.value;
             filterTech.innerHTML = '<option value="all">Técnico: Todos</option>';
-            auxiliaryData.technicians.forEach(t => {
+            (auxiliaryData.technicians || []).forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t.name;
                 opt.textContent = t.name;
                 filterTech.appendChild(opt);
             });
-            filterTech.value = currentVal;
+            filterTech.value = currentVal || 'all';
         }
 
         // Warehouses Filter
@@ -121,14 +145,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.textContent = name;
                 filterWarehouse.appendChild(opt);
             });
-            filterWarehouse.value = currentVal;
+            filterWarehouse.value = currentVal || 'all';
         }
 
         // Hotels
         const hotList = document.getElementById('list-hotels-tools');
         if (hotList) {
             hotList.innerHTML = '';
-            auxiliaryData.hotels.forEach(h => {
+            (auxiliaryData.hotels || []).forEach(h => {
                 const opt = document.createElement('option');
                 opt.value = `${h.name} (${h.sigla || ''})`.trim();
                 hotList.appendChild(opt);
@@ -218,13 +242,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Status Badge
             let statusBadge = '';
             if (t.status === 'Disponible') {
-                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Disponible</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-circle-check"></i> Disponible</span>`;
             } else if (t.status === 'En Uso / Asignada') {
-                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-user-gear"></i> En Uso</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; border: 1px solid rgba(245, 158, 11, 0.3);"><i class="fa-solid fa-user-gear"></i> En Uso</span>`;
             } else if (t.status === 'En Mantenimiento') {
-                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700;"><i class="fa-solid fa-screwdriver-wrench"></i> Mantenimiento</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700; border: 1px solid rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-screwdriver-wrench"></i> Mantenimiento</span>`;
             } else if (t.status === 'Dañada') {
-                statusBadge = `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #64748b; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> Dañada</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #64748b; font-weight: 700; border: 1px solid rgba(100, 116, 139, 0.3);"><i class="fa-solid fa-triangle-exclamation"></i> Dañada</span>`;
             } else {
                 statusBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-weight: 700;">${escapeHtml(t.status)}</span>`;
             }
@@ -232,13 +256,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Condition Badge
             let conditionBadge = '';
             if (t.condition === 'Excelente') {
-                conditionBadge = `<span style="color: #10b981; font-weight: 600;"><i class="fa-solid fa-star"></i> Excelente</span>`;
+                conditionBadge = `<span style="color: #10b981; font-weight: 700;"><i class="fa-solid fa-star"></i> Excelente</span>`;
             } else if (t.condition === 'Buena') {
-                conditionBadge = `<span style="color: #0284c7; font-weight: 600;"><i class="fa-solid fa-check"></i> Buena</span>`;
+                conditionBadge = `<span style="color: #0284c7; font-weight: 700;"><i class="fa-solid fa-check"></i> Buena</span>`;
             } else if (t.condition === 'Regular') {
-                conditionBadge = `<span style="color: #f59e0b; font-weight: 600;"><i class="fa-solid fa-circle-dot"></i> Regular</span>`;
+                conditionBadge = `<span style="color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-circle-dot"></i> Regular</span>`;
             } else {
-                conditionBadge = `<span style="color: #ef4444; font-weight: 600;"><i class="fa-solid fa-wrench"></i> ${escapeHtml(t.condition)}</span>`;
+                conditionBadge = `<span style="color: #ef4444; font-weight: 700;"><i class="fa-solid fa-wrench"></i> ${escapeHtml(t.condition)}</span>`;
             }
 
             // Tech & Location display
@@ -254,13 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let primaryActionBtn = '';
             if (t.status === 'Disponible') {
                 primaryActionBtn = `
-                    <button class="action-btn btn-assign-tool" data-id="${t.id}" title="Asignar / Prestar a Técnico" style="color: #f59e0b; margin-right: 4px;">
-                        <i class="fa-solid fa-hand-holding-hand"></i>
+                    <button class="tool-action-btn assign btn-assign-tool" data-id="${t.id}" title="Asignar / Prestar a Técnico" style="color: #f59e0b;">
+                        <i class="fa-solid fa-handshake"></i>
                     </button>
                 `;
             } else if (t.status === 'En Uso / Asignada') {
                 primaryActionBtn = `
-                    <button class="action-btn btn-return-tool" data-id="${t.id}" title="Registrar Devolución al Taller" style="color: #10b981; margin-right: 4px;">
+                    <button class="tool-action-btn return btn-return-tool" data-id="${t.id}" title="Registrar Devolución al Taller" style="color: #10b981;">
                         <i class="fa-solid fa-warehouse"></i>
                     </button>
                 `;
@@ -276,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${t.notes ? `<div style="font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;" title="${escapeHtml(t.notes)}"><i class="fa-solid fa-comment-dots" style="margin-right: 4px;"></i>${escapeHtml(t.notes)}</div>` : ''}
                 </td>
                 <td>
-                    <span class="badge" style="background: rgba(100, 116, 139, 0.1); color: var(--color-text); font-size: 12px;">${escapeHtml(t.category)}</span>
+                    <span class="badge" style="background: rgba(100, 116, 139, 0.1); color: var(--color-text); font-size: 12px; font-weight: 600;">${escapeHtml(t.category)}</span>
                 </td>
                 <td>${escapeHtml(t.brand || '-')} ${escapeHtml(t.model ? `/ ${t.model}` : '')}</td>
                 <td><span style="font-family: monospace; font-size: 12px; color: var(--color-text-secondary);">${escapeHtml(t.serial_number || '-')}</span></td>
@@ -284,15 +308,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="text-align: center;">${statusBadge}</td>
                 <td>${techDisplay}</td>
                 <td style="text-align: center;">${conditionBadge}</td>
-                <td style="text-align: right; font-weight: 600; font-family: monospace;">RD$ ${parseFloat(t.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; white-space: nowrap;">
-                    ${primaryActionBtn}
-                    <button class="action-btn edit btn-edit-tool" data-id="${t.id}" title="Editar Herramienta" style="margin-right: 4px;">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button class="action-btn delete btn-delete-tool" data-id="${t.id}" data-name="${escapeHtml(t.name)}" title="Eliminar Herramienta">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                <td style="text-align: right; font-weight: 700; font-family: monospace; font-size: 13px; white-space: nowrap;">RD$ ${parseFloat(t.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right;">
+                    <div class="actions-cell-wrapper">
+                        ${primaryActionBtn}
+                        <button class="tool-action-btn edit btn-edit-tool" data-id="${t.id}" title="Editar Herramienta" style="color: var(--color-primary);">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="tool-action-btn delete btn-delete-tool" data-id="${t.id}" data-name="${escapeHtml(t.name)}" title="Eliminar Herramienta" style="color: #ef4444;">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             `;
 
@@ -473,6 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(data.error || 'Error al guardar herramienta', 'error');
                 }
             } catch (err) {
+                console.error(err);
                 showToast('Error de conexión', 'error');
             }
         });
@@ -503,6 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(data.error || 'Error al asignar', 'error');
                 }
             } catch (err) {
+                console.error(err);
                 showToast('Error de conexión', 'error');
             }
         });
@@ -532,6 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(data.error || 'Error al devolver', 'error');
                 }
             } catch (err) {
+                console.error(err);
                 showToast('Error de conexión', 'error');
             }
         });
@@ -546,7 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const headers = ['Código', 'Herramienta', 'Categoría', 'Marca', 'Modelo', 'Serial', 'Estado', 'Asignado a', 'Fecha Asignación', 'Ubicación', 'Almacén/Taller', 'Condición', 'Valor USD', 'Cantidad', 'Notas'];
+        const headers = ['Código', 'Herramienta', 'Categoría', 'Marca', 'Modelo', 'Serial', 'Estado', 'Asignado a', 'Fecha Asignación', 'Ubicación', 'Almacén/Taller', 'Condición', 'Valor RD$', 'Cantidad', 'Notas'];
         const rows = allTools.map(t => [
             `"${t.code || `HER-${t.id}`}"`,
             `"${(t.name || '').replace(/"/g, '""')}"`,
