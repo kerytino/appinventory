@@ -3288,43 +3288,44 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="task-card-header">
                     <div>
-                        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px; gap: 6px;">
                             ${categoryTag}
-                            <span style="font-size: 11px; color: var(--primary); font-weight: 600; text-transform: uppercase;">${escapeHtml(task.task_type || 'General')}</span>
+                            <span style="font-size: 11px; color: var(--color-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(task.task_type || 'General')}</span>
                         </div>
                         <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
                     </div>
                     <div style="display: flex; gap: 6px; flex-direction: column; align-items: flex-end;">
-                        <span class="task-badge-priority ${priorityClass}">${task.priority}</span>
+                        <span class="task-badge-priority ${priorityClass}"><i class="fa-solid fa-flag"></i> ${task.priority}</span>
                         ${staleBadgeHTML}
                     </div>
                 </div>
 
                 <div class="task-meta-bar">
-                    ${task.hotel ? `<div class="task-meta-item"><i class="fa-solid fa-hotel" style="color: var(--primary);"></i> ${escapeHtml(task.hotel)}</div>` : ''}
-                    <div class="task-meta-item"><i class="fa-solid fa-user-gear" style="color: var(--primary);"></i> Técnico: ${task.technician_name ? escapeHtml(task.technician_name) : 'Sin Asignar'}</div>
-                    ${task.start_date ? `<div class="task-meta-item"><i class="fa-regular fa-calendar-plus" style="color: #10b981;"></i> Inicio: ${task.start_date}</div>` : ''}
-                    ${task.end_date ? `<div class="task-meta-item"><i class="fa-regular fa-calendar-check" style="color: #ef4444;"></i> Término: ${task.end_date}</div>` : ''}
-                    ${task.last_updated_by ? `<div class="task-meta-item"><i class="fa-solid fa-user-pen" style="color: var(--primary);"></i> Último avance: ${escapeHtml(task.last_updated_by)} (${task.hours_inactive}h trascurridas)</div>` : ''}
+                    ${task.hotel ? `<div class="task-meta-item"><i class="fa-solid fa-hotel" style="color: var(--color-primary);"></i> <span>${escapeHtml(task.hotel)}</span></div>` : ''}
+                    <div class="task-meta-item"><i class="fa-solid fa-user-gear" style="color: var(--color-primary);"></i> <span>Técnico: <strong>${task.technician_name ? escapeHtml(task.technician_name) : 'Sin Asignar'}</strong></span></div>
+                    ${task.start_date ? `<div class="task-meta-item"><i class="fa-regular fa-calendar-plus" style="color: #10b981;"></i> <span>Inicio: ${task.start_date}</span></div>` : ''}
+                    ${task.end_date ? `<div class="task-meta-item"><i class="fa-regular fa-calendar-check" style="color: #ef4444;"></i> <span>Término: ${task.end_date}</span></div>` : ''}
+                    ${task.last_updated_by ? `<div class="task-meta-item" style="width: 100%;"><i class="fa-solid fa-user-pen" style="color: var(--color-primary);"></i> <span>Último avance: <strong>${escapeHtml(task.last_updated_by)}</strong> (${task.hours_inactive}h transcurridas)</span></div>` : ''}
                 </div>
 
-                ${task.description ? `<p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">${escapeHtml(task.description)}</p>` : ''}
+                ${task.description ? `<p style="font-size: 13px; color: var(--color-text-secondary); margin: 4px 0 8px 0; line-height: 1.45; background: var(--color-surface-2); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--color-primary);">${escapeHtml(task.description)}</p>` : ''}
 
+                <!-- Barra Visual de Progreso Acompañando el Pendiente -->
                 <div class="task-progress-box">
                     <div class="task-progress-header">
-                        <span>Progreso (${task.completed_steps}/${task.total_steps} Pasos)</span>
-                        <span>${task.progress_percentage}%</span>
+                        <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-bars-progress" style="color: var(--color-primary);"></i> Progreso (${task.completed_steps}/${task.total_steps} Pasos)</span>
+                        <span style="font-weight: 700; color: ${task.progress_percentage === 100 ? '#10b981' : 'var(--color-primary)'}; font-size: 0.9rem;">${task.progress_percentage}%</span>
                     </div>
                     <div class="task-progress-track">
                         <div class="task-progress-bar ${isCompleted ? 'completed' : ''}" style="width: ${task.progress_percentage}%;"></div>
                     </div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 12px; font-weight: 600; color: var(--text-main);">Flujo de Avances de Colaboradores:</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 6px 0;">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--color-text); text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-list-ol" style="color: var(--color-primary); margin-right: 4px;"></i> Flujo de Pasos / Avances:</span>
                     <div style="display: flex; gap: 6px;">
-                        <button class="action-btn" title="Editar Tarea" onclick="window.editOperationalTask(${task.id})"><i class="fa-solid fa-pen"></i></button>
-                        <button class="action-btn" title="Eliminar Tarea" onclick="window.deleteOperationalTask(${task.id})"><i class="fa-solid fa-trash" style="color: var(--danger);"></i></button>
+                        <button class="action-btn edit" title="Editar Pendiente" onclick="window.editOperationalTask(${task.id})"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn delete" title="Eliminar Pendiente" onclick="window.deleteOperationalTask(${task.id})"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
 
@@ -3332,9 +3333,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${stepsHTML}
                 </div>
 
-                <div style="margin-top: 10px; display: flex; gap: 8px;">
-                    <input type="text" id="new-step-title-${task.id}" placeholder="Añadir nuevo paso..." style="flex: 1; padding: 4px 8px; font-size: 12px; border-radius: 4px; background: var(--bg-dark); border: 1px solid var(--glass-border); color: var(--text-main);" onkeydown="if(event.key==='Enter'){ window.addQuickStepToTask(${task.id}); }">
-                    <button class="btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="window.addQuickStepToTask(${task.id})"><i class="fa-solid fa-plus"></i></button>
+                <div style="margin-top: 12px; display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="new-step-title-${task.id}" class="form-control" placeholder="+ Añadir nuevo paso a este pendiente..." style="flex: 1; font-size: 12px; padding: 6px 12px;" onkeydown="if(event.key==='Enter'){ window.addQuickStepToTask(${task.id}); }">
+                    <button class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap;" onclick="window.addQuickStepToTask(${task.id})"><i class="fa-solid fa-plus"></i> Añadir</button>
                 </div>
             `;
             container.appendChild(card);
