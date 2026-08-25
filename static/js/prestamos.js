@@ -16,6 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSearchTerm = '';
 
     // --- Helpers de Formato ---
+    function formatLoanValue(val, notes = '') {
+        const num = parseFloat(val) || 0;
+        const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if ((notes || '').includes('[Moneda: DOP]')) {
+            return `RD$ ${formatted}`;
+        }
+        return `$${formatted} USD`;
+    }
+
     function formatCurrency(val) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
     }
@@ -33,17 +42,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function getLoanStatusBadge(status) {
         switch (status) {
             case 'En Evaluación / Stock':
-                return `<span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-warehouse"></i> En Almacén</span>`;
+                return `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-warehouse"></i> En Almacén</span>`;
             case 'En Pruebas / Instalado':
-                return `<span class="status-badge" style="background: rgba(2, 132, 199, 0.15); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.3);"><i class="fa-solid fa-flask-vial"></i> En Pruebas</span>`;
+                return `<span class="badge" style="background: rgba(2, 132, 199, 0.15); color: #0284c7; font-weight: 700; border: 1px solid rgba(2, 132, 199, 0.3);"><i class="fa-solid fa-flask-vial"></i> En Pruebas</span>`;
             case 'Devuelto al Proveedor':
-                return `<span class="status-badge" style="background: rgba(100, 116, 139, 0.15); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.3);"><i class="fa-solid fa-handshake-slash"></i> Devuelto</span>`;
+                return `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #64748b; font-weight: 700; border: 1px solid rgba(100, 116, 139, 0.3);"><i class="fa-solid fa-handshake-slash"></i> Devuelto</span>`;
             case 'Comprado / Adquirido':
-                return `<span class="status-badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3);"><i class="fa-solid fa-cart-shopping"></i> Comprado</span>`;
+                return `<span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; font-weight: 700; border: 1px solid rgba(139, 92, 246, 0.3);"><i class="fa-solid fa-cart-shopping"></i> Comprado</span>`;
             case 'Averiado':
-                return `<span class="status-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-triangle-exclamation"></i> Averiado</span>`;
+                return `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700; border: 1px solid rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-triangle-exclamation"></i> Averiado</span>`;
             default:
-                return `<span class="status-badge badge-secondary">${escapeHtml(status)}</span>`;
+                return `<span class="badge badge-secondary">${escapeHtml(status)}</span>`;
         }
     }
 
@@ -74,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function populateFilterDropdowns() {
         const provFilter = document.getElementById('loan-provider-filter');
         if (provFilter) {
+            const curVal = provFilter.value;
             provFilter.innerHTML = '<option value="all">Todos los Proveedores</option>';
             allProviders.forEach(p => {
                 const opt = document.createElement('option');
@@ -81,10 +91,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.innerText = p.name;
                 provFilter.appendChild(opt);
             });
+            provFilter.value = curVal || 'all';
         }
 
         const whFilter = document.getElementById('loan-warehouse-filter');
         if (whFilter) {
+            const curVal = whFilter.value;
             whFilter.innerHTML = '<option value="all">Todos los Almacenes</option>';
             allWarehouses.forEach(w => {
                 const opt = document.createElement('option');
@@ -92,25 +104,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.innerText = w.name;
                 whFilter.appendChild(opt);
             });
+            whFilter.value = curVal || 'all';
+        }
+    }
+
+    function populateLoanTypeDropdown(selectedType) {
+        const typeSelect = document.getElementById('loan-type');
+        if (!typeSelect) return;
+        typeSelect.innerHTML = '<option value="" disabled selected>Seleccione Tipo...</option>';
+        
+        let types = Array.from(new Set(allCatalog.map(c => c.type).filter(Boolean)));
+        if (types.length === 0) {
+            types = ['ACCESS POINT', 'SWITCH', 'FIREWALL', 'TRANSCEIVER', 'ROUTER', 'SERVIDOR', 'CABLEADO', 'CAMARA', 'OTRO'];
+        }
+        types.sort((a, b) => a.localeCompare(b));
+        
+        types.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.innerText = t;
+            if (selectedType && selectedType.toUpperCase() === t.toUpperCase()) {
+                opt.selected = true;
+            }
+            typeSelect.appendChild(opt);
+        });
+
+        // Add "+ Agregar nuevo tipo..." option
+        const addOpt = document.createElement('option');
+        addOpt.value = '__ADD_NEW__';
+        addOpt.innerText = '+ Agregar nuevo tipo...';
+        addOpt.style.fontWeight = '700';
+        addOpt.style.color = 'var(--color-primary)';
+        typeSelect.appendChild(addOpt);
+
+        if (selectedType) {
+            typeSelect.value = selectedType;
+        }
+    }
+
+    async function quickAddLoanType() {
+        const newType = prompt('Ingrese el nombre del nuevo Tipo de Equipo (Ej: TABLET, CAMARA IP, TELEFONO VOIP):');
+        if (!newType || !newType.trim()) {
+            const typeSelect = document.getElementById('loan-type');
+            if (typeSelect && typeSelect.value === '__ADD_NEW__') typeSelect.value = '';
+            return;
+        }
+
+        const cleanType = newType.trim().toUpperCase();
+        
+        try {
+            const res = await fetch('/api/settings/catalog');
+            let catalog = [];
+            if (res.ok) catalog = await res.json();
+            
+            const exists = catalog.some(c => (c.type || '').toUpperCase() === cleanType);
+            if (!exists) {
+                catalog.push({ type: cleanType, brands: [] });
+                await fetch('/api/settings/catalog', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(catalog)
+                });
+                allCatalog = catalog;
+            }
+            populateLoanTypeDropdown(cleanType);
+            if (window.showToast) window.showToast(`Tipo "${cleanType}" agregado al catálogo`, 'success');
+        } catch (e) {
+            console.error('Error saving new type:', e);
+            populateLoanTypeDropdown(cleanType);
         }
     }
 
     function populateFormDropdowns() {
         // Tipos de Equipo
-        const typeSelect = document.getElementById('loan-type');
-        if (typeSelect) {
-            typeSelect.innerHTML = '<option value="" disabled selected>Seleccione Tipo...</option>';
-            const types = Array.from(new Set(allCatalog.map(c => c.type).filter(Boolean)));
-            if (types.length === 0) {
-                ['ACCESS POINT', 'SWITCH', 'FIREWALL', 'TRANSCEIVER', 'ROUTER', 'SERVIDOR', 'CABLEADO', 'OTRO'].forEach(t => types.push(t));
-            }
-            types.forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t;
-                opt.innerText = t;
-                typeSelect.appendChild(opt);
-            });
-        }
+        populateLoanTypeDropdown();
 
         // Proveedores (Datalist para permitir seleccionar o escribir uno nuevo)
         const provDataList = document.getElementById('loan-provider-list');
@@ -200,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('stat-loans-stock').innerText = stockCount;
         document.getElementById('stat-loans-testing').innerText = testingCount;
         document.getElementById('stat-loans-urgent').innerText = urgentCount;
-        document.getElementById('stat-loans-value').innerText = formatCurrency(totalValue);
+        document.getElementById('stat-loans-value').innerText = `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         const urgentCard = document.getElementById('card-loans-urgent');
         if (urgentCard) {
@@ -271,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     locOrWh += `<small style="color:var(--color-text-secondary)">Resp: ${escapeHtml(l.dispatched_by)}</small>`;
                 }
             } else if (l.warehouse) {
-                locOrWh = `<span class="badge badge-info"><i class="fa-solid fa-warehouse"></i> ${escapeHtml(l.warehouse)}</span>`;
+                locOrWh = `<span class="badge" style="background: rgba(37, 99, 235, 0.1); color: var(--color-primary); font-weight: 600;"><i class="fa-solid fa-warehouse"></i> ${escapeHtml(l.warehouse)}</span>`;
             }
 
             // Expiry / Return Date Badge
@@ -279,60 +346,60 @@ document.addEventListener('DOMContentLoaded', () => {
             if (l.status === 'Devuelto al Proveedor') {
                 expiryBadge = `<span style="font-size: 11px; color: var(--color-text-secondary);"><i class="fa-solid fa-calendar-check"></i> Retornado (${escapeHtml(l.returned_date || l.expected_return_date)})</span>`;
             } else if (l.status === 'Comprado / Adquirido') {
-                expiryBadge = `<span style="font-size: 11px; color: #8b5cf6; font-weight: 600;"><i class="fa-solid fa-cart-check"></i> Adquirido Propio</span>`;
+                expiryBadge = `<span style="font-size: 11px; color: #8b5cf6; font-weight: 700;"><i class="fa-solid fa-cart-check"></i> Adquirido Propio</span>`;
             } else if (l.expected_return_date) {
                 if (l.is_overdue) {
-                    expiryBadge = `<span class="badge badge-danger" style="background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.4);" title="¡Demo Vencido! Debió devolverse el ${l.expected_return_date}"><i class="fa-solid fa-triangle-exclamation"></i> ¡Vencido! (${escapeHtml(l.expected_return_date)})</span>`;
+                    expiryBadge = `<span class="badge" style="background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); font-weight: 700;" title="¡Demo Vencido! Debió devolverse el ${l.expected_return_date}"><i class="fa-solid fa-triangle-exclamation"></i> ¡Vencido! (${escapeHtml(l.expected_return_date)})</span>`;
                 } else if (l.is_near_expiry) {
-                    expiryBadge = `<span class="badge badge-warning" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4);" title="Vence en ${l.days_remaining} días"><i class="fa-solid fa-clock"></i> Vence en ${l.days_remaining}d (${escapeHtml(l.expected_return_date)})</span>`;
+                    expiryBadge = `<span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); font-weight: 700;" title="Vence en ${l.days_remaining} días"><i class="fa-solid fa-clock"></i> Vence en ${l.days_remaining}d (${escapeHtml(l.expected_return_date)})</span>`;
                 } else {
-                    expiryBadge = `<span style="font-size: 12px; color: var(--color-text);"><i class="fa-regular fa-calendar"></i> ${escapeHtml(l.expected_return_date)}</span>`;
+                    expiryBadge = `<span style="font-size: 12px; color: var(--color-text); font-weight: 600;"><i class="fa-regular fa-calendar"></i> ${escapeHtml(l.expected_return_date)}</span>`;
                 }
             }
 
             // Provider Badge
             const provBadge = l.provider 
-                ? `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600;"><i class="fa-solid fa-building-shield"></i> ${escapeHtml(l.provider)}</span>`
+                ? `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700;"><i class="fa-solid fa-building-shield"></i> ${escapeHtml(l.provider)}</span>`
                 : '-';
 
             // Action Buttons based on status
             let actionButtons = `
-                <button class="action-btn edit" title="Editar Información" onclick="window.editLoan(${l.id})"><i class="fa-solid fa-pen"></i></button>
+                <button class="loan-action-btn edit" title="Editar Información" onclick="window.editLoan(${l.id})"><i class="fa-solid fa-pen"></i></button>
             `;
 
             if (l.status === 'En Evaluación / Stock') {
                 actionButtons += `
-                    <button class="action-btn" style="color: #0284c7;" title="Despachar a Pruebas / Hotel" onclick="window.openDispatchLoan(${l.id})"><i class="fa-solid fa-truck-ramp-box"></i></button>
-                    <button class="action-btn" style="color: #64748b;" title="Devolver al Proveedor" onclick="window.openProviderReturnLoan(${l.id})"><i class="fa-solid fa-handshake-slash"></i></button>
-                    <button class="action-btn" style="color: #10b981;" title="Comprar / Transferir a Inventario" onclick="window.openConvertLoan(${l.id})"><i class="fa-solid fa-cart-shopping"></i></button>
+                    <button class="loan-action-btn dispatch" title="Despachar a Pruebas / Hotel" onclick="window.openDispatchLoan(${l.id})"><i class="fa-solid fa-truck-ramp-box"></i></button>
+                    <button class="loan-action-btn provider-return" title="Devolver al Proveedor" onclick="window.openProviderReturnLoan(${l.id})"><i class="fa-solid fa-handshake-slash"></i></button>
+                    <button class="loan-action-btn convert" title="Comprar / Transferir a Inventario" onclick="window.openConvertLoan(${l.id})"><i class="fa-solid fa-cart-shopping"></i></button>
                 `;
             } else if (l.status === 'En Pruebas / Instalado') {
                 actionButtons += `
-                    <button class="action-btn" style="color: #10b981;" title="Retornar a Almacén de Resguardo" onclick="window.openReturnWarehouseLoan(${l.id})"><i class="fa-solid fa-boxes-stacked"></i></button>
-                    <button class="action-btn" style="color: #64748b;" title="Devolver al Proveedor" onclick="window.openProviderReturnLoan(${l.id})"><i class="fa-solid fa-handshake-slash"></i></button>
-                    <button class="action-btn" style="color: #8b5cf6;" title="Comprar / Transferir a Inventario" onclick="window.openConvertLoan(${l.id})"><i class="fa-solid fa-cart-shopping"></i></button>
+                    <button class="loan-action-btn return-wh" title="Retornar a Almacén de Resguardo" onclick="window.openReturnWarehouseLoan(${l.id})"><i class="fa-solid fa-boxes-stacked"></i></button>
+                    <button class="loan-action-btn provider-return" title="Devolver al Proveedor" onclick="window.openProviderReturnLoan(${l.id})"><i class="fa-solid fa-handshake-slash"></i></button>
+                    <button class="loan-action-btn convert" title="Comprar / Transferir a Inventario" onclick="window.openConvertLoan(${l.id})"><i class="fa-solid fa-cart-shopping"></i></button>
                 `;
             }
 
             actionButtons += `
-                <button class="action-btn delete" title="Eliminar Registro" onclick="window.deleteLoan(${l.id})"><i class="fa-solid fa-trash"></i></button>
+                <button class="loan-action-btn delete" title="Eliminar Registro" onclick="window.deleteLoan(${l.id})"><i class="fa-solid fa-trash"></i></button>
             `;
 
             tr.innerHTML = `
-                <td>#${l.id}</td>
+                <td style="font-family: monospace; font-weight: 700; color: var(--color-primary);">#${l.id}</td>
                 <td>
                     <strong style="color: var(--color-text);">${escapeHtml(l.name)}</strong>
-                    ${l.notes ? `<div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(l.notes)}"><i class="fa-regular fa-note-sticky"></i> ${escapeHtml(l.notes)}</div>` : ''}
+                    ${l.notes ? `<div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(l.notes)}"><i class="fa-regular fa-note-sticky"></i> ${escapeHtml(l.notes.replace(/\[Moneda: [^\]]+\]\s*/g, ''))}</div>` : ''}
                 </td>
                 <td style="text-align: center; font-weight: 700;">${l.quantity || 1}</td>
                 <td><strong>${escapeHtml(l.type)}</strong><br><small style="color:var(--color-text-secondary)">${escapeHtml(l.brand || '-')} / ${escapeHtml(l.model || '-')}</small></td>
-                <td><small>MAC: ${escapeHtml(l.mac_address || '-')}<br>S/N: ${escapeHtml(l.serial_number || '-')}</small></td>
+                <td><small style="font-family: monospace;">MAC: ${escapeHtml(l.mac_address || '-')}<br>S/N: ${escapeHtml(l.serial_number || '-')}</small></td>
                 <td>${provBadge}</td>
                 <td>${locOrWh}</td>
                 <td>${getLoanStatusBadge(l.status)}</td>
                 <td>${expiryBadge}</td>
-                <td style="font-weight: 600;">${formatCurrency(l.value)}</td>
-                <td style="text-align: center; white-space: nowrap;">${actionButtons}</td>
+                <td style="font-weight: 700; font-family: monospace; font-size: 13px;">${formatLoanValue(l.value, l.notes)}</td>
+                <td style="text-align: center;"><div class="actions-cell-wrapper">${actionButtons}</div></td>
             `;
 
             tbody.appendChild(tr);
@@ -364,6 +431,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLoansTable();
     });
 
+    // Eventos de Agregar Tipo
+    document.getElementById('loan-type')?.addEventListener('change', (e) => {
+        if (e.target.value === '__ADD_NEW__') {
+            quickAddLoanType();
+        }
+    });
+    document.getElementById('btn-quick-add-loan-type')?.addEventListener('click', quickAddLoanType);
+
     // --- Modales y Formularios ---
 
     // 1. Modal Nuevo / Editar Préstamo
@@ -384,8 +459,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'add') {
             document.getElementById('loan-modal-title').innerText = 'Registrar Préstamo / Producto Demo';
             document.getElementById('loan-id').value = '';
+            populateLoanTypeDropdown('');
             document.getElementById('loan-quantity').value = 1;
             document.getElementById('loan-value').value = '0.00';
+            document.getElementById('loan-currency').value = 'USD';
             if (allWarehouses.length > 0) {
                 document.getElementById('loan-warehouse').value = allWarehouses[0].name;
             }
@@ -393,18 +470,23 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loan-modal-title').innerText = `Editar Demo #${loan.id}`;
             document.getElementById('loan-id').value = loan.id;
             document.getElementById('loan-name').value = loan.name;
-            document.getElementById('loan-type').value = loan.type;
+            populateLoanTypeDropdown(loan.type);
             document.getElementById('loan-provider').value = loan.provider;
-            document.getElementById('loan-brand').value = loan.brand;
-            document.getElementById('loan-model').value = loan.model;
-            document.getElementById('loan-serial').value = loan.serial_number;
-            document.getElementById('loan-mac').value = loan.mac_address;
+            document.getElementById('loan-brand').value = loan.brand || '';
+            document.getElementById('loan-model').value = loan.model || '';
+            document.getElementById('loan-serial').value = loan.serial_number || '';
+            document.getElementById('loan-mac').value = loan.mac_address || '';
             document.getElementById('loan-quantity').value = loan.quantity || 1;
             document.getElementById('loan-value').value = loan.value || 0;
+            
+            // Check Currency from notes
+            const isDOP = (loan.notes || '').includes('[Moneda: DOP]');
+            document.getElementById('loan-currency').value = isDOP ? 'DOP' : 'USD';
+
             document.getElementById('loan-received-date').value = loan.received_date || today;
             document.getElementById('loan-expected-return-date').value = loan.expected_return_date || '';
             document.getElementById('loan-warehouse').value = loan.warehouse || '';
-            document.getElementById('loan-notes').value = loan.notes || '';
+            document.getElementById('loan-notes').value = (loan.notes || '').replace(/\[Moneda: [^\]]+\]\s*/g, '');
         }
 
         loanModal.classList.add('active');
@@ -416,10 +498,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loanForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('loan-id').value;
+        const currency = document.getElementById('loan-currency').value;
+        let notesText = document.getElementById('loan-notes').value.trim();
+        
+        // Remove existing [Moneda: ...] tags
+        notesText = notesText.replace(/\[Moneda: [^\]]+\]\s*/g, '').trim();
+        if (currency === 'DOP') {
+            notesText = `[Moneda: DOP] ${notesText}`.trim();
+        }
+
         const payload = {
             name: document.getElementById('loan-name').value.trim(),
             type: document.getElementById('loan-type').value,
-            provider: document.getElementById('loan-provider').value,
+            provider: document.getElementById('loan-provider').value.trim(),
             brand: document.getElementById('loan-brand').value.trim(),
             model: document.getElementById('loan-model').value.trim(),
             serial_number: document.getElementById('loan-serial').value.trim(),
@@ -429,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
             received_date: document.getElementById('loan-received-date').value,
             expected_return_date: document.getElementById('loan-expected-return-date').value,
             warehouse: document.getElementById('loan-warehouse').value,
-            notes: document.getElementById('loan-notes').value.trim()
+            notes: notesText
         };
 
         const url = id ? `/api/loans/${id}` : '/api/loans';
@@ -520,8 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 3. Modal Retorno a Almacén
-    const returnModal = document.getElementById('loan-return-modal');
-    const returnForm = document.getElementById('loan-return-form');
+    const returnModal = document.getElementById('loan-return-wh-modal');
+    const returnForm = document.getElementById('loan-return-wh-form');
 
     window.openReturnWarehouseLoan = function(id) {
         const loan = allLoans.find(l => l.id === id);
@@ -536,8 +627,8 @@ document.addEventListener('DOMContentLoaded', () => {
         returnModal.classList.add('active');
     };
 
-    document.getElementById('btn-close-return-loan-modal')?.addEventListener('click', () => returnModal.classList.remove('active'));
-    document.getElementById('btn-cancel-return-loan')?.addEventListener('click', () => returnModal.classList.remove('active'));
+    document.getElementById('btn-close-return-wh-modal')?.addEventListener('click', () => returnModal.classList.remove('active'));
+    document.getElementById('btn-cancel-return-wh-loan')?.addEventListener('click', () => returnModal.classList.remove('active'));
 
     returnForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -568,7 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 4. Modal Devolución Formal al Proveedor
-    const provReturnModal = document.getElementById('loan-provider-return-modal');
+    const provReturnModal = document.getElementById('loan-return-provider-modal');
     const provReturnForm = document.getElementById('loan-provider-return-form');
 
     window.openProviderReturnLoan = function(id) {
@@ -578,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('provider-return-loan-id').value = loan.id;
         document.getElementById('provider-return-name-display').innerText = loan.name;
-        document.getElementById('provider-return-detail-display').innerText = `Proveedor: ${loan.provider} • S/N: ${loan.serial_number || 'n/a'} • Valor: ${formatCurrency(loan.value)}`;
+        document.getElementById('provider-return-detail-display').innerText = `Proveedor: ${loan.provider} • S/N: ${loan.serial_number || 'n/a'} • Valor: ${formatLoanValue(loan.value, loan.notes)}`;
         document.getElementById('provider-return-date').value = today;
         document.getElementById('provider-return-notes').value = '';
 
@@ -616,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 5. Modal Convertir a Inventario Propio
+    // 5. Modal Adquirir / Convertir a Inventario Propio
     const convertModal = document.getElementById('loan-convert-modal');
     const convertForm = document.getElementById('loan-convert-form');
     const convertStatusSelect = document.getElementById('convert-loan-status');

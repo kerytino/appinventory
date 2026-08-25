@@ -4,6 +4,97 @@
 {% block page_title %}Préstamos y Demos (Evaluación de Proveedores){% endblock %}
 {% block page_subtitle %}Control, resguardo, pruebas en hotel y devolución de equipos prestados por proveedores{% endblock %}
 
+{% block extra_css %}
+<style>
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.btn-filter-tab {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.btn-filter-tab:hover {
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--color-primary);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-1px);
+}
+.btn-filter-tab.active {
+    background: var(--color-primary) !important;
+    color: #ffffff !important;
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
+}
+.actions-cell-wrapper {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+}
+.loan-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13px;
+    color: var(--color-text);
+}
+.loan-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+.loan-action-btn.edit:hover {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--color-primary);
+    border-color: rgba(37, 99, 235, 0.3);
+}
+.loan-action-btn.dispatch:hover {
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+    border-color: rgba(2, 132, 199, 0.3);
+}
+.loan-action-btn.return-wh:hover {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+.loan-action-btn.provider-return:hover {
+    background: rgba(100, 116, 139, 0.15);
+    color: #475569;
+    border-color: rgba(100, 116, 139, 0.4);
+}
+.loan-action-btn.convert:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+    border-color: rgba(139, 92, 246, 0.3);
+}
+.loan-action-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 {% from "components/kpi_card.html" import kpi_card %}
 {% from "components/button.html" import button %}
@@ -78,7 +169,7 @@
         <!-- Top Filter Row -->
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <!-- Status Tabs -->
-            <div class="filter-tabs" id="loan-status-tabs" style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <div class="filter-tabs" id="loan-status-tabs">
                 <button class="btn-filter-tab active" data-status="all"><i class="fa-solid fa-list"></i> Todos</button>
                 <button class="btn-filter-tab" data-status="En Evaluación / Stock"><i class="fa-solid fa-warehouse"></i> En Almacén</button>
                 <button class="btn-filter-tab" data-status="En Pruebas / Instalado"><i class="fa-solid fa-flask-vial"></i> En Pruebas</button>
@@ -131,8 +222,8 @@
                         <th>Ubicación / Almacén</th>
                         <th>Estado</th>
                         <th>Límite Devolución</th>
-                        <th>Valor ($)</th>
-                        <th style="text-align: center; width: 140px;">Acciones</th>
+                        <th>Valor Moneda</th>
+                        <th style="text-align: center; width: 150px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="loans-table-body">
@@ -143,14 +234,14 @@
     </div>
 </div>
 
-<!-- ================= MODALES DEL MÓDULO DE PRÉSTAMOS ================= -->
+<!-- ================= MODALES DE GESTIÓN DE PRÉSTAMOS ================= -->
 
-<!-- 1. Modal Registrar / Editar Demo -->
+<!-- 1. Modal Registro / Edición de Préstamo -->
 <div class="modal-overlay" id="loan-modal">
-    <div class="modal-content" style="max-width: 650px;">
+    <div class="modal-content" style="max-width: 680px; border-radius: 16px;">
         <div class="modal-header">
             <div>
-                <h3 id="loan-modal-title" style="margin:0;">Registrar Préstamo / Producto Demo</h3>
+                <h3 id="loan-modal-title" style="margin:0; font-weight: 700;">Registrar Préstamo / Producto Demo</h3>
                 <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Información del equipo en prueba cedido por el proveedor</p>
             </div>
             <button class="btn-close" id="btn-close-loan-modal"><i class="fa-solid fa-xmark"></i></button>
@@ -160,25 +251,34 @@
             <input type="hidden" id="loan-id">
 
             <div class="form-group">
-                <label class="form-label" for="loan-name">Nombre Descriptivo del Equipo *</label>
-                <input type="text" id="loan-name" class="form-control" placeholder="Ej: SWITCH CISCO C9300-48P DEMO EVALUACIÓN" required>
+                <label class="form-label" for="loan-name" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Nombre Descriptivo del Equipo *</label>
+                <input type="text" id="loan-name" class="form-control" placeholder="Ej: SWITCH CISCO C9300-48P DEMO EVALUACIÓN" required style="height: 40px; font-weight: 600;">
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                    <label class="form-label" for="loan-type">Tipo de Equipo *</label>
-                    <select id="loan-type" class="form-control" required>
-                        <option value="" disabled selected>Seleccione Tipo...</option>
-                    </select>
+                    <label class="form-label" for="loan-type" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-layer-group" style="color: var(--color-primary); margin-right: 4px;"></i>Tipo de Equipo *
+                    </label>
+                    <div style="display: flex; gap: 6px;">
+                        <select id="loan-type" class="form-control" required style="flex: 1; height: 40px; font-weight: 600;">
+                            <option value="" disabled selected>Seleccione Tipo...</option>
+                        </select>
+                        <button type="button" class="btn btn-outline" id="btn-quick-add-loan-type" title="Agregar Nuevo Tipo al Catálogo" style="padding: 0 14px; font-size: 13px; height: 40px; white-space: nowrap; font-weight: 700;">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="loan-provider">Proveedor del Préstamo *</label>
+                    <label class="form-label" for="loan-provider" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-truck" style="color: #6366f1; margin-right: 4px;"></i>Proveedor del Préstamo *
+                    </label>
                     <div style="display: flex; gap: 6px;">
-                        <input type="text" id="loan-provider" list="loan-provider-list" class="form-control" placeholder="Seleccione o escriba un proveedor..." required style="flex: 1;">
+                        <input type="text" id="loan-provider" list="loan-provider-list" class="form-control" placeholder="Seleccione o escriba un proveedor..." required style="flex: 1; height: 40px;">
                         <datalist id="loan-provider-list">
                             <!-- Injected by JS -->
                         </datalist>
-                        <button type="button" class="btn btn-outline" id="btn-quick-add-provider" title="Guardar Proveedor en el Catálogo Oficial" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">
+                        <button type="button" class="btn btn-outline" id="btn-quick-add-provider" title="Guardar Proveedor en el Catálogo Oficial" style="padding: 0 14px; font-size: 13px; height: 40px; white-space: nowrap;">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                     </div>
@@ -187,58 +287,68 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                    <label class="form-label" for="loan-brand">Marca</label>
-                    <input type="text" id="loan-brand" class="form-control" placeholder="Ej: CISCO, RUCKUS">
+                    <label class="form-label" for="loan-brand" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Marca</label>
+                    <input type="text" id="loan-brand" class="form-control" placeholder="Ej: CISCO, RUCKUS" style="height: 40px;">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="loan-model">Modelo</label>
-                    <input type="text" id="loan-model" class="form-control" placeholder="Ej: C9300-48P-E">
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label class="form-label" for="loan-serial">Número de Serie (S/N)</label>
-                    <input type="text" id="loan-serial" class="form-control" placeholder="S/N del equipo">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="loan-mac">Dirección MAC</label>
-                    <input type="text" id="loan-mac" class="form-control" placeholder="00:1A:2B:3C:4D:5E">
+                    <label class="form-label" for="loan-model" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Modelo</label>
+                    <input type="text" id="loan-model" class="form-control" placeholder="Ej: C9300-48P-E" style="height: 40px;">
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                    <label class="form-label" for="loan-quantity">Cantidad</label>
-                    <input type="number" id="loan-quantity" class="form-control" value="1" min="1" required>
+                    <label class="form-label" for="loan-serial" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Número de Serie (S/N)</label>
+                    <input type="text" id="loan-serial" class="form-control" placeholder="S/N del equipo" style="height: 40px; font-family: monospace;">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="loan-value">Valor Comercial Estimado ($ USD)</label>
-                    <input type="number" id="loan-value" class="form-control" value="0.00" step="0.01" min="0">
+                    <label class="form-label" for="loan-mac" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Dirección MAC</label>
+                    <input type="text" id="loan-mac" class="form-control" placeholder="00:1A:2B:3C:4D:5E" style="height: 40px; font-family: monospace;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px;">
+                <div class="form-group">
+                    <label class="form-label" for="loan-quantity" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Cantidad *</label>
+                    <input type="number" id="loan-quantity" class="form-control" value="1" min="1" required style="height: 40px; font-weight: 700;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="loan-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Valor Comercial Estimado
+                    </label>
+                    <div style="display: flex; gap: 6px;">
+                        <select id="loan-currency" class="form-control" style="width: 120px; flex-shrink: 0; font-weight: 700; height: 40px;">
+                            <option value="USD" selected>USD ($)</option>
+                            <option value="DOP">RD$ (DOP)</option>
+                        </select>
+                        <input type="number" id="loan-value" class="form-control" value="0.00" step="0.01" min="0" placeholder="0.00" style="flex: 1; height: 40px; font-family: monospace; font-weight: 700;">
+                    </div>
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                    <label class="form-label" for="loan-received-date">Fecha de Recepción</label>
-                    <input type="date" id="loan-received-date" class="form-control" required>
+                    <label class="form-label" for="loan-received-date" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Fecha de Recepción *</label>
+                    <input type="date" id="loan-received-date" class="form-control" required style="height: 40px;">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="loan-expected-return-date">Fecha Límite de Devolución</label>
-                    <input type="date" id="loan-expected-return-date" class="form-control">
+                    <label class="form-label" for="loan-expected-return-date" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Fecha Límite de Devolución</label>
+                    <input type="date" id="loan-expected-return-date" class="form-control" style="height: 40px;">
                 </div>
             </div>
 
             <div class="form-group" id="group-loan-warehouse">
-                <label class="form-label" for="loan-warehouse">Almacén de Resguardo *</label>
-                <select id="loan-warehouse" class="form-control">
+                <label class="form-label" for="loan-warehouse" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                    <i class="fa-solid fa-warehouse" style="color: #10b981; margin-right: 4px;"></i>Almacén de Resguardo *
+                </label>
+                <select id="loan-warehouse" class="form-control" style="height: 40px; font-weight: 600;">
                     <option value="" disabled selected>Seleccione Almacén...</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="loan-notes">Notas / Objetivos de la Evaluación</label>
-                <textarea id="loan-notes" class="form-control" rows="2" placeholder="Pruebas de rendimiento PoE+, evaluación de nuevo firmware, compatible con switches core..."></textarea>
+                <label class="form-label" for="loan-notes" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Notas / Objetivos de la Evaluación</label>
+                <textarea id="loan-notes" class="form-control" rows="2" placeholder="Pruebas de rendimiento PoE+, evaluación de nuevo firmware, compatible con switches core..." style="resize: vertical; min-height: 56px;"></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
@@ -251,10 +361,10 @@
 
 <!-- 2. Modal Despachar a Pruebas -->
 <div class="modal-overlay" id="loan-dispatch-modal">
-    <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-content" style="max-width: 500px; border-radius: 16px;">
         <div class="modal-header">
             <div>
-                <h3 style="margin:0;">Despachar Equipo a Pruebas</h3>
+                <h3 style="margin:0; font-weight: 700;">Despachar Equipo a Pruebas</h3>
                 <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Asignar el equipo demo a una locación u hotel para evaluación</p>
             </div>
             <button class="btn-close" id="btn-close-dispatch-loan-modal"><i class="fa-solid fa-xmark"></i></button>
@@ -269,148 +379,148 @@
 
             <div class="form-group">
                 <label class="form-label" for="dispatch-loan-location">Hotel / Locación de Pruebas *</label>
-                <select id="dispatch-loan-location" class="form-control" required>
+                <select id="dispatch-loan-location" class="form-control" required style="height: 40px;">
                     <option value="" disabled selected>Seleccione Hotel / Destino...</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="dispatch-loan-technician">Técnico Responsable *</label>
-                <select id="dispatch-loan-technician" class="form-control" required>
+                <select id="dispatch-loan-technician" class="form-control" required style="height: 40px;">
                     <option value="" disabled selected>Seleccione Técnico...</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="dispatch-loan-notes">Comentarios del Despacho / Área Específica</label>
-                <textarea id="dispatch-loan-notes" class="form-control" rows="2" placeholder="Instalado en Rack Principal MDF Piso 2 para testing de carga..."></textarea>
+                <label class="form-label" for="dispatch-loan-notes">Comentarios / Observaciones de la Instalación</label>
+                <textarea id="dispatch-loan-notes" class="form-control" rows="2" placeholder="Instalado en rack principal piso 2 para pruebas de cobertura..."></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
                 <button type="button" class="btn btn-secondary" id="btn-cancel-dispatch-loan">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-truck-ramp-box"></i> Confirmar Despacho</button>
+                <button type="submit" class="btn btn-primary" style="background: #0284c7; border-color: #0284c7;"><i class="fa-solid fa-truck-ramp-box"></i> Confirmar Despacho a Pruebas</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 3. Modal Retornar a Almacén -->
-<div class="modal-overlay" id="loan-return-modal">
-    <div class="modal-content" style="max-width: 500px;">
+<!-- 3. Modal Retorno a Almacén -->
+<div class="modal-overlay" id="loan-return-wh-modal">
+    <div class="modal-content" style="max-width: 500px; border-radius: 16px;">
         <div class="modal-header">
             <div>
-                <h3 style="margin:0;">Retornar Demo a Almacén</h3>
-                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Reingresar el equipo de pruebas al resguardo de almacén</p>
+                <h3 style="margin:0; font-weight: 700;">Retornar a Almacén de Resguardo</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Reingresar el equipo demo desde el hotel al almacén</p>
             </div>
-            <button class="btn-close" id="btn-close-return-loan-modal"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-close" id="btn-close-return-wh-modal"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <form id="loan-return-form" style="display: flex; flex-direction: column; gap: 14px; padding-top: 10px;">
+        <form id="loan-return-wh-form" style="display: flex; flex-direction: column; gap: 14px; padding-top: 10px;">
             <input type="hidden" id="return-loan-id">
-
+            
             <div style="background: var(--color-surface-2); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                 <div style="font-weight: 700; color: var(--color-text);" id="return-loan-name-display"></div>
                 <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 2px;" id="return-loan-detail-display"></div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="return-loan-warehouse">Almacén de Reingreso *</label>
-                <select id="return-loan-warehouse" class="form-control" required>
+                <label class="form-label" for="return-loan-warehouse">Almacén de Destino *</label>
+                <select id="return-loan-warehouse" class="form-control" required style="height: 40px;">
                     <option value="" disabled selected>Seleccione Almacén...</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="return-loan-notes">Observaciones del Retorno</label>
-                <textarea id="return-loan-notes" class="form-control" rows="2" placeholder="Pruebas finalizadas con éxito. Equipo en perfecto estado físico."></textarea>
+                <label class="form-label" for="return-loan-notes">Observaciones del Estado al Retornar</label>
+                <textarea id="return-loan-notes" class="form-control" rows="2" placeholder="Equipo retirado del rack, en excelente estado cosmético y funcional..."></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
-                <button type="button" class="btn btn-secondary" id="btn-cancel-return-loan">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-boxes-stacked"></i> Reingresar a Almacén</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-return-wh-loan">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: #10b981; border-color: #10b981;"><i class="fa-solid fa-boxes-stacked"></i> Confirmar Reingreso</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 4. Modal Devolución Formal al Proveedor -->
-<div class="modal-overlay" id="loan-provider-return-modal">
-    <div class="modal-content" style="max-width: 520px;">
+<!-- 4. Modal Devolución al Proveedor -->
+<div class="modal-overlay" id="loan-return-provider-modal">
+    <div class="modal-content" style="max-width: 500px; border-radius: 16px;">
         <div class="modal-header">
             <div>
-                <h3 style="margin:0;">Devolución al Proveedor</h3>
-                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Registrar la entrega formal del equipo de vuelta al proveedor</p>
+                <h3 style="margin:0; font-weight: 700;">Devolver Equipo al Proveedor</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Cerrar ciclo de evaluación y retornar el equipo formalmente</p>
             </div>
-            <button class="btn-close" id="btn-close-provider-return-modal"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-close" id="btn-close-return-prov-modal"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <form id="loan-provider-return-form" style="display: flex; flex-direction: column; gap: 14px; padding-top: 10px;">
+        <form id="loan-return-prov-form" style="display: flex; flex-direction: column; gap: 14px; padding-top: 10px;">
             <input type="hidden" id="provider-return-loan-id">
-
-            <div style="background: rgba(239, 68, 68, 0.06); padding: 12px; border-radius: var(--radius-md); border: 1px solid rgba(239, 68, 68, 0.2);">
+            
+            <div style="background: var(--color-surface-2); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                 <div style="font-weight: 700; color: var(--color-text);" id="provider-return-name-display"></div>
                 <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 2px;" id="provider-return-detail-display"></div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="provider-return-date">Fecha de Devolución al Proveedor *</label>
-                <input type="date" id="provider-return-date" class="form-control" required>
+                <label class="form-label" for="provider-return-date">Fecha de Devolución / Envío *</label>
+                <input type="date" id="provider-return-date" class="form-control" required style="height: 40px;">
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="provider-return-notes">Comprobante de Entrega / Comentarios Finales</label>
-                <textarea id="provider-return-notes" class="form-control" rows="2" placeholder="Entregado al representante del proveedor con acta de entrega firmada..."></textarea>
+                <label class="form-label" for="provider-return-notes">Motivo de Devolución / Conclusiones de la Prueba</label>
+                <textarea id="provider-return-notes" class="form-control" rows="2" placeholder="Pruebas finalizadas con éxito. Se evalúa cotización formal para proyecto futuro..."></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
-                <button type="button" class="btn btn-secondary" id="btn-cancel-provider-return">Cancelar</button>
-                <button type="submit" class="btn btn-danger"><i class="fa-solid fa-handshake-slash"></i> Registrar Devolución</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-return-prov-loan">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: #475569; border-color: #475569;"><i class="fa-solid fa-handshake-slash"></i> Confirmar Devolución al Proveedor</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 5. Modal Convertir a Inventario Propio -->
+<!-- 5. Modal Adquirir / Convertir a Inventario Propio -->
 <div class="modal-overlay" id="loan-convert-modal">
-    <div class="modal-content" style="max-width: 520px;">
+    <div class="modal-content" style="max-width: 550px; border-radius: 16px;">
         <div class="modal-header">
             <div>
-                <h3 style="margin:0;">Comprar y Convertir a Inventario</h3>
-                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">Transferir el equipo de demo directamente al Inventario General</p>
+                <h3 style="margin:0; font-weight: 700; color: #10b981;"><i class="fa-solid fa-cart-shopping"></i> Comprar / Transferir a Inventario</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;">El equipo ha sido adquirido y pasará a ser activo propio del hotel</p>
             </div>
-            <button class="btn-close" id="btn-close-convert-loan-modal"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-close" id="btn-close-convert-modal"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <form id="loan-convert-form" style="display: flex; flex-direction: column; gap: 14px; padding-top: 10px;">
             <input type="hidden" id="convert-loan-id">
-
-            <div style="background: rgba(16, 185, 129, 0.08); padding: 12px; border-radius: var(--radius-md); border: 1px solid rgba(16, 185, 129, 0.25);">
-                <div style="font-weight: 700; color: #065f46;" id="convert-loan-name-display"></div>
-                <div style="font-size: 0.85rem; color: #047857; margin-top: 2px;" id="convert-loan-detail-display"></div>
+            
+            <div style="background: rgba(16, 185, 129, 0.08); padding: 12px; border-radius: var(--radius-md); border: 1px solid rgba(16, 185, 129, 0.3);">
+                <div style="font-weight: 700; color: var(--color-text);" id="convert-loan-name-display"></div>
+                <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 2px;" id="convert-loan-detail-display"></div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="convert-loan-status">Estado en Inventario General *</label>
-                <select id="convert-loan-status" class="form-control" required>
-                    <option value="En Stock" selected>En Stock (Resguardado en Almacén)</option>
-                    <option value="Despachado / Instalado">Despachado / Instalado (En Operación)</option>
+                <label class="form-label" for="convert-loan-status">Estado con el que ingresará a Inventario *</label>
+                <select id="convert-loan-status" class="form-control" required style="height: 40px;">
+                    <option value="En Stock">En Almacén / Stock Propio</option>
+                    <option value="Despachado / Instalado">En Operación (Instalado / Despachado)</option>
                 </select>
             </div>
 
             <div class="form-group" id="group-convert-warehouse">
-                <label class="form-label" for="convert-loan-warehouse">Almacén Destino *</label>
-                <select id="convert-loan-warehouse" class="form-control">
+                <label class="form-label" for="convert-loan-warehouse">Almacén de Destino *</label>
+                <select id="convert-loan-warehouse" class="form-control" style="height: 40px;">
                     <option value="" disabled selected>Seleccione Almacén...</option>
                 </select>
             </div>
 
             <div class="form-group" id="group-convert-location" style="display: none;">
-                <label class="form-label" for="convert-loan-location">Hotel / Ubicación Operativa *</label>
-                <select id="convert-loan-location" class="form-control">
-                    <option value="" disabled selected>Seleccione Hotel...</option>
+                <label class="form-label" for="convert-loan-location">Hotel / Locación donde queda instalado *</label>
+                <select id="convert-loan-location" class="form-control" style="height: 40px;">
+                    <option value="" disabled selected>Seleccione Hotel / Destino...</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="convert-loan-value">Costo / Valor Final de Compra ($ USD)</label>
-                <input type="number" id="convert-loan-value" class="form-control" step="0.01" min="0">
+                <label class="form-label" for="convert-loan-value">Costo / Valor Final de Compra (RD$ / USD)</label>
+                <input type="number" id="convert-loan-value" class="form-control" step="0.01" min="0" style="height: 40px; font-family: monospace; font-weight: 700;">
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
@@ -424,5 +534,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/prestamos.js') }}?v=5.5.4"></script>
+<script src="{{ url_for('static', filename='js/prestamos.js') }}?v=5.6.5"></script>
 {% endblock %}
