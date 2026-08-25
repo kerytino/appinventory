@@ -173,9 +173,15 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="loan-provider">Proveedor del Préstamo *</label>
-                    <select id="loan-provider" class="form-control" required>
-                        <option value="" disabled selected>Seleccione Proveedor...</option>
-                    </select>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="loan-provider" list="loan-provider-list" class="form-control" placeholder="Seleccione o escriba un proveedor..." required style="flex: 1;">
+                        <datalist id="loan-provider-list">
+                            <!-- Injected by JS -->
+                        </datalist>
+                        <button type="button" class="btn btn-outline" id="btn-quick-add-provider" title="Guardar Proveedor en el Catálogo Oficial" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -418,5 +424,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/prestamos.js') }}?v=5.5.0"></script>
+<script src="{{ url_for('static', filename='js/prestamos.js') }}?v=5.5.2"></script>
 {% endblock %}

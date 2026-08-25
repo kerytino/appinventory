@@ -720,6 +720,13 @@ def add_loan():
     status = data.get('status', 'En Evaluación / Stock')
     warehouse = (data.get('warehouse') or '').strip()
     
+    provider_name = (data.get('provider') or '').strip()
+    if provider_name:
+        existing_prov = Provider.query.filter(db.func.lower(Provider.name) == provider_name.lower()).first()
+        if not existing_prov:
+            db.session.add(Provider(name=provider_name))
+            db.session.commit()
+
     new_loan = LoanDevice(
         name=name,
         device_type=dtype,
@@ -727,7 +734,7 @@ def add_loan():
         model=(data.get('model') or '').strip(),
         serial_number=(data.get('serial_number') or '').strip(),
         mac_address=(data.get('mac_address') or '').strip(),
-        provider=(data.get('provider') or '').strip(),
+        provider=provider_name,
         status=status,
         warehouse=warehouse,
         location=(data.get('location') or '').strip(),
@@ -758,7 +765,14 @@ def update_loan(loan_id):
     if 'model' in data: loan.model = (data.get('model') or '').strip()
     if 'serial_number' in data: loan.serial_number = (data.get('serial_number') or '').strip()
     if 'mac_address' in data: loan.mac_address = (data.get('mac_address') or '').strip()
-    if 'provider' in data: loan.provider = (data.get('provider') or '').strip()
+    if 'provider' in data:
+        p_name = (data.get('provider') or '').strip()
+        loan.provider = p_name
+        if p_name:
+            existing_prov = Provider.query.filter(db.func.lower(Provider.name) == p_name.lower()).first()
+            if not existing_prov:
+                db.session.add(Provider(name=p_name))
+                db.session.commit()
     if 'status' in data: loan.status = data['status']
     if 'warehouse' in data: loan.warehouse = (data.get('warehouse') or '').strip()
     if 'location' in data: loan.location = (data.get('location') or '').strip()

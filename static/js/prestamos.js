@@ -112,15 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Proveedores
-        const provSelect = document.getElementById('loan-provider');
-        if (provSelect) {
-            provSelect.innerHTML = '<option value="" disabled selected>Seleccione Proveedor...</option>';
+        // Proveedores (Datalist para permitir seleccionar o escribir uno nuevo)
+        const provDataList = document.getElementById('loan-provider-list');
+        if (provDataList) {
+            provDataList.innerHTML = '';
             allProviders.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.name;
-                opt.innerText = p.name;
-                provSelect.appendChild(opt);
+                provDataList.appendChild(opt);
             });
         }
 
@@ -446,12 +445,39 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 if (window.showToast) window.showToast(id ? 'Préstamo actualizado' : 'Préstamo registrado exitosamente', 'success');
                 loanModal.classList.remove('active');
+                await loadAuxiliaryData();
                 await fetchLoans();
             } else {
                 const err = await res.json();
                 if (window.showToast) window.showToast(err.error || 'Error al guardar', 'error');
             }
         } catch (err) {
+            if (window.showToast) window.showToast('Error de conexión', 'error');
+        }
+    });
+
+    document.getElementById('btn-quick-add-provider')?.addEventListener('click', async () => {
+        const inp = document.getElementById('loan-provider');
+        const provName = inp ? inp.value.trim() : '';
+        if (!provName) {
+            if (window.showToast) window.showToast('Escribe primero el nombre del proveedor a registrar', 'warning');
+            inp?.focus();
+            return;
+        }
+        try {
+            const res = await fetch('/api/settings/providers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: provName })
+            });
+            if (res.ok) {
+                if (window.showToast) window.showToast(`Proveedor "${provName}" guardado en el catálogo oficial`, 'success');
+                await loadAuxiliaryData();
+            } else {
+                const data = await res.json();
+                if (window.showToast) window.showToast(data.error || 'Error al guardar proveedor', 'error');
+            }
+        } catch (e) {
             if (window.showToast) window.showToast('Error de conexión', 'error');
         }
     });
