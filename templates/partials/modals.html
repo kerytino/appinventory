@@ -18,29 +18,31 @@
                         <i class="fa-solid fa-circle-info"></i> 1. Identificación y Clasificación
                     </div>
 
-                    <!-- Fila Superior: Categoría/Tipo, Marca, Modelo (Cascada del Catálogo) -->
+                    <!-- Fila Superior: Categoría/Tipo, Marca, Modelo (Cascada del Catálogo con Selectores) -->
                     <div style="display: grid; grid-template-columns: 1.1fr 1.2fr 1.3fr; gap: 16px; margin-bottom: 16px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-type" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">
                                 <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría / Tipo: <span style="color:var(--color-danger)">*</span>
                             </label>
                             <select class="form-control" id="device-type" required style="height: 40px; font-weight: 600;">
-                                <option value="" disabled selected>Selecciona categoría...</option>
+                                <option value="" disabled selected>Selecciona una categoría...</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-brand" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-tag" style="color: #f59e0b; margin-right: 4px;"></i>Marca: <span style="color:var(--color-danger)">*</span>
                             </label>
-                            <input class="form-control" type="text" id="device-brand" required placeholder="Ej: Cisco, HP, Ruckus..." list="list-brands-devices" style="height: 40px;">
-                            <datalist id="list-brands-devices"></datalist>
+                            <select class="form-control" id="device-brand" required style="height: 40px; font-weight: 600;">
+                                <option value="" disabled selected>Selecciona una marca...</option>
+                            </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-model" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-microchip" style="color: #10b981; margin-right: 4px;"></i>Modelo / Nº de Parte: <span style="color:var(--color-danger)">*</span>
                             </label>
-                            <input class="form-control" type="text" id="device-model" required placeholder="Ej: R510, Catalyst 2960..." list="list-models-devices" style="height: 40px;">
-                            <datalist id="list-models-devices"></datalist>
+                            <select class="form-control" id="device-model" required style="height: 40px; font-weight: 600;">
+                                <option value="" disabled selected>Selecciona un modelo...</option>
+                            </select>
                         </div>
                     </div>
 
