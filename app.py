@@ -252,11 +252,57 @@ class Technician(db.Model):
         return {'id': self.id, 'name': self.name}
 
 class Provider(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    id             = db.Column(db.Integer, primary_key=True)
+    name           = db.Column(db.String(100), nullable=False, unique=True)
+    rnc            = db.Column(db.String(50), nullable=True, default='')
+    contact_name   = db.Column(db.String(100), nullable=True, default='')
+    phone          = db.Column(db.String(50), nullable=True, default='')
+    email          = db.Column(db.String(120), nullable=True, default='')
+    products_notes = db.Column(db.Text, nullable=True, default='[]')
     
     def to_dict(self):
-        return {'id': self.id, 'name': self.name}
+        products_list = []
+        try:
+            if self.products_notes:
+                products_list = json.loads(self.products_notes)
+        except Exception:
+            products_list = []
+        return {
+            'id': self.id,
+            'name': self.name,
+            'rnc': self.rnc or '',
+            'contact_name': self.contact_name or '',
+            'phone': self.phone or '',
+            'email': self.email or '',
+            'products': products_list
+        }
+
+def ensure_provider_table_columns():
+    try:
+        import sqlite3
+        db_path = os.path.join(basedir, 'inventory.db')
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(provider)")
+            cols = [info[1] for info in cursor.fetchall()]
+            if cols:
+                if 'rnc' not in cols:
+                    cursor.execute("ALTER TABLE provider ADD COLUMN rnc VARCHAR(50) DEFAULT ''")
+                if 'contact_name' not in cols:
+                    cursor.execute("ALTER TABLE provider ADD COLUMN contact_name VARCHAR(100) DEFAULT ''")
+                if 'phone' not in cols:
+                    cursor.execute("ALTER TABLE provider ADD COLUMN phone VARCHAR(50) DEFAULT ''")
+                if 'email' not in cols:
+                    cursor.execute("ALTER TABLE provider ADD COLUMN email VARCHAR(120) DEFAULT ''")
+                if 'products_notes' not in cols:
+                    cursor.execute("ALTER TABLE provider ADD COLUMN products_notes TEXT DEFAULT '[]'")
+                conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"[DB MIGRATION] Error updating provider columns: {e}")
+
+ensure_provider_table_columns()
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1925,17 +1971,71 @@ def delete_technician(id):
 
 @app.route('/api/settings/providers', methods=['GET'])
 def get_providers():
-    items = Provider.query.all()
+    items = Provider.query.order_by(Provider.name.asc()).all()
     return jsonify([i.to_dict() for i in items])
 
 @app.route('/api/settings/providers', methods=['POST'])
 def add_provider():
-    data = request.json
-    item = Provider(name=data['name'])
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'El nombre del proveedor / empresa es obligatorio'}), 400
+    
+    rnc = (data.get('rnc') or '').strip()
+    contact_name = (data.get('contact_name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    email = (data.get('email') or '').strip()
+    products = data.get('products', [])
+    products_notes = json.dumps(products) if isinstance(products, list) else '[]'
+
+    existing = Provider.query.filter(db.func.lower(Provider.name) == name.lower()).first()
+    if existing:
+        existing.rnc = rnc or existing.rnc
+        existing.contact_name = contact_name or existing.contact_name
+        existing.phone = phone or existing.phone
+        existing.email = email or existing.email
+        if products:
+            existing.products_notes = products_notes
+        db.session.commit()
+        log_activity(current_username(), 'Actualizar Proveedor', f'Proveedor {existing.name} actualizado.')
+        return jsonify(existing.to_dict()), 200
+
+    item = Provider(
+        name=name,
+        rnc=rnc,
+        contact_name=contact_name,
+        phone=phone,
+        email=email,
+        products_notes=products_notes
+    )
     db.session.add(item)
     db.session.commit()
-    log_activity(current_username(), 'Nuevo Almacén', f'Almacén {item.name} creado.')
+    log_activity(current_username(), 'Nuevo Proveedor', f'Proveedor {item.name} creado con detalles.')
     return jsonify(item.to_dict()), 201
+
+@app.route('/api/settings/providers/<int:id>', methods=['PUT'])
+def update_provider(id):
+    item = Provider.query.get_or_404(id)
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'El nombre del proveedor es obligatorio'}), 400
+    
+    existing = Provider.query.filter(db.func.lower(Provider.name) == name.lower()).first()
+    if existing and existing.id != id:
+        return jsonify({'error': 'Ya existe otro proveedor con ese nombre'}), 400
+
+    item.name = name
+    item.rnc = (data.get('rnc') or '').strip()
+    item.contact_name = (data.get('contact_name') or '').strip()
+    item.phone = (data.get('phone') or '').strip()
+    item.email = (data.get('email') or '').strip()
+    products = data.get('products', [])
+    item.products_notes = json.dumps(products) if isinstance(products, list) else '[]'
+    
+    db.session.commit()
+    log_activity(current_username(), 'Editar Proveedor', f'Proveedor #{item.id} ({item.name}) actualizado.')
+    return jsonify(item.to_dict()), 200
 
 @app.route('/api/settings/providers/<int:id>', methods=['DELETE'])
 def delete_provider(id):

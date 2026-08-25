@@ -456,29 +456,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('btn-quick-add-provider')?.addEventListener('click', async () => {
+    document.getElementById('btn-quick-add-provider')?.addEventListener('click', () => {
         const inp = document.getElementById('loan-provider');
         const provName = inp ? inp.value.trim() : '';
-        if (!provName) {
-            if (window.showToast) window.showToast('Escribe primero el nombre del proveedor a registrar', 'warning');
-            inp?.focus();
-            return;
-        }
-        try {
-            const res = await fetch('/api/settings/providers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: provName })
+        if (typeof window.openProviderModal === 'function') {
+            window.openProviderModal('add', null, provName, (savedProv) => {
+                if (savedProv && savedProv.name) {
+                    if (inp) inp.value = savedProv.name;
+                    loadAuxiliaryData();
+                }
             });
-            if (res.ok) {
-                if (window.showToast) window.showToast(`Proveedor "${provName}" guardado en el catálogo oficial`, 'success');
-                await loadAuxiliaryData();
-            } else {
-                const data = await res.json();
-                if (window.showToast) window.showToast(data.error || 'Error al guardar proveedor', 'error');
-            }
-        } catch (e) {
-            if (window.showToast) window.showToast('Error de conexión', 'error');
         }
     });
 

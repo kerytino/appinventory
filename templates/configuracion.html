@@ -144,12 +144,29 @@
         </div>
 
         <div id="settings-tab-providers" class="settings-card" style="display: none;">
-             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Proveedores</h3>
-             <form id="form-add-provider" style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
-                 <input type="text" id="input-new-provider" class="form-control" placeholder="Nombre del proveedor..." required style="max-width: 300px;">
-                 <button type="submit" class="btn btn-primary">Agregar</button>
-             </form>
-             <div class="table-container"><table class="data-table"><tbody id="settings-provider-list"></tbody></table></div>
+             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: 10px;">
+                 <div>
+                     <h3 class="section-title" style="margin: 0;"><i class="fa-solid fa-truck" style="color: var(--color-primary); margin-right: 8px;"></i>Directorio de Proveedores</h3>
+                     <p class="text-secondary" style="margin: 4px 0 0 0; font-size: 13px;">Registra y administra las empresas proveedoras, RNC, contactos y productos asociados.</p>
+                 </div>
+                 <button class="btn btn-primary" id="btn-open-new-provider"><i class="fa-solid fa-plus"></i> Nuevo Proveedor</button>
+             </div>
+
+             <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+                 <table class="data-table">
+                     <thead>
+                         <tr>
+                             <th>Proveedor / Empresa</th>
+                             <th>RNC</th>
+                             <th>Contacto Principal</th>
+                             <th>Teléfono / E-mail</th>
+                             <th>Productos Vinculados</th>
+                             <th style="text-align: right;">Acciones</th>
+                         </tr>
+                     </thead>
+                     <tbody id="settings-provider-list"></tbody>
+                 </table>
+             </div>
         </div>
 
         <div id="settings-tab-users" class="settings-card" style="display: none;">

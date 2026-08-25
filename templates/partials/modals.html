@@ -508,5 +508,99 @@
         </div>
     </div>
 
+    <!-- Detailed Provider Modal (Design Matching Mockup) -->
+    <div class="modal-overlay" id="provider-modal">
+        <div class="modal-content" style="max-width: 660px; padding: 24px; border-radius: 14px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">
+                <h3 id="provider-modal-title" style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--color-text);">Nuevo Proveedor</h3>
+                <button type="button" class="btn-close" id="btn-close-provider-modal" style="background: transparent; border: none; font-size: 18px; color: var(--color-text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <form id="form-provider-details" style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="hidden" id="provider-modal-id">
+
+                <div class="form-group">
+                    <label class="form-label" for="provider-modal-name">Nombre del Proveedor / Empresa: <span style="color:var(--color-danger)">*</span></label>
+                    <input type="text" id="provider-modal-name" class="form-control" placeholder="Ej: Mayorista Tecnológico Rogers SRL" required style="font-weight: 600;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group">
+                        <label class="form-label" for="provider-modal-rnc">RNC:</label>
+                        <input type="text" id="provider-modal-rnc" class="form-control" placeholder="Ej: 101-89234-1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="provider-modal-contact">Contacto principal:</label>
+                        <input type="text" id="provider-modal-contact" class="form-control" placeholder="Ej: Carlos Rogers">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group">
+                        <label class="form-label" for="provider-modal-phone">Teléfono:</label>
+                        <input type="text" id="provider-modal-phone" class="form-control" placeholder="Ej: 829.938.1399">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="provider-modal-email">E-mail:</label>
+                        <input type="email" id="provider-modal-email" class="form-control" placeholder="compras@rogerstechsupply.com">
+                    </div>
+                </div>
+
+                <!-- Products / Items Card Section -->
+                <div style="background: var(--color-surface-2, rgba(255,255,255,0.03)); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; margin-top: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #10b981; margin-bottom: 4px; font-size: 0.95rem;">
+                        <i class="fa-solid fa-boxes-stacked"></i> Artículos / Productos que nos vende este Proveedor:
+                    </div>
+                    <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 14px;">
+                        Puedes vincular artículos del inventario o añadir nuevos productos con su costo referencial.
+                    </p>
+
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <select id="provider-modal-link-device" class="form-control" style="flex: 1;">
+                            <option value="">+ Vincular artículo existente del inventario...</option>
+                        </select>
+                        <button type="button" class="btn btn-outline" id="btn-provider-link-device" style="white-space: nowrap;">
+                            <i class="fa-solid fa-link"></i> Vincular
+                        </button>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                        <input type="text" id="provider-modal-prod-code" class="form-control" placeholder="Código" style="width: 100px;">
+                        <input type="text" id="provider-modal-prod-name" class="form-control" placeholder="Nombre de nuevo producto..." style="flex: 1; min-width: 160px;">
+                        <input type="number" step="0.01" min="0" id="provider-modal-prod-cost" class="form-control" placeholder="Costo RD$/USD" style="width: 120px;">
+                        <button type="button" class="btn btn-primary" id="btn-provider-add-custom-prod" style="background: #10b981; border-color: #10b981; white-space: nowrap;">
+                            <i class="fa-solid fa-plus"></i> Añadir
+                        </button>
+                    </div>
+
+                    <div class="table-container" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface);">
+                        <table class="data-table" style="margin: 0; font-size: 12px;">
+                            <thead>
+                                <tr style="background: var(--color-surface-2);">
+                                    <th style="padding: 8px 10px;">CÓDIGO</th>
+                                    <th style="padding: 8px 10px;">PRODUCTO</th>
+                                    <th style="padding: 8px 10px; text-align: right;">COSTO REF.</th>
+                                    <th style="padding: 8px 10px; text-align: center; width: 60px;">QUITAR</th>
+                                </tr>
+                            </thead>
+                            <tbody id="provider-modal-products-list">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 12px;">No se han agregado artículos a la lista.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--color-border);">
+                    <button type="button" class="btn btn-outline" id="btn-cancel-provider-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-provider-modal" style="background: #0284c7; border-color: #0284c7; font-weight: 600;">
+                        <i class="fa-solid fa-check"></i> Guardar Proveedor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Notification Container -->
     <div id="toast-container" class="toast-container"></div>

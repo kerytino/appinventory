@@ -4292,6 +4292,185 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- 4. Providers Settings Management ---
+    // --- 4. Providers Settings & Modal Management (Matches Design Mockup) ---
+    let currentProviderModalProducts = [];
+
+    window.openProviderModal = function(mode = 'add', provider = null, initialName = '', onSavedCallback = null) {
+        const modal = document.getElementById('provider-modal');
+        const form = document.getElementById('form-provider-details');
+        if (!modal || !form) return;
+
+        form.reset();
+        currentProviderModalProducts = [];
+
+        // Populate inventory link dropdown
+        const linkSelect = document.getElementById('provider-modal-link-device');
+        if (linkSelect) {
+            linkSelect.innerHTML = '<option value="">+ Vincular artículo existente del inventario...</option>';
+            if (window.allDevices && window.allDevices.length > 0) {
+                const seen = new Set();
+                window.allDevices.forEach(d => {
+                    const key = `${d.type} - ${d.brand || ''} ${d.model || ''}`.trim();
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        const opt = document.createElement('option');
+                        const prodData = {
+                            code: `EQ-${d.id}`,
+                            name: `${d.name} (${d.brand || ''} ${d.model || ''})`.trim(),
+                            cost: d.value ? (d.value / (d.quantity || 1)).toFixed(2) : '0.00'
+                        };
+                        opt.value = JSON.stringify(prodData);
+                        opt.textContent = `${d.name} [${d.brand || '-'} / ${d.model || '-'}] - Costo ref: $${prodData.cost}`;
+                        linkSelect.appendChild(opt);
+                    }
+                });
+            }
+        }
+
+        if (mode === 'edit' && provider) {
+            document.getElementById('provider-modal-title').textContent = `Editar Proveedor: ${provider.name}`;
+            document.getElementById('provider-modal-id').value = provider.id || '';
+            document.getElementById('provider-modal-name').value = provider.name || '';
+            document.getElementById('provider-modal-rnc').value = provider.rnc || '';
+            document.getElementById('provider-modal-contact').value = provider.contact_name || '';
+            document.getElementById('provider-modal-phone').value = provider.phone || '';
+            document.getElementById('provider-modal-email').value = provider.email || '';
+            currentProviderModalProducts = Array.isArray(provider.products) ? [...provider.products] : [];
+        } else {
+            document.getElementById('provider-modal-title').textContent = 'Nuevo Proveedor';
+            document.getElementById('provider-modal-id').value = '';
+            document.getElementById('provider-modal-name').value = initialName || '';
+            document.getElementById('provider-modal-rnc').value = '';
+            document.getElementById('provider-modal-contact').value = '';
+            document.getElementById('provider-modal-phone').value = '';
+            document.getElementById('provider-modal-email').value = '';
+            currentProviderModalProducts = [];
+        }
+
+        renderProviderModalProducts();
+        modal.classList.add('active');
+        window._providerModalCallback = onSavedCallback;
+    };
+
+    function renderProviderModalProducts() {
+        const tbody = document.getElementById('provider-modal-products-list');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (currentProviderModalProducts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 12px;">No se han agregado artículos a la lista.</td></tr>';
+            return;
+        }
+        currentProviderModalProducts.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-weight: 600; font-family: monospace;">${escapeHtml(item.code || '-')}</td>
+                <td><strong>${escapeHtml(item.name || '')}</strong></td>
+                <td style="text-align: right; color: var(--color-primary); font-weight: 600;">$${parseFloat(item.cost || 0).toFixed(2)}</td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn-icon" data-index="${index}" title="Quitar" style="color: var(--color-danger); border: none; background: transparent; cursor: pointer;">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tr.querySelector('button')?.addEventListener('click', () => {
+                currentProviderModalProducts.splice(index, 1);
+                renderProviderModalProducts();
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Modal Products Buttons
+    document.getElementById('btn-provider-link-device')?.addEventListener('click', () => {
+        const linkSelect = document.getElementById('provider-modal-link-device');
+        if (!linkSelect || !linkSelect.value) {
+            showToast('Selecciona primero un artículo del inventario', 'warning');
+            return;
+        }
+        try {
+            const item = JSON.parse(linkSelect.value);
+            currentProviderModalProducts.push(item);
+            renderProviderModalProducts();
+            linkSelect.value = '';
+        } catch(e) {}
+    });
+
+    document.getElementById('btn-provider-add-custom-prod')?.addEventListener('click', () => {
+        const codeInp = document.getElementById('provider-modal-prod-code');
+        const nameInp = document.getElementById('provider-modal-prod-name');
+        const costInp = document.getElementById('provider-modal-prod-cost');
+        
+        const name = nameInp ? nameInp.value.trim() : '';
+        if (!name) {
+            showToast('El nombre del producto es obligatorio', 'warning');
+            nameInp?.focus();
+            return;
+        }
+        const item = {
+            code: codeInp ? codeInp.value.trim() || '-' : '-',
+            name: name,
+            cost: costInp ? parseFloat(costInp.value) || 0.0 : 0.0
+        };
+        currentProviderModalProducts.push(item);
+        renderProviderModalProducts();
+        
+        if (codeInp) codeInp.value = '';
+        if (nameInp) nameInp.value = '';
+        if (costInp) costInp.value = '';
+    });
+
+    // Close & Cancel Modal
+    const closeProvModal = () => document.getElementById('provider-modal')?.classList.remove('active');
+    document.getElementById('btn-close-provider-modal')?.addEventListener('click', closeProvModal);
+    document.getElementById('btn-cancel-provider-modal')?.addEventListener('click', closeProvModal);
+
+    // Save Provider Form
+    document.getElementById('form-provider-details')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('provider-modal-id').value;
+        const name = document.getElementById('provider-modal-name').value.trim();
+        if (!name) return;
+
+        const payload = {
+            name: name,
+            rnc: document.getElementById('provider-modal-rnc').value.trim(),
+            contact_name: document.getElementById('provider-modal-contact').value.trim(),
+            phone: document.getElementById('provider-modal-phone').value.trim(),
+            email: document.getElementById('provider-modal-email').value.trim(),
+            products: currentProviderModalProducts
+        };
+
+        const url = id ? `/api/settings/providers/${id}` : '/api/settings/providers';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(id ? 'Proveedor actualizado con éxito' : `Proveedor "${name}" registrado con éxito`, 'success');
+                closeProvModal();
+                fetchProvidersConfig();
+                if (typeof fetchSettings === 'function') fetchSettings();
+                if (typeof window._providerModalCallback === 'function') {
+                    window._providerModalCallback(data);
+                }
+            } else {
+                showToast(data.error || 'Error al guardar proveedor', 'error');
+            }
+        } catch(err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // Button to open from settings
+    document.getElementById('btn-open-new-provider')?.addEventListener('click', () => {
+        window.openProviderModal('add');
+    });
+
     async function fetchProvidersConfig() {
         const listBody = document.getElementById('settings-provider-list');
         if (!listBody) return;
@@ -4311,20 +4490,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!listBody) return;
         listBody.innerHTML = '';
         if (providers.length === 0) {
-            listBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay proveedores registrados</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay proveedores registrados</td></tr>';
             return;
         }
         providers.forEach(p => {
             const tr = document.createElement('tr');
+            const prodsCount = (p.products && Array.isArray(p.products)) ? p.products.length : 0;
+            const prodsBadge = prodsCount > 0 
+                ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px;"><i class="fa-solid fa-box-open"></i> ${prodsCount} producto(s)</span>`
+                : '<span style="color: var(--color-text-secondary); font-size: 12px;">Ninguno</span>';
+
+            const contactDisplay = p.contact_name ? `<strong>${escapeHtml(p.contact_name)}</strong>` : '<span style="color: var(--color-text-secondary);">-</span>';
+            const phoneEmail = (p.phone || p.email) 
+                ? `<div style="font-size: 12px;">${p.phone ? `<div><i class="fa-solid fa-phone" style="color:#10b981; margin-right:4px;"></i>${escapeHtml(p.phone)}</div>` : ''}${p.email ? `<div><i class="fa-solid fa-envelope" style="color:#0284c7; margin-right:4px;"></i>${escapeHtml(p.email)}</div>` : ''}</div>`
+                : '<span style="color: var(--color-text-secondary);">-</span>';
+
             tr.innerHTML = `
-                <td><strong><i class="fa-solid fa-truck" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(p.name)}</strong></td>
-                <td style="text-align: right;">
-                    <button class="btn-icon btn-delete-provider" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Eliminar Proveedor" style="color: var(--color-danger);">
+                <td>
+                    <div style="font-weight: 700; color: var(--color-text);"><i class="fa-solid fa-truck" style="color: var(--color-primary); margin-right: 8px;"></i>${escapeHtml(p.name)}</div>
+                </td>
+                <td><span style="font-family: monospace; font-weight: 600; color: var(--color-text-secondary);">${escapeHtml(p.rnc || '-')}</span></td>
+                <td>${contactDisplay}</td>
+                <td>${phoneEmail}</td>
+                <td>${prodsBadge}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn edit btn-edit-provider" data-id="${p.id}" title="Editar Detalles del Proveedor" style="margin-right: 6px;">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="action-btn delete btn-delete-provider" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Eliminar Proveedor">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
             `;
             listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-edit-provider').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                const p = providers.find(item => item.id === id);
+                if (p) {
+                    window.openProviderModal('edit', p);
+                }
+            });
         });
 
         listBody.querySelectorAll('.btn-delete-provider').forEach(btn => {
@@ -4337,7 +4545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (res.ok) {
                         showToast(`Proveedor "${name}" eliminado`, 'success');
                         fetchProvidersConfig();
-                        fetchSettings();
+                        if (typeof fetchSettings === 'function') fetchSettings();
                     } else {
                         showToast('Error al eliminar proveedor', 'error');
                     }
@@ -4347,31 +4555,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
-
-    document.getElementById('form-add-provider')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = document.getElementById('input-new-provider');
-        const name = input.value.trim();
-        if (!name) return;
-        try {
-            const res = await fetch('/api/settings/providers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                showToast(`Proveedor "${name}" agregado`, 'success');
-                input.value = '';
-                fetchProvidersConfig();
-                fetchSettings();
-            } else {
-                showToast(data.error || 'Error al agregar proveedor', 'error');
-            }
-        } catch(err) {
-            showToast('Error de conexión', 'error');
-        }
-    });
 
     // --- 5. Catalog Settings Management ---
     async function fetchCatalogConfig() {
