@@ -137,6 +137,7 @@ def send_email_alert(subject, body, recipients=None, ignore_enabled=False, overr
 
 class Device(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(50), nullable=True, default='')
     name = db.Column(db.String(100), nullable=False)
     device_type = db.Column(db.String(50), nullable=False)
     brand = db.Column(db.String(100), nullable=True, default='')
@@ -149,6 +150,13 @@ class Device(db.Model):
     warehouse = db.Column(db.String(100), nullable=True, default='')
     description = db.Column(db.Text, nullable=True)
     value = db.Column(db.Float, nullable=False, default=0.0)
+    cost_price = db.Column(db.Float, nullable=False, default=0.0)
+    profit_margin = db.Column(db.Float, nullable=False, default=0.0)
+    sale_price_rd = db.Column(db.Float, nullable=False, default=0.0)
+    sale_price_usd = db.Column(db.Float, nullable=False, default=0.0)
+    sale_price_eur = db.Column(db.Float, nullable=False, default=0.0)
+    min_stock = db.Column(db.Integer, nullable=False, default=0)
+    provider = db.Column(db.String(150), nullable=True, default='')
     dispatched_by = db.Column(db.String(100), nullable=True)
     warranty_sent_by = db.Column(db.String(100), nullable=True)
     warranty_sent_date = db.Column(db.DateTime, nullable=True)
@@ -160,22 +168,30 @@ class Device(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'sku': self.sku or f"EQ-{self.id:03d}",
             'name': self.name,
             'type': self.device_type,
-            'brand': self.brand,
-            'model': self.model,
-            'serial_number': self.serial_number,
-            'mac_address': self.mac_address,
+            'brand': self.brand or '',
+            'model': self.model or '',
+            'serial_number': self.serial_number or '',
+            'mac_address': self.mac_address or '',
             'status': self.status,
             'repair_count': self.repair_count,
-            'location': self.location,
-            'warehouse': self.warehouse,
-            'description': self.description,
+            'location': self.location or '',
+            'warehouse': self.warehouse or '',
+            'description': self.description or '',
             'value': self.value,
+            'cost_price': self.cost_price if self.cost_price else (self.value / (self.quantity or 1)),
+            'profit_margin': self.profit_margin or 0.0,
+            'sale_price_rd': self.sale_price_rd or 0.0,
+            'sale_price_usd': self.sale_price_usd or 0.0,
+            'sale_price_eur': self.sale_price_eur or 0.0,
+            'min_stock': self.min_stock or 0,
+            'provider': self.provider or self.warranty_provider or '',
             'quantity': self.quantity,
-            'dispatched_by': self.dispatched_by,
-            'warranty_sent_by': self.warranty_sent_by,
-            'warranty_provider': self.warranty_provider,
+            'dispatched_by': self.dispatched_by or '',
+            'warranty_sent_by': self.warranty_sent_by or '',
+            'warranty_provider': self.warranty_provider or self.provider or '',
             'warranty_sent_date': self.warranty_sent_date.strftime('%Y-%m-%d') if self.warranty_sent_date else '',
             'warranty_received_date': self.warranty_received_date.strftime('%Y-%m-%d') if self.warranty_received_date else '',
             'date_added': self.date_added.strftime('%Y-%m-%d %H:%M:%S')
@@ -738,6 +754,23 @@ with app.app_context():
     except Exception:
         pass
 
+    # Migraciones: Columnas avanzadas en tabla device
+    for col_def in [
+        "ALTER TABLE device ADD COLUMN sku VARCHAR(50) DEFAULT ''",
+        "ALTER TABLE device ADD COLUMN cost_price FLOAT NOT NULL DEFAULT 0.0",
+        "ALTER TABLE device ADD COLUMN profit_margin FLOAT NOT NULL DEFAULT 0.0",
+        "ALTER TABLE device ADD COLUMN sale_price_rd FLOAT NOT NULL DEFAULT 0.0",
+        "ALTER TABLE device ADD COLUMN sale_price_usd FLOAT NOT NULL DEFAULT 0.0",
+        "ALTER TABLE device ADD COLUMN sale_price_eur FLOAT NOT NULL DEFAULT 0.0",
+        "ALTER TABLE device ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE device ADD COLUMN provider VARCHAR(150) DEFAULT ''"
+    ]:
+        try:
+            db.session.execute(db.text(col_def))
+            db.session.commit()
+        except Exception:
+            pass
+
     # Consolidar duplicados en el inicio del servidor
     consolidate_existing_inventory()
 
@@ -1169,10 +1202,19 @@ def add_device():
     
     if status in ['En Stock', 'Reparado'] and not warehouse:
         return jsonify({'error': 'El Almacén de Resguardo es obligatorio para equipos en Stock'}), 400
-        
+    
+    cost_p = float(data.get('cost_price') or 0.0)
+    qty = int(data.get('quantity', 1))
+    val = float(data.get('value', 0.0))
+    if not val and cost_p:
+        val = cost_p * qty
+    if not cost_p and val and qty:
+        cost_p = val / qty
+
     new_device = Device(
+        sku=(data.get('sku') or '').strip(),
         name=data['name'],
-        device_type=data['type'],
+        device_type=data.get('type') or 'General',
         brand=data.get('brand', ''),
         model=data.get('model', ''),
         serial_number=data.get('serial_number', ''),
@@ -1183,10 +1225,17 @@ def add_device():
         warehouse=warehouse,
         dispatched_by=data.get('dispatched_by', ''),
         warranty_sent_by=data.get('warranty_sent_by', ''),
-        warranty_provider=data.get('warranty_provider', ''),
+        warranty_provider=data.get('warranty_provider', '') or data.get('provider', ''),
+        provider=data.get('provider', '') or data.get('warranty_provider', ''),
+        cost_price=cost_p,
+        profit_margin=float(data.get('profit_margin') or 0.0),
+        sale_price_rd=float(data.get('sale_price_rd') or 0.0),
+        sale_price_usd=float(data.get('sale_price_usd') or 0.0),
+        sale_price_eur=float(data.get('sale_price_eur') or 0.0),
+        min_stock=int(data.get('min_stock') or 0),
         description=data.get('description', ''),
-        value=float(data.get('value', 0.0)),
-        quantity=int(data.get('quantity', 1))
+        value=val,
+        quantity=qty
     )
     
     if new_device.status == 'Reparación / Garantía':
@@ -1246,6 +1295,7 @@ def update_device(device_id):
         data['value'] = new_value
         
         cloned_device = Device(
+            sku=device.sku,
             name=device.name,
             device_type=device.device_type,
             brand=device.brand,
@@ -1258,6 +1308,13 @@ def update_device(device_id):
             warehouse=old_warehouse,
             description=device.description,
             value=remaining_value,
+            cost_price=device.cost_price,
+            profit_margin=device.profit_margin,
+            sale_price_rd=device.sale_price_rd,
+            sale_price_usd=device.sale_price_usd,
+            sale_price_eur=device.sale_price_eur,
+            min_stock=device.min_stock,
+            provider=device.provider,
             quantity=remaining_qty,
             dispatched_by=device.dispatched_by,
             warranty_sent_by=device.warranty_sent_by,
@@ -1269,12 +1326,22 @@ def update_device(device_id):
         log_activity(current_username(), 'Edición de Equipo (División)', 
                      f'Se dividió el lote de {device.name}. {new_quantity} unidades movidas a {new_status} (Valor: {new_value}) y {remaining_qty} unidades retenidas en {old_status} (Valor: {remaining_value}).')
     
+    if 'sku' in data: device.sku = data['sku'].strip()
     if 'name' in data: device.name = data['name']
     if 'type' in data: device.device_type = data['type']
     if 'brand' in data: device.brand = data['brand']
     if 'model' in data: device.model = data['model']
     if 'serial_number' in data: device.serial_number = data['serial_number']
     if 'mac_address' in data: device.mac_address = data['mac_address']
+    if 'cost_price' in data: device.cost_price = float(data['cost_price'] or 0.0)
+    if 'profit_margin' in data: device.profit_margin = float(data['profit_margin'] or 0.0)
+    if 'sale_price_rd' in data: device.sale_price_rd = float(data['sale_price_rd'] or 0.0)
+    if 'sale_price_usd' in data: device.sale_price_usd = float(data['sale_price_usd'] or 0.0)
+    if 'sale_price_eur' in data: device.sale_price_eur = float(data['sale_price_eur'] or 0.0)
+    if 'min_stock' in data: device.min_stock = int(data['min_stock'] or 0)
+    if 'provider' in data:
+        device.provider = data['provider'].strip()
+        device.warranty_provider = data['provider'].strip()
     
     if 'status' in data: 
         new_status = data['status']

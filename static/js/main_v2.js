@@ -511,13 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCloseModal = document.getElementById('btn-close-modal');
     const btnCancel = document.getElementById('btn-cancel');
     const deviceForm = document.getElementById('device-form');
-    
-    // Selectors for dynamic selects
-    const deviceTypeSelect = document.getElementById('device-type');
-    const brandSelect = document.getElementById('device-brand');
-    const modelSelect = document.getElementById('device-model');
 
-    function updateBrandModelSuggestions(selectedBrand = null, selectedModel = null) {
     async function saveCatalogEntryQuick(entry) {
         try {
             await fetch('/api/settings/catalog', {
@@ -541,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!typeSelect) return;
         
         const currentVal = selectedType || typeSelect.value;
-        typeSelect.innerHTML = '<option value="" disabled selected>Seleccionar tipo...</option>';
+        typeSelect.innerHTML = '<option value="" disabled selected>Selecciona una categoría del catálogo...</option>';
         
         const allTypes = getCombinedDeviceTypes();
         allTypes.forEach(t => {
@@ -566,100 +560,172 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateBrandModelSuggestions(selectedBrand = null, selectedModel = null) {
         const typeSelect = document.getElementById('device-type');
-        const brandSelect = document.getElementById('device-brand');
-        const modelSelect = document.getElementById('device-model');
+        const brandList = document.getElementById('list-brands-devices');
+        const modelList = document.getElementById('list-models-devices');
+        const brandInp = document.getElementById('device-brand');
+        const modelInp = document.getElementById('device-model');
         
-        if (!typeSelect || !brandSelect || !modelSelect) return;
-        
+        if (!typeSelect) return;
         const type = (typeSelect.value || '').trim();
-        
-        if (!type || type === '__new__') {
-            brandSelect.innerHTML = '<option value="" disabled selected>Selecciona tipo primero...</option>';
-            brandSelect.disabled = true;
-            modelSelect.innerHTML = '<option value="" disabled selected>Selecciona marca primero...</option>';
-            modelSelect.disabled = true;
-            return;
-        }
-        
-        brandSelect.disabled = false;
-        
-        // 1. Populate Brands matching Type from catalog (case-insensitive)
         const typeUpper = type.toUpperCase();
-        const matchingBrands = [...new Set(
-            equipmentCatalog
-                .filter(c => c.type && c.type.trim().toUpperCase() === typeUpper && c.brand && c.brand.trim())
-                .map(c => c.brand.trim())
-        )].sort();
-        
-        const currentBrandVal = selectedBrand !== null ? selectedBrand : brandSelect.value;
-        brandSelect.innerHTML = '<option value="" disabled selected>Seleccionar marca...</option>';
-        
-        matchingBrands.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b;
-            opt.textContent = b;
-            if (currentBrandVal && b.toUpperCase() === currentBrandVal.toUpperCase()) opt.selected = true;
-            brandSelect.appendChild(opt);
-        });
-        
-        const newBrandOpt = document.createElement('option');
-        newBrandOpt.value = '__new__';
-        newBrandOpt.textContent = '+ Agregar nueva marca...';
-        newBrandOpt.style.fontWeight = 'bold';
-        newBrandOpt.style.color = '#2563eb';
-        brandSelect.appendChild(newBrandOpt);
-        
-        if (matchingBrands.length === 1 && (!currentBrandVal || currentBrandVal === '__new__')) {
-            brandSelect.value = matchingBrands[0];
-        } else if (currentBrandVal) {
-            const found = matchingBrands.find(b => b.toUpperCase() === currentBrandVal.toUpperCase());
-            if (found) brandSelect.value = found;
-        }
-        
-        // 2. Populate Models matching Type & Brand from catalog
-        const activeBrand = (brandSelect.value || '').trim();
-        if (!activeBrand || activeBrand === '__new__') {
-            modelSelect.innerHTML = '<option value="" disabled selected>Selecciona marca primero...</option>';
-            modelSelect.disabled = true;
-            return;
-        }
-        
-        modelSelect.disabled = false;
-        const brandUpper = activeBrand.toUpperCase();
-        const matchingModels = [...new Set(
-            equipmentCatalog
-                .filter(c => c.type && c.type.trim().toUpperCase() === typeUpper && 
-                             c.brand && c.brand.trim().toUpperCase() === brandUpper && 
-                             c.model && c.model.trim())
-                .map(c => c.model.trim())
-        )].sort();
-        
-        const currentModelVal = selectedModel !== null ? selectedModel : modelSelect.value;
-        modelSelect.innerHTML = '<option value="" disabled selected>Seleccionar modelo...</option>';
-        
-        matchingModels.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m;
-            opt.textContent = m;
-            if (currentModelVal && m.toUpperCase() === currentModelVal.toUpperCase()) opt.selected = true;
-            modelSelect.appendChild(opt);
-        });
-        
-        const newModelOpt = document.createElement('option');
-        newModelOpt.value = '__new__';
-        newModelOpt.textContent = '+ Agregar nuevo modelo...';
-        newModelOpt.style.fontWeight = 'bold';
-        newModelOpt.style.color = '#2563eb';
-        modelSelect.appendChild(newModelOpt);
-        
-        if (matchingModels.length === 1 && (!currentModelVal || currentModelVal === '__new__')) {
-            modelSelect.value = matchingModels[0];
-        } else if (currentModelVal) {
-            const found = matchingModels.find(m => m.toUpperCase() === currentModelVal.toUpperCase());
-            if (found) modelSelect.value = found;
+
+        // 1. Datalist Brands
+        if (brandList) {
+            brandList.innerHTML = '';
+            const matchingBrands = [...new Set(
+                equipmentCatalog
+                    .filter(c => !typeUpper || (c.type && c.type.trim().toUpperCase() === typeUpper))
+                    .map(c => (c.brand || '').trim())
+                    .filter(Boolean)
+            )].sort();
+
+            matchingBrands.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                brandList.appendChild(opt);
+            });
         }
 
-        updateMinStockSuggestion();
+        // 2. Datalist Models
+        if (modelList) {
+            modelList.innerHTML = '';
+            const currentBrand = ((selectedBrand !== null ? selectedBrand : (brandInp ? brandInp.value : '')) || '').trim().toUpperCase();
+            const matchingModels = [...new Set(
+                equipmentCatalog
+                    .filter(c => (!typeUpper || (c.type && c.type.trim().toUpperCase() === typeUpper)) &&
+                                 (!currentBrand || (c.brand && c.brand.trim().toUpperCase() === currentBrand)))
+                    .map(c => (c.model || '').trim())
+                    .filter(Boolean)
+            )].sort();
+
+            matchingModels.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                modelList.appendChild(opt);
+            });
+        }
+
+        if (selectedBrand !== null && brandInp) brandInp.value = selectedBrand;
+        if (selectedModel !== null && modelInp) modelInp.value = selectedModel;
+    }
+
+    async function populateProvidersDropdownForDevice(selectedProv = '') {
+        const provSelect = document.getElementById('device-provider');
+        if (!provSelect) return;
+        try {
+            const res = await fetch('/api/settings/providers');
+            if (res.ok) {
+                const providers = await res.json();
+                provSelect.innerHTML = '<option value="">-- Sin Proveedor Asignado / Opcional --</option>';
+                providers.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.name + (p.rnc ? ` [RNC: ${p.rnc}]` : '');
+                    if (selectedProv && (p.name.trim().toLowerCase() === selectedProv.trim().toLowerCase())) {
+                        opt.selected = true;
+                    }
+                    provSelect.appendChild(opt);
+                });
+                if (selectedProv) {
+                    provSelect.value = selectedProv;
+                }
+            }
+        } catch(e) {
+            console.error("Error loading providers for device modal:", e);
+        }
+    }
+
+    // Button + Proveedor in device modal
+    document.getElementById('btn-device-open-new-provider')?.addEventListener('click', () => {
+        if (typeof window.openProviderModal === 'function') {
+            window.openProviderModal('add', null, '', (newProv) => {
+                if (newProv && newProv.name) {
+                    populateProvidersDropdownForDevice(newProv.name);
+                }
+            });
+        }
+    });
+
+    function calculateLiveFinancials(source = 'cost_margin') {
+        const costInp = document.getElementById('device-cost-price');
+        const marginInp = document.getElementById('device-profit-margin');
+        const saleRdInp = document.getElementById('device-sale-price-rd');
+        const saleUsdInp = document.getElementById('device-sale-price-usd');
+        const saleEurInp = document.getElementById('device-sale-price-eur');
+        const qtyInp = document.getElementById('device-quantity');
+        const totalValInp = document.getElementById('device-value');
+        const unitPriceInp = document.getElementById('device-unit-price');
+
+        if (!costInp || !marginInp || !saleRdInp) return;
+
+        const cost = parseFloat(costInp.value) || 0.0;
+        let margin = parseFloat(marginInp.value) || 0.0;
+        let saleRd = parseFloat(saleRdInp.value) || 0.0;
+        const qty = parseInt(qtyInp?.value) || 1;
+
+        if (source === 'cost_margin') {
+            saleRd = cost > 0 ? (cost * (1 + margin / 100)) : 0.0;
+            saleRdInp.value = saleRd > 0 ? saleRd.toFixed(2) : '';
+            if (saleUsdInp && (!saleUsdInp.value || saleUsdInp.dataset.auto === 'true' || source === 'cost_margin')) {
+                saleUsdInp.value = saleRd > 0 ? (saleRd / 60.0).toFixed(2) : '';
+                saleUsdInp.dataset.auto = 'true';
+            }
+            if (saleEurInp && (!saleEurInp.value || saleEurInp.dataset.auto === 'true' || source === 'cost_margin')) {
+                saleEurInp.value = saleRd > 0 ? (saleRd / 65.0).toFixed(2) : '';
+                saleEurInp.dataset.auto = 'true';
+            }
+        } else if (source === 'sale_price') {
+            if (cost > 0 && saleRd > 0) {
+                margin = ((saleRd - cost) / cost) * 100;
+                marginInp.value = margin.toFixed(1);
+            }
+            if (saleUsdInp) saleUsdInp.value = saleRd > 0 ? (saleRd / 60.0).toFixed(2) : '';
+            if (saleEurInp) saleEurInp.value = saleRd > 0 ? (saleRd / 65.0).toFixed(2) : '';
+        }
+
+        // Sync legacy value & unit price
+        if (unitPriceInp) unitPriceInp.value = cost.toFixed(2);
+        if (totalValInp) totalValInp.value = (cost * qty).toFixed(2);
+
+        // Live Financial Metrics Banner
+        const netProfit = saleRd > 0 ? (saleRd - cost) : 0.0;
+        const marginOnSale = saleRd > 0 ? (netProfit / saleRd) * 100 : 0.0;
+        const markupOnCost = cost > 0 ? (netProfit / cost) * 100 : 0.0;
+
+        const elProfit = document.getElementById('live-net-profit');
+        const elMargin = document.getElementById('live-margin-sale');
+        const elMarkup = document.getElementById('live-markup-cost');
+
+        if (elProfit) elProfit.textContent = `RD$ ${netProfit.toFixed(2)}`;
+        if (elMargin) elMargin.textContent = `${marginOnSale.toFixed(1)}%`;
+        if (elMarkup) elMarkup.textContent = `${markupOnCost.toFixed(1)}%`;
+    }
+
+    // Attach real-time input listeners for pricing
+    document.getElementById('device-cost-price')?.addEventListener('input', () => calculateLiveFinancials('cost_margin'));
+    document.getElementById('device-profit-margin')?.addEventListener('input', () => calculateLiveFinancials('cost_margin'));
+    document.getElementById('device-sale-price-rd')?.addEventListener('input', () => calculateLiveFinancials('sale_price'));
+    document.getElementById('device-quantity')?.addEventListener('input', () => calculateLiveFinancials('cost_margin'));
+
+    document.getElementById('device-brand')?.addEventListener('input', () => updateBrandModelSuggestions());
+    document.getElementById('device-type')?.addEventListener('change', (e) => {
+        if (e.target.value === '__new__') {
+            quickAddType();
+        } else {
+            updateBrandModelSuggestions();
+        }
+    });
+
+    async function quickAddType() {
+        const newType = prompt("Ingrese el nombre del nuevo Tipo de Equipo (ej: FIREWALL, ACCESS POINT, SWITCH):");
+        if (!newType || !newType.trim()) {
+            populateDeviceTypeDropdown();
+            return;
+        }
+        const cleanType = newType.trim().toUpperCase();
+        await saveCatalogEntryQuick({ type: cleanType, brand: '', model: '' });
+        populateDeviceTypeDropdown(cleanType);
+        updateBrandModelSuggestions();
     }
 
     function populateWarehouseDropdown(selectedVal = null) {
@@ -680,162 +746,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function getMinStockLimit(warehouse, brand, model) {
-        if (!stockLimits) return 0;
-        const cleanBrand = (brand || '').trim().toUpperCase();
-        const cleanModel = (model || '').trim().toUpperCase();
-        const cleanWh = (warehouse || '').trim().toUpperCase();
-        
-        // Try specific warehouse key
-        if (cleanWh && cleanWh !== 'SIN ALMACÉN / POR DEFECTO') {
-            for (const [key, val] of Object.entries(stockLimits)) {
-                const parts = key.split(' | ');
-                if (parts.length > 1) {
-                    const kWh = parts[0].trim().toUpperCase();
-                    const kMod = parts.slice(1).join(' | ').trim().toUpperCase();
-                    if (kWh === cleanWh && (kMod === `${cleanBrand} ${cleanModel}` || kMod === cleanModel)) {
-                        return parseInt(val) || 0;
-                    }
-                }
-            }
-        }
-        
-        // Try default / any warehouse key
-        for (const [key, val] of Object.entries(stockLimits)) {
-            const parts = key.split(' | ');
-            const kMod = (parts.length > 1 ? parts.slice(1).join(' | ') : key).trim().toUpperCase();
-            if (kMod === `${cleanBrand} ${cleanModel}` || kMod === cleanModel) {
-                const num = parseInt(val) || 0;
-                if (num > 0) return num;
-            }
-        }
-        return 0;
-    }
-
-    function updateMinStockSuggestion() {
-        const brand = (document.getElementById('device-brand')?.value || '').trim();
-        const model = (document.getElementById('device-model')?.value || '').trim();
-        const warehouse = (document.getElementById('device-warehouse')?.value || '').trim();
-        const minStockInput = document.getElementById('device-min-stock');
-        if (!minStockInput) return;
-        
-        if (brand && model && brand !== '__new__' && model !== '__new__') {
-            minStockInput.value = getMinStockLimit(warehouse, brand, model);
-        }
-    }
-
-    async function quickAddType() {
-        const newType = prompt("Ingrese el nombre del nuevo Tipo de Equipo (ej: FIREWALL, ACCESS POINT, SWITCH):");
-        if (!newType || !newType.trim()) {
-            populateDeviceTypeDropdown();
-            return;
-        }
-        const cleanType = newType.trim().toUpperCase();
-        await saveCatalogEntryQuick({ type: cleanType, brand: '', model: '' });
-        populateDeviceTypeDropdown(cleanType);
-        updateBrandModelSuggestions();
-    }
-
-    async function quickAddBrand() {
-        const typeSelect = document.getElementById('device-type');
-        const currentType = typeSelect ? typeSelect.value : '';
-        if (!currentType || currentType === '__new__') {
-            alert('Por favor selecciona primero un Tipo de Equipo.');
-            updateBrandModelSuggestions();
-            return;
-        }
-        const newBrand = prompt(`Ingrese la nueva Marca para ${currentType} (ej: CISCO, RUCKUS, UBIQUITI):`);
-        if (!newBrand || !newBrand.trim()) {
-            updateBrandModelSuggestions();
-            return;
-        }
-        const cleanBrand = newBrand.trim().toUpperCase();
-        await saveCatalogEntryQuick({ type: currentType, brand: cleanBrand, model: '' });
-        updateBrandModelSuggestions(cleanBrand, null);
-    }
-
-    async function quickAddModel() {
-        const typeSelect = document.getElementById('device-type');
-        const brandSelect = document.getElementById('device-brand');
-        const currentType = typeSelect ? typeSelect.value : '';
-        const currentBrand = brandSelect ? brandSelect.value : '';
-        if (!currentType || currentType === '__new__' || !currentBrand || currentBrand === '__new__') {
-            alert('Por favor selecciona primero un Tipo y una Marca.');
-            updateBrandModelSuggestions();
-            return;
-        }
-        const newModel = prompt(`Ingrese el nuevo Modelo para ${currentBrand} (${currentType}):`);
-        if (!newModel || !newModel.trim()) {
-            updateBrandModelSuggestions();
-            return;
-        }
-        const cleanModel = newModel.trim();
-        await saveCatalogEntryQuick({ type: currentType, brand: currentBrand, model: cleanModel });
-        updateBrandModelSuggestions(currentBrand, cleanModel);
-    }
-
-    const typeSelectEl = document.getElementById('device-type');
-    const brandSelectEl = document.getElementById('device-brand');
-    const modelSelectEl = document.getElementById('device-model');
-    
-    if (typeSelectEl) {
-        typeSelectEl.addEventListener('change', () => {
-            if (typeSelectEl.value === '__new__') {
-                quickAddType();
-            } else {
-                updateBrandModelSuggestions();
-            }
-        });
-    }
-    
-    if (brandSelectEl) {
-        brandSelectEl.addEventListener('change', () => {
-            if (brandSelectEl.value === '__new__') {
-                quickAddBrand();
-            } else {
-                updateBrandModelSuggestions();
-            }
-        });
-    }
-    
-    if (modelSelectEl) {
-        modelSelectEl.addEventListener('change', () => {
-            if (modelSelectEl.value === '__new__') {
-                quickAddModel();
-            }
-        });
-    }
-    
-    const btnQuickType = document.getElementById('btn-quick-add-type');
-    const btnQuickBrand = document.getElementById('btn-quick-add-brand');
-    const btnQuickModel = document.getElementById('btn-quick-add-model');
-    
-    if (btnQuickType) btnQuickType.addEventListener('click', quickAddType);
-    if (btnQuickBrand) btnQuickBrand.addEventListener('click', quickAddBrand);
-    if (btnQuickModel) btnQuickModel.addEventListener('click', quickAddModel);
-
     async function openModal(mode = 'add', device = null) {
         try {
             const res = await fetch('/api/settings/catalog');
             if (res.ok) equipmentCatalog = await res.json();
         } catch(e){}
-        populateDeviceTypeDropdown(device ? device.type : null);
+        
         modal.classList.add('active');
+        populateDeviceTypeDropdown(device ? device.type : null);
         
         const statusSelect = document.getElementById('device-status');
         const dispatchedOption = statusSelect ? statusSelect.querySelector('option[value="Despachado / Instalado"]') : null;
         
         if (mode === 'add') {
-            document.getElementById('modal-title').innerText = 'Registrar Equipo';
-            document.getElementById('modal-title').innerText = 'Registrar Equipo';
+            document.getElementById('modal-title').innerHTML = '<i class="fa-solid fa-box" style="color: var(--color-primary);"></i><span>Registrar Artículo</span>';
             deviceForm.reset();
             populateWarehouseDropdown();
             document.getElementById('device-id').value = '';
+            document.getElementById('device-sku').value = '';
             document.getElementById('device-quantity').value = 1;
-            const unitInput = document.getElementById('device-unit-price');
-            if (unitInput) unitInput.value = '';
-            document.getElementById('device-value').value = '';
+            document.getElementById('device-min-stock').value = 3;
+            document.getElementById('device-profit-margin').value = 35;
+            document.getElementById('device-cost-price').value = '';
+            document.getElementById('device-sale-price-rd').value = '';
+            document.getElementById('device-sale-price-usd').value = '';
+            document.getElementById('device-sale-price-eur').value = '';
+            
+            populateProvidersDropdownForDevice('');
             updateBrandModelSuggestions();
+            calculateLiveFinancials('cost_margin');
             
             if (dispatchedOption) {
                 dispatchedOption.style.display = 'none';
@@ -846,46 +785,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 dispatchedOption.style.display = 'block';
                 dispatchedOption.disabled = false;
             }
-            document.getElementById('modal-title').innerText = 'Editar Equipo';
+            document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color: var(--color-primary);"></i><span>Editar Artículo: ${escapeHtml(device.name)}</span>`;
             document.getElementById('device-id').value = device.id;
-            document.getElementById('device-name').value = device.name;
-            document.getElementById('device-type').value = device.type;
-            populateWarehouseDropdown(device.warehouse || '');
-            document.getElementById('device-warehouse').value = device.warehouse || '';
-            updateBrandModelSuggestions(device.brand, device.model);
+            document.getElementById('device-sku').value = device.sku || `EQ-${device.id}`;
+            document.getElementById('device-name').value = device.name || '';
+            document.getElementById('device-type').value = device.type || '';
+            document.getElementById('device-brand').value = device.brand || '';
+            document.getElementById('device-model').value = device.model || '';
             document.getElementById('device-serial').value = device.serial_number || '';
             document.getElementById('device-mac').value = device.mac_address || '';
-            document.getElementById('device-status').value = device.status;
+            document.getElementById('device-description').value = device.description || '';
+            document.getElementById('device-status').value = device.status || 'En Stock';
             
             const qty = parseInt(device.quantity) || 1;
-            const totalVal = parseFloat(device.value) || 0.0;
-            const unitPrice = qty > 0 ? (totalVal / qty) : totalVal;
+            const costVal = parseFloat(device.cost_price) || (device.value ? (device.value / qty) : 0.0);
             
             document.getElementById('device-quantity').value = qty;
-            const unitInput = document.getElementById('device-unit-price');
-            if (unitInput) unitInput.value = unitPrice.toFixed(2);
-            document.getElementById('device-value').value = totalVal.toFixed(2);
+            document.getElementById('device-min-stock').value = device.min_stock || 0;
+            document.getElementById('device-cost-price').value = costVal > 0 ? costVal.toFixed(2) : '';
+            document.getElementById('device-profit-margin').value = device.profit_margin || 35;
+            document.getElementById('device-sale-price-rd').value = device.sale_price_rd ? parseFloat(device.sale_price_rd).toFixed(2) : '';
+            document.getElementById('device-sale-price-usd').value = device.sale_price_usd ? parseFloat(device.sale_price_usd).toFixed(2) : '';
+            document.getElementById('device-sale-price-eur').value = device.sale_price_eur ? parseFloat(device.sale_price_eur).toFixed(2) : '';
             
-            document.getElementById('device-description').value = device.description;
-            document.getElementById('device-repair-count').value = device.repair_count || 0;
+            populateWarehouseDropdown(device.warehouse || '');
+            populateProvidersDropdownForDevice(device.provider || device.warranty_provider || '');
+            updateBrandModelSuggestions(device.brand, device.model);
+            
             document.getElementById('device-location').value = device.location || '';
             document.getElementById('device-dispatched-by').value = device.dispatched_by || '';
-            const elSent = document.getElementById('device-warranty-sent');
-            const elRec = document.getElementById('device-warranty-received');
-            elSent.value = device.warranty_sent_date || '';
-            elRec.value = device.warranty_received_date || '';
-            elSent.readOnly = !!device.warranty_sent_date;
-            elRec.readOnly = !!device.warranty_received_date;
-            if (document.getElementById('device-warranty-provider')) {
-                document.getElementById('device-warranty-provider').value = device.warranty_provider || '';
-            }
+            
+            calculateLiveFinancials(device.sale_price_rd ? 'sale_price' : 'cost_margin');
         }
         toggleDynamicFields();
-        updateMinStockSuggestion();
     }
-
-    document.getElementById('device-warehouse')?.addEventListener('input', updateMinStockSuggestion);
-    document.getElementById('device-warehouse')?.addEventListener('change', updateMinStockSuggestion);
 
     function toggleDynamicFields() {
         const status = document.getElementById('device-status').value;
@@ -912,73 +845,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('group-dispatched-by').style.display = isDeployed ? 'block' : 'none';
         }
         if (dispInput) dispInput.required = isDeployed;
-
-        // Siempre mostrar el contador de reparaciones para que se pueda ver/editar
-        const groupRepairCount = document.getElementById('group-repair-count');
-        if (groupRepairCount) groupRepairCount.style.display = 'block';
-
-        const groupWarranty = document.getElementById('group-warranty');
-        if (groupWarranty) {
-            if (status === 'En Reparación / Garantía' || status === 'Reparación / Garantía') {
-                groupWarranty.style.display = 'flex';
-            } else {
-                groupWarranty.style.display = 'none';
-            }
-        }
     }
 
     document.getElementById('device-status')?.addEventListener('change', toggleDynamicFields);
-
-    // --- Sincronización en tiempo real: Cantidad x Precio Unitario = Valor Total ---
-    function syncDevicePriceFromUnit() {
-        const qtyInp = document.getElementById('device-quantity');
-        const unitInp = document.getElementById('device-unit-price');
-        const totalInp = document.getElementById('device-value');
-        if (!qtyInp || !unitInp || !totalInp) return;
-
-        const qty = parseFloat(qtyInp.value) || 0;
-        const unit = parseFloat(unitInp.value) || 0;
-        if (unitInp.value !== '') {
-            totalInp.value = (qty * unit).toFixed(2);
-        }
-    }
-
-    function syncDevicePriceFromTotal() {
-        const qtyInp = document.getElementById('device-quantity');
-        const unitInp = document.getElementById('device-unit-price');
-        const totalInp = document.getElementById('device-value');
-        if (!qtyInp || !unitInp || !totalInp) return;
-
-        const qty = parseFloat(qtyInp.value) || 1;
-        const total = parseFloat(totalInp.value) || 0;
-        if (qty > 0 && totalInp.value !== '') {
-            unitInp.value = (total / qty).toFixed(2);
-        }
-    }
-
-    document.getElementById('device-quantity')?.addEventListener('input', syncDevicePriceFromUnit);
-    document.getElementById('device-unit-price')?.addEventListener('input', syncDevicePriceFromUnit);
-    document.getElementById('device-value')?.addEventListener('input', syncDevicePriceFromTotal);
-
-    modelSelect.addEventListener('change', () => {
-        const id = document.getElementById('device-id').value;
-        if (!id) {
-            const brand = brandSelect.value;
-            const model = modelSelect.value;
-            if (brand && model) {
-                const match = allDevices.find(d => 
-                    d.brand && d.brand.toLowerCase() === brand.toLowerCase() &&
-                    d.model && d.model.toLowerCase() === model.toLowerCase()
-                );
-                if (match) {
-                    const unitValue = (match.value || 0.0) / (match.quantity || 1);
-                    const unitInput = document.getElementById('device-unit-price');
-                    if (unitInput) unitInput.value = unitValue.toFixed(2);
-                    syncDevicePriceFromUnit();
-                }
-            }
-        }
-    });
 
     function closeModal() {
         modal.classList.remove('active');
@@ -1691,33 +1560,31 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const id = document.getElementById('device-id').value;
         const finalQty = parseInt(document.getElementById('device-quantity').value) || 1;
-        const totalValField = parseFloat(document.getElementById('device-value').value);
-        const unitValField = parseFloat(document.getElementById('device-unit-price')?.value);
-        
-        let calculatedValue = 0;
-        if (!isNaN(totalValField) && totalValField > 0) {
-            calculatedValue = totalValField;
-        } else if (!isNaN(unitValField) && unitValField > 0) {
-            calculatedValue = finalQty * unitValField;
-        }
+        const costPrice = parseFloat(document.getElementById('device-cost-price')?.value) || 0.0;
+        const totalValField = parseFloat(document.getElementById('device-value')?.value) || (costPrice * finalQty);
 
         const data = {
-            name: document.getElementById('device-name').value,
+            sku: document.getElementById('device-sku')?.value.trim() || '',
+            name: document.getElementById('device-name').value.trim(),
             type: document.getElementById('device-type').value,
-            brand: document.getElementById('device-brand').value,
-            model: document.getElementById('device-model').value,
-            serial_number: document.getElementById('device-serial').value,
-            mac_address: document.getElementById('device-mac').value,
+            brand: document.getElementById('device-brand').value.trim(),
+            model: document.getElementById('device-model').value.trim(),
+            serial_number: document.getElementById('device-serial').value.trim(),
+            mac_address: document.getElementById('device-mac').value.trim(),
             status: document.getElementById('device-status').value,
-            value: calculatedValue,
+            cost_price: costPrice,
+            profit_margin: parseFloat(document.getElementById('device-profit-margin')?.value) || 0.0,
+            sale_price_rd: parseFloat(document.getElementById('device-sale-price-rd')?.value) || 0.0,
+            sale_price_usd: parseFloat(document.getElementById('device-sale-price-usd')?.value) || 0.0,
+            sale_price_eur: parseFloat(document.getElementById('device-sale-price-eur')?.value) || 0.0,
+            min_stock: parseInt(document.getElementById('device-min-stock')?.value) || 0,
+            provider: document.getElementById('device-provider')?.value || '',
+            value: totalValField,
             quantity: finalQty,
-            description: document.getElementById('device-description').value,
+            description: document.getElementById('device-description').value.trim(),
             warehouse: document.getElementById('device-warehouse').value,
             location: document.getElementById('device-location').value,
-            dispatched_by: document.getElementById('device-dispatched-by').value,
-            warranty_sent_date: document.getElementById('device-warranty-sent').value,
-            warranty_received_date: document.getElementById('device-warranty-received').value,
-            warranty_provider: document.getElementById('device-warranty-provider') ? document.getElementById('device-warranty-provider').value : ''
+            dispatched_by: document.getElementById('device-dispatched-by').value
         };
 
         // Validate required fields by status
