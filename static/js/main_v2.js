@@ -2183,22 +2183,64 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '';
         window.archiveDataMap = {};
         
+        if (!archives || archives.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 24px;">
+                        <i class="fa-solid fa-box-archive" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5;"></i>
+                        No hay periodos archivados en el historial aún.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
         archives.forEach(a => {
             window.archiveDataMap[a.id] = a;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${a.period}</strong></td>
-                <td>${a.date_archived.split(' ')[0]}</td>
-                <td style="color: var(--danger);">${formatCurrency(a.total_value)}</td>
-                <td>
-                    <button class="btn-secondary" style="padding: 6px 12px; font-size:13px;" onclick="window.downloadArchiveCSV(${a.id})">
-                        <i class="fa-solid fa-download"></i> CSV
+                <td>${a.date_archived ? a.date_archived.split(' ')[0] : '-'}</td>
+                <td style="color: var(--color-danger); font-weight: 600;">${formatCurrency(a.total_value)}</td>
+                <td style="white-space: nowrap;">
+                    <button class="btn btn-primary" style="padding: 5px 10px; font-size:12px; margin-right: 6px;" title="Descargar Hoja Oficial en PDF" onclick="window.downloadArchivePDF(${a.id})">
+                        <i class="fa-solid fa-file-pdf"></i> PDF
+                    </button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size:12px;" title="Descargar Datos en CSV" onclick="window.downloadArchiveCSV(${a.id})">
+                        <i class="fa-solid fa-file-csv"></i> CSV
                     </button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     }
+
+    window.downloadArchivePDF = async function(id) {
+        const archive = window.archiveDataMap ? window.archiveDataMap[id] : null;
+        const periodName = archive ? archive.period : `#${id}`;
+        try {
+            showToast(`Generando PDF del historial "${periodName}"...`, 'info');
+            const res = await fetch(`/api/decommissions/archive/${id}/pdf`);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Error al generar el PDF');
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const cleanName = (archive ? archive.period : `decomiso_${id}`).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            a.download = `Historial_Decomiso_${cleanName}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            showToast('PDF de historial descargado exitosamente', 'success');
+        } catch(err) {
+            console.error('Error al descargar PDF del historial:', err);
+            showToast(err.message || 'Error al descargar PDF', 'error');
+        }
+    };
 
     window.downloadArchiveCSV = function(id) {
         const archive = window.archiveDataMap[id];

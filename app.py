@@ -1721,6 +1721,56 @@ def export_decommission_pdf():
     )
 
 
+@app.route('/api/decommissions/archive/<int:archive_id>/pdf', methods=['GET'])
+def export_archive_decommission_pdf(archive_id):
+    archive = db.session.get(DecommissionArchive, archive_id)
+    if not archive:
+        return jsonify({'error': 'Archivo histórico no encontrado'}), 404
+
+    try:
+        data_list = json.loads(archive.data_dump)
+    except Exception:
+        data_list = []
+
+    # Detectar hotel si aplica
+    hotel_obj = None
+    if data_list:
+        distinct_hotels = list(set([d.get('hotel') for d in data_list if d.get('hotel') and d.get('hotel') != 'No especificado']))
+        if len(distinct_hotels) == 1:
+            hotel_obj = Hotel.query.filter(db.func.lower(Hotel.name) == distinct_hotels[0].lower()).first()
+
+    params = {
+        'no_control': f"HIST-{archive.id:04d}",
+        'department': 'SISTEMAS',
+        'decommission_type': 'BAJA DE EQUIPO',
+        'applicant': 'HISTORIAL ARCHIVADO',
+        'reason': f"Historial Archivado del periodo: {archive.period}",
+        'other_notes': f"Archivo Histórico #{archive.id} • Fecha de Cierre: {archive.date_archived.strftime('%Y-%m-%d %H:%M:%S')}",
+        'date_str': format_spanish_date(archive.date_archived)
+    }
+
+    if hotel_obj:
+        params['hotel_name'] = hotel_obj.name
+        params['hotel_sigla'] = hotel_obj.sigla or ''
+        params['hotel_logo'] = hotel_obj.logo or ''
+        params['location'] = hotel_obj.name.upper()
+    else:
+        params['hotel_name'] = f"HISTORIAL - {archive.period.upper()}"
+        params['location'] = f"TODOS LOS HOTELES ({archive.period.upper()})"
+
+    pdf_buffer = create_decommission_pdf_buffer(data_list, params)
+
+    clean_period = archive.period.replace(' ', '_').replace('/', '_').lower()
+    filename = f"Historial_Decomiso_{clean_period}_{archive.date_archived.strftime('%Y%m%d')}.pdf"
+
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 # --- Settings API: Warehouses ---
 @app.route('/api/settings/warehouses', methods=['GET'])
 def get_warehouses():
