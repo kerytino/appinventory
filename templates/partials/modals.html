@@ -87,101 +87,43 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN 2: Estructura Financiera, Precios y Rentabilidad -->
+                <!-- SECCIÓN 2: Existencias, Costos y Ubicación -->
                 <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                     <div style="font-size: 13px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-                        <i class="fa-solid fa-coins"></i> 2. Precios, Costos y Rentabilidad
+                        <i class="fa-solid fa-boxes-stacked"></i> 2. Existencias, Costos y Almacenamiento
                     </div>
 
-                    <!-- Fila de Costo Compra, Margen y Precio Venta RD$ -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 16px; margin-bottom: 16px;">
+                    <!-- Fila: Costo Unitario, Cantidad y Valor Total en Inventario -->
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 16px; margin-bottom: 16px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-cost-price" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-hand-holding-dollar" style="color: #f59e0b; margin-right: 4px;"></i>Costo Compra (RD$): <span style="color:var(--color-danger)">*</span>
+                                <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Unitario (RD$): <span style="color:var(--color-danger)">*</span>
                             </label>
                             <input class="form-control" type="number" id="device-cost-price" step="0.01" min="0" required placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-profit-margin" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-percent" style="color: #10b981; margin-right: 4px;"></i>% Ganancia Sugerida:
-                            </label>
-                            <input class="form-control" type="number" id="device-profit-margin" step="0.1" min="0" placeholder="35" value="35" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-sale-price-rd" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-tag" style="color: #0284c7; margin-right: 4px;"></i>Precio Venta Final (RD$):
-                            </label>
-                            <input class="form-control" type="number" id="device-sale-price-rd" step="0.01" min="0" placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; color: #0284c7; height: 40px;">
-                        </div>
-                    </div>
-
-                    <!-- Fila de Divisas Extranjeras -->
-                    <div style="background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <span style="font-weight: 700; font-size: 12px; color: var(--color-text-secondary); text-transform: uppercase;">
-                                <i class="fa-solid fa-globe" style="margin-right: 4px;"></i> Precios en Moneda Extranjera (Referenciales)
-                            </span>
-                            <small style="color: var(--color-text-secondary); font-size: 11px;">Calculados automáticamente según tasa estimada</small>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" for="device-sale-price-usd" style="font-size: 12px; margin-bottom: 4px;">Dólares (US$):</label>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-weight: 700; font-size: 13px; color: var(--color-text-secondary);">US$</span>
-                                    <input class="form-control" type="number" id="device-sale-price-usd" step="0.01" min="0" placeholder="0.00" style="font-family: monospace; font-weight: 600; height: 36px;">
-                                </div>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" for="device-sale-price-eur" style="font-size: 12px; margin-bottom: 4px;">Euros (€):</label>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-weight: 700; font-size: 13px; color: var(--color-text-secondary);">€</span>
-                                    <input class="form-control" type="number" id="device-sale-price-eur" step="0.01" min="0" placeholder="0.00" style="font-family: monospace; font-weight: 600; height: 36px;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Banner de Indicadores Financieros en Vivo -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px 18px; text-align: center;">
-                        <div>
-                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">GANANCIA NETA (RD$)</div>
-                            <div id="live-net-profit" style="font-size: 1.25rem; font-weight: 800; color: #34d399; font-family: monospace; margin-top: 3px;">RD$ 0.00</div>
-                        </div>
-                        <div style="border-left: 1px solid #334155; border-right: 1px solid #334155;">
-                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">MARGEN S/ VENTA (%)</div>
-                            <div id="live-margin-sale" style="font-size: 1.25rem; font-weight: 800; color: #38bdf8; font-family: monospace; margin-top: 3px;">0.0%</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">MARKUP S/ COSTO (%)</div>
-                            <div id="live-markup-cost" style="font-size: 1.25rem; font-weight: 800; color: #c084fc; font-family: monospace; margin-top: 3px;">0.0%</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SECCIÓN 3: Stock, Almacén y Datos Operativos -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                    <div style="font-size: 13px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-                        <i class="fa-solid fa-boxes-stacked"></i> 3. Existencias, Ubicación y Estado
-                    </div>
-
-                    <!-- Fila: Stock y Reorden -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-quantity" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Cantidad en Almacén (Stock Actual): <span style="color:var(--color-danger)">*</span>
+                            <label class="form-label" for="device-quantity" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-box" style="color: #6366f1; margin-right: 4px;"></i>Cantidad (Stock): <span style="color:var(--color-danger)">*</span>
                             </label>
                             <input class="form-control" type="number" id="device-quantity" min="1" placeholder="1" value="1" required style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-min-stock" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Alerta Mínima de Reorden (Stock Mín.):
+                            <label class="form-label" for="device-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-calculator" style="color: #10b981; margin-right: 4px;"></i>Valor Total Lote (RD$):
                             </label>
-                            <input class="form-control" type="number" id="device-min-stock" min="0" value="3" placeholder="3" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
+                            <input class="form-control" type="number" id="device-value" step="0.01" min="0" readonly placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; color: #10b981; background: var(--color-surface); height: 40px; cursor: default;">
+                            <input type="hidden" id="device-unit-price" value="0">
                         </div>
                     </div>
 
-                    <!-- Fila: Almacén y Estado -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <!-- Fila: Reorden, Almacén y Estado -->
+                    <div style="display: grid; grid-template-columns: 1fr 1.3fr 1.2fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="device-min-stock" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                                Stock Mínimo (Alerta):
+                            </label>
+                            <input class="form-control" type="number" id="device-min-stock" min="0" value="3" placeholder="3" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
+                        </div>
                         <div class="form-group" id="group-warehouse" style="margin-bottom: 0;">
                             <label class="form-label" for="device-warehouse" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
                                 Almacén de Resguardo: <span style="color:var(--color-danger)">*</span>
@@ -236,10 +178,6 @@
                             <input class="form-control" type="text" id="device-mac" placeholder="Opcional" style="height: 40px;">
                         </div>
                     </div>
-
-                    <!-- Hidden Value Field (Synced automatically) -->
-                    <input type="hidden" id="device-value" value="0">
-                    <input type="hidden" id="device-unit-price" value="0">
                 </div>
 
                 <!-- Botones Cancelar / Guardar -->

@@ -646,66 +646,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function calculateLiveFinancials(source = 'cost_margin') {
+    function syncDeviceCostAndTotal() {
         const costInp = document.getElementById('device-cost-price');
-        const marginInp = document.getElementById('device-profit-margin');
-        const saleRdInp = document.getElementById('device-sale-price-rd');
-        const saleUsdInp = document.getElementById('device-sale-price-usd');
-        const saleEurInp = document.getElementById('device-sale-price-eur');
         const qtyInp = document.getElementById('device-quantity');
         const totalValInp = document.getElementById('device-value');
         const unitPriceInp = document.getElementById('device-unit-price');
 
-        if (!costInp || !marginInp || !saleRdInp) return;
-
-        const cost = parseFloat(costInp.value) || 0.0;
-        let margin = parseFloat(marginInp.value) || 0.0;
-        let saleRd = parseFloat(saleRdInp.value) || 0.0;
+        const cost = parseFloat(costInp?.value) || 0.0;
         const qty = parseInt(qtyInp?.value) || 1;
+        const total = cost * qty;
 
-        if (source === 'cost_margin') {
-            saleRd = cost > 0 ? (cost * (1 + margin / 100)) : 0.0;
-            saleRdInp.value = saleRd > 0 ? saleRd.toFixed(2) : '';
-            if (saleUsdInp && (!saleUsdInp.value || saleUsdInp.dataset.auto === 'true' || source === 'cost_margin')) {
-                saleUsdInp.value = saleRd > 0 ? (saleRd / 60.0).toFixed(2) : '';
-                saleUsdInp.dataset.auto = 'true';
-            }
-            if (saleEurInp && (!saleEurInp.value || saleEurInp.dataset.auto === 'true' || source === 'cost_margin')) {
-                saleEurInp.value = saleRd > 0 ? (saleRd / 65.0).toFixed(2) : '';
-                saleEurInp.dataset.auto = 'true';
-            }
-        } else if (source === 'sale_price') {
-            if (cost > 0 && saleRd > 0) {
-                margin = ((saleRd - cost) / cost) * 100;
-                marginInp.value = margin.toFixed(1);
-            }
-            if (saleUsdInp) saleUsdInp.value = saleRd > 0 ? (saleRd / 60.0).toFixed(2) : '';
-            if (saleEurInp) saleEurInp.value = saleRd > 0 ? (saleRd / 65.0).toFixed(2) : '';
-        }
-
-        // Sync legacy value & unit price
+        if (totalValInp) totalValInp.value = total.toFixed(2);
         if (unitPriceInp) unitPriceInp.value = cost.toFixed(2);
-        if (totalValInp) totalValInp.value = (cost * qty).toFixed(2);
-
-        // Live Financial Metrics Banner
-        const netProfit = saleRd > 0 ? (saleRd - cost) : 0.0;
-        const marginOnSale = saleRd > 0 ? (netProfit / saleRd) * 100 : 0.0;
-        const markupOnCost = cost > 0 ? (netProfit / cost) * 100 : 0.0;
-
-        const elProfit = document.getElementById('live-net-profit');
-        const elMargin = document.getElementById('live-margin-sale');
-        const elMarkup = document.getElementById('live-markup-cost');
-
-        if (elProfit) elProfit.textContent = `RD$ ${netProfit.toFixed(2)}`;
-        if (elMargin) elMargin.textContent = `${marginOnSale.toFixed(1)}%`;
-        if (elMarkup) elMarkup.textContent = `${markupOnCost.toFixed(1)}%`;
     }
 
     // Attach real-time input listeners for pricing
-    document.getElementById('device-cost-price')?.addEventListener('input', () => calculateLiveFinancials('cost_margin'));
-    document.getElementById('device-profit-margin')?.addEventListener('input', () => calculateLiveFinancials('cost_margin'));
-    document.getElementById('device-sale-price-rd')?.addEventListener('input', () => calculateLiveFinancials('sale_price'));
-    document.getElementById('device-quantity')?.addEventListener('input', () => calculateLiveFinancials('cost_margin'));
+    document.getElementById('device-cost-price')?.addEventListener('input', syncDeviceCostAndTotal);
+    document.getElementById('device-quantity')?.addEventListener('input', syncDeviceCostAndTotal);
 
     document.getElementById('device-brand')?.addEventListener('input', () => updateBrandModelSuggestions());
     document.getElementById('device-type')?.addEventListener('change', (e) => {
@@ -766,15 +723,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('device-sku').value = '';
             document.getElementById('device-quantity').value = 1;
             document.getElementById('device-min-stock').value = 3;
-            document.getElementById('device-profit-margin').value = 35;
             document.getElementById('device-cost-price').value = '';
-            document.getElementById('device-sale-price-rd').value = '';
-            document.getElementById('device-sale-price-usd').value = '';
-            document.getElementById('device-sale-price-eur').value = '';
+            document.getElementById('device-value').value = '0.00';
             
             populateProvidersDropdownForDevice('');
             updateBrandModelSuggestions();
-            calculateLiveFinancials('cost_margin');
+            syncDeviceCostAndTotal();
             
             if (dispatchedOption) {
                 dispatchedOption.style.display = 'none';
@@ -799,14 +753,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const qty = parseInt(device.quantity) || 1;
             const costVal = parseFloat(device.cost_price) || (device.value ? (device.value / qty) : 0.0);
+            const totalVal = parseFloat(device.value) || (costVal * qty);
             
             document.getElementById('device-quantity').value = qty;
             document.getElementById('device-min-stock').value = device.min_stock || 0;
             document.getElementById('device-cost-price').value = costVal > 0 ? costVal.toFixed(2) : '';
-            document.getElementById('device-profit-margin').value = device.profit_margin || 35;
-            document.getElementById('device-sale-price-rd').value = device.sale_price_rd ? parseFloat(device.sale_price_rd).toFixed(2) : '';
-            document.getElementById('device-sale-price-usd').value = device.sale_price_usd ? parseFloat(device.sale_price_usd).toFixed(2) : '';
-            document.getElementById('device-sale-price-eur').value = device.sale_price_eur ? parseFloat(device.sale_price_eur).toFixed(2) : '';
+            document.getElementById('device-value').value = totalVal.toFixed(2);
             
             populateWarehouseDropdown(device.warehouse || '');
             populateProvidersDropdownForDevice(device.provider || device.warranty_provider || '');
@@ -815,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('device-location').value = device.location || '';
             document.getElementById('device-dispatched-by').value = device.dispatched_by || '';
             
-            calculateLiveFinancials(device.sale_price_rd ? 'sale_price' : 'cost_margin');
+            syncDeviceCostAndTotal();
         }
         toggleDynamicFields();
     }
@@ -1573,10 +1525,6 @@ document.addEventListener('DOMContentLoaded', () => {
             mac_address: document.getElementById('device-mac').value.trim(),
             status: document.getElementById('device-status').value,
             cost_price: costPrice,
-            profit_margin: parseFloat(document.getElementById('device-profit-margin')?.value) || 0.0,
-            sale_price_rd: parseFloat(document.getElementById('device-sale-price-rd')?.value) || 0.0,
-            sale_price_usd: parseFloat(document.getElementById('device-sale-price-usd')?.value) || 0.0,
-            sale_price_eur: parseFloat(document.getElementById('device-sale-price-eur')?.value) || 0.0,
             min_stock: parseInt(document.getElementById('device-min-stock')?.value) || 0,
             provider: document.getElementById('device-provider')?.value || '',
             value: totalValField,
