@@ -4654,26 +4654,127 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Procesador genérico de archivos de imagen (Cámara Nativa o Galería)
+    // Carga de archivo a objeto Image
+    function loadImageFromFile(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                resolve(img);
+            };
+            img.onerror = (e) => {
+                URL.revokeObjectURL(url);
+                reject(e);
+            };
+            img.src = url;
+        });
+    }
+
+    // Convierte un canvas a File para Html5Qrcode
+    function canvasToFile(canvas, quality = 0.92) {
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                const file = new File([blob], "scanned_code.jpg", { type: "image/jpeg" });
+                resolve(file);
+            }, "image/jpeg", quality);
+        });
+    }
+
+    // Motor de decodificación ultra-optimizado para fotos móviles de alta resolución
     async function processScannedImageFile(file) {
-        if (!file || typeof Html5Qrcode === 'undefined') return;
+        if (!file) return;
         const statusEl = document.getElementById('scanner-status-msg');
         if (statusEl) {
-            statusEl.innerText = 'Procesando imagen...';
+            statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"></i> <span>Analizando código de barras o QR...</span>';
             statusEl.style.display = 'block';
             statusEl.style.background = 'rgba(37, 99, 235, 0.08)';
             statusEl.style.color = 'var(--color-primary)';
         }
+
         try {
-            const scannerInstance = html5QrScanner || new Html5Qrcode("scanner-reader");
-            const decodedText = await scannerInstance.scanFile(file, true);
-            handleScanSuccess(decodedText);
+            const img = await loadImageFromFile(file);
+            
+            let scannerInstance = html5QrScanner;
+            if (!scannerInstance && typeof Html5Qrcode !== 'undefined') {
+                scannerInstance = new Html5Qrcode("scanner-reader");
+            }
+
+            if (!scannerInstance) {
+                throw new Error("Librería de escáner no disponible");
+            }
+
+            let decodedText = null;
+            const targetDimensions = [1200, 800, 1600];
+
+            for (const maxDim of targetDimensions) {
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Pasada 1: Imagen escalada optimizada
+                try {
+                    const optimizedFile = await canvasToFile(canvas);
+                    decodedText = await scannerInstance.scanFile(optimizedFile, false);
+                    if (decodedText) break;
+                } catch(e) {}
+
+                // Pasada 2: Escala de grises y aumento de contraste para códigos de barra 1D
+                try {
+                    const imgData = ctx.getImageData(0, 0, width, height);
+                    const d = imgData.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                        const factor = 1.4;
+                        const contrastGray = Math.min(255, Math.max(0, factor * (gray - 128) + 128));
+                        d[i] = contrastGray;
+                        d[i + 1] = contrastGray;
+                        d[i + 2] = contrastGray;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    const contrastFile = await canvasToFile(canvas);
+                    decodedText = await scannerInstance.scanFile(contrastFile, false);
+                    if (decodedText) break;
+                } catch(e) {}
+            }
+
+            // Fallback final: archivo crudo
+            if (!decodedText) {
+                try {
+                    decodedText = await scannerInstance.scanFile(file, true);
+                } catch(e) {}
+            }
+
+            if (decodedText) {
+                handleScanSuccess(decodedText);
+            } else {
+                if (statusEl) {
+                    statusEl.innerText = 'No se detectó un código legible. Enfoca la etiqueta de cerca con buena iluminación.';
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = 'rgba(239, 68, 68, 0.08)';
+                    statusEl.style.color = '#ef4444';
+                }
+            }
         } catch(err) {
-            console.error('Error al leer imagen:', err);
+            console.error('Error al decodificar foto:', err);
             if (statusEl) {
-                statusEl.innerText = 'No se detectó ningún código legible en la foto. Intenta tomarla más cerca y con buena iluminación.';
+                statusEl.innerText = 'Error al procesar la foto. Intenta tomarla nuevamente.';
                 statusEl.style.display = 'block';
-                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.08)';
                 statusEl.style.color = '#ef4444';
             }
         }

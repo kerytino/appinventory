@@ -720,18 +720,18 @@
                 </div>
 
                 <!-- Banner Alternativo para Conexiones HTTP / IP Local -->
-                <div id="scanner-http-fallback-box" style="display: none; background: rgba(37, 99, 235, 0.08); border: 1px dashed var(--color-primary); border-radius: 12px; padding: 18px; text-align: center; flex-direction: column; align-items: center; gap: 12px;">
-                    <div style="font-size: 32px; color: var(--color-primary);">
+                <div id="scanner-http-fallback-box" style="display: none; background: var(--color-surface-hover); border: 2px dashed var(--color-primary); border-radius: 14px; padding: 22px 18px; text-align: center; flex-direction: column; align-items: center; gap: 14px;">
+                    <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--color-primary-light); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 26px;">
                         <i class="fa-solid fa-camera"></i>
                     </div>
                     <div>
-                        <strong style="color: var(--color-text); font-size: 14px; display: block; margin-bottom: 4px;">Cámara Rápida de 1 Toque</strong>
-                        <p style="font-size: 12px; color: var(--color-text-secondary); margin: 0;">
-                            Toma una foto al código de barras o QR y el sistema lo leerá al instante.
+                        <strong style="color: var(--color-text); font-size: 15px; display: block; margin-bottom: 4px;">Captura de Código con Cámara</strong>
+                        <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0; line-height: 1.4;">
+                            Toma una foto enfocando el código de barras o QR de la etiqueta.
                         </p>
                     </div>
-                    <label class="btn btn-primary" style="padding: 10px 24px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
-                        <i class="fa-solid fa-camera"></i> <span>Abrir Cámara del Teléfono</span>
+                    <label class="btn btn-primary" style="padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); width: 100%; justify-content: center;">
+                        <i class="fa-solid fa-camera"></i> <span>Tomar Foto del Código</span>
                         <input type="file" id="scanner-native-camera-input" accept="image/*" capture="environment" style="display: none;">
                     </label>
                 </div>
@@ -750,11 +750,11 @@
                     </label>
                 </div>
 
-                <div id="scanner-status-msg" style="display: none; font-size: 12px; text-align: center; padding: 8px 12px; border-radius: 8px; line-height: 1.4;"></div>
+                <div id="scanner-status-msg" style="display: none; font-size: 13px; text-align: center; padding: 10px 14px; border-radius: 8px; line-height: 1.4;"></div>
             </div>
 
             <div class="modal-footer" style="padding: 12px 0 0 0; margin-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; background: none;">
-                <button type="button" class="btn btn-secondary" id="btn-cancel-scanner" style="width: 100%; height: 40px; font-weight: 600;">Cerrar Escáner</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-scanner" style="width: 100%; height: 42px; font-weight: 600;">Cerrar Escáner</button>
             </div>
         </div>
     </div>
