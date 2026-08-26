@@ -4406,6 +4406,237 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('device-modal')?.classList.remove('active');
     });
 
+    // ==========================================
+    // ESCÁNER DE CÓDIGOS DE BARRA Y QR
+    // ==========================================
+    let html5QrScanner = null;
+    let scannerActiveTargetInput = null;
+    let availableCameras = [];
+    let currentCameraIndex = 0;
+    let isTorchOn = false;
+
+    function playBeepSound() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.15);
+        } catch(e) {}
+    }
+
+    async function startScanner(targetInputId, fieldLabel) {
+        scannerActiveTargetInput = targetInputId;
+        const scannerModal = document.getElementById('scanner-modal');
+        const hintEl = document.getElementById('scanner-target-hint');
+        const statusEl = document.getElementById('scanner-status-msg');
+        const switchCamBtn = document.getElementById('btn-scanner-switch-camera');
+        const torchBtn = document.getElementById('btn-scanner-torch');
+
+        if (hintEl) {
+            hintEl.innerText = `Apunta la cámara al código de barras o QR para: ${fieldLabel}`;
+        }
+        if (statusEl) {
+            statusEl.style.display = 'none';
+            statusEl.innerText = '';
+        }
+        if (switchCamBtn) switchCamBtn.style.display = 'none';
+        if (torchBtn) torchBtn.style.display = 'none';
+
+        scannerModal?.classList.add('active');
+
+        if (typeof Html5Qrcode === 'undefined') {
+            if (statusEl) {
+                statusEl.innerText = 'Librería de escáner no disponible. Puedes ingresar el valor manualmente o cargar una imagen.';
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusEl.style.color = '#ef4444';
+            }
+            return;
+        }
+
+        try {
+            if (!html5QrScanner) {
+                html5QrScanner = new Html5Qrcode("scanner-reader");
+            }
+
+            try {
+                availableCameras = await Html5Qrcode.getCameras();
+                if (availableCameras && availableCameras.length > 1 && switchCamBtn) {
+                    switchCamBtn.style.display = 'inline-flex';
+                }
+            } catch(e) {}
+
+            const config = {
+                fps: 15,
+                qrbox: { width: 250, height: 180 },
+                aspectRatio: 1.333334,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            };
+
+            const cameraConfig = availableCameras && availableCameras.length > 0
+                ? (availableCameras[currentCameraIndex]?.id || { facingMode: "environment" })
+                : { facingMode: "environment" };
+
+            await html5QrScanner.start(
+                cameraConfig,
+                config,
+                (decodedText) => {
+                    handleScanSuccess(decodedText);
+                },
+                () => {}
+            );
+
+            try {
+                const stream = html5QrScanner.getRunningTrackCameraCapabilities();
+                if (stream && stream.torchFeature && stream.torchFeature().isSupported() && torchBtn) {
+                    torchBtn.style.display = 'inline-flex';
+                }
+            } catch(e) {}
+
+        } catch (err) {
+            console.error('Error al iniciar escáner:', err);
+            if (statusEl) {
+                statusEl.innerText = 'No se pudo acceder a la cámara. Revisa los permisos del navegador o usa "Cargar Imagen".';
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusEl.style.color = '#ef4444';
+            }
+        }
+    }
+
+    async function stopScanner() {
+        if (html5QrScanner) {
+            try {
+                if (html5QrScanner.isScanning) {
+                    await html5QrScanner.stop();
+                }
+            } catch(e) {
+                console.warn('Error al detener escáner:', e);
+            }
+        }
+        document.getElementById('scanner-modal')?.classList.remove('active');
+        scannerActiveTargetInput = null;
+        isTorchOn = false;
+    }
+
+    function handleScanSuccess(scannedCode) {
+        if (!scannedCode || !scannerActiveTargetInput) return;
+        
+        let cleanCode = scannedCode.trim();
+
+        if (scannerActiveTargetInput === 'device-mac') {
+            cleanCode = cleanCode.replace(/^MAC:?/i, '').trim();
+        } else if (scannerActiveTargetInput === 'device-serial') {
+            cleanCode = cleanCode.replace(/^S\/?N:?/i, '').replace(/^SERIAL:?/i, '').trim();
+        }
+
+        const inputEl = document.getElementById(scannerActiveTargetInput);
+        if (inputEl) {
+            inputEl.value = cleanCode;
+            inputEl.focus();
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        playBeepSound();
+        if (navigator.vibrate) {
+            navigator.vibrate([80]);
+        }
+
+        if (typeof showToast === 'function') {
+            showToast(`Código capturado: ${cleanCode}`, 'success');
+        }
+
+        stopScanner();
+    }
+
+    // Event listeners para botones de escaneo
+    document.getElementById('btn-scan-serial')?.addEventListener('click', () => {
+        startScanner('device-serial', 'Número de Serie (S/N)');
+    });
+
+    document.getElementById('btn-scan-mac')?.addEventListener('click', () => {
+        startScanner('device-mac', 'Dirección MAC');
+    });
+
+    document.getElementById('btn-close-scanner')?.addEventListener('click', stopScanner);
+    document.getElementById('btn-cancel-scanner')?.addEventListener('click', stopScanner);
+
+    // Cambiar cámara
+    document.getElementById('btn-scanner-switch-camera')?.addEventListener('click', async () => {
+        if (!availableCameras || availableCameras.length <= 1 || !html5QrScanner) return;
+        currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+        try {
+            if (html5QrScanner.isScanning) {
+                await html5QrScanner.stop();
+            }
+            const config = {
+                fps: 15,
+                qrbox: { width: 250, height: 180 },
+                aspectRatio: 1.333334
+            };
+            await html5QrScanner.start(
+                availableCameras[currentCameraIndex].id,
+                config,
+                (decodedText) => handleScanSuccess(decodedText),
+                () => {}
+            );
+        } catch(e) {
+            console.error('Error al cambiar de cámara:', e);
+        }
+    });
+
+    // Alternar linterna
+    document.getElementById('btn-scanner-torch')?.addEventListener('click', async () => {
+        if (!html5QrScanner) return;
+        try {
+            isTorchOn = !isTorchOn;
+            await html5QrScanner.applyVideoConstraints({
+                advanced: [{ torch: isTorchOn }]
+            });
+            const torchBtn = document.getElementById('btn-scanner-torch');
+            if (torchBtn) {
+                torchBtn.style.background = isTorchOn ? 'var(--color-primary)' : '';
+                torchBtn.style.color = isTorchOn ? '#fff' : '';
+            }
+        } catch(e) {
+            console.warn('Error al activar linterna:', e);
+        }
+    });
+
+    // Escanear desde archivo de imagen
+    document.getElementById('scanner-file-input')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || typeof Html5Qrcode === 'undefined') return;
+        const statusEl = document.getElementById('scanner-status-msg');
+        try {
+            const scannerInstance = html5QrScanner || new Html5Qrcode("scanner-reader");
+            const decodedText = await scannerInstance.scanFile(file, true);
+            handleScanSuccess(decodedText);
+        } catch(err) {
+            console.error('Error al leer imagen:', err);
+            if (statusEl) {
+                statusEl.innerText = 'No se encontró ningún código de barras o QR legible en la imagen.';
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusEl.style.color = '#ef4444';
+            }
+        } finally {
+            e.target.value = '';
+        }
+    });
+
     // --- Global Dashboard Filters & Navigation ---
     window.filterByStatus = function(status) {
         window.location.href = `/inventario?status=${encodeURIComponent(status)}`;

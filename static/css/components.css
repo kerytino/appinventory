@@ -598,3 +598,142 @@ textarea.form-control {
         transform: translateX(0);
     }
 }
+
+/* Input with Action Button (e.g. Scan Button) */
+.input-with-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    width: 100%;
+}
+
+.input-with-action input {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-input-scan {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 40px;
+    padding: 0 14px;
+    background-color: var(--color-surface-hover);
+    color: var(--color-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.btn-input-scan:hover {
+    background-color: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.btn-input-scan:active {
+    transform: scale(0.96);
+}
+
+/* Scanner Viewport & Laser UI */
+.scanner-viewport-wrapper {
+    position: relative;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+#scanner-reader {
+    width: 100% !important;
+    border: none !important;
+}
+
+#scanner-reader video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 12px;
+}
+
+/* Hide default html5-qrcode UI borders */
+#scanner-reader__scan_region {
+    background: transparent !important;
+}
+#scanner-reader__dashboard {
+    display: none !important;
+}
+
+.scanner-reticle {
+    position: absolute;
+    width: 220px;
+    height: 180px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.reticle-corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: #3b82f6;
+    border-style: solid;
+}
+
+.reticle-corner.top-left {
+    top: 0;
+    left: 0;
+    border-width: 3px 0 0 3px;
+    border-top-left-radius: 8px;
+}
+
+.reticle-corner.top-right {
+    top: 0;
+    right: 0;
+    border-width: 3px 3px 0 0;
+    border-top-right-radius: 8px;
+}
+
+.reticle-corner.bottom-left {
+    bottom: 0;
+    left: 0;
+    border-width: 0 0 3px 3px;
+    border-bottom-left-radius: 8px;
+}
+
+.reticle-corner.bottom-right {
+    bottom: 0;
+    right: 0;
+    border-width: 0 3px 3px 0;
+    border-bottom-right-radius: 8px;
+}
+
+.scanner-laser {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ef4444, #f43f5e, transparent);
+    box-shadow: 0 0 10px #ef4444;
+    animation: scannerLaserScan 2s infinite ease-in-out;
+}
+
+@keyframes scannerLaserScan {
+    0% {
+        top: 8px;
+        opacity: 0.8;
+    }
+    50% {
+        top: calc(100% - 10px);
+        opacity: 1;
+    }
+    100% {
+        top: 8px;
+        opacity: 0.8;
+    }
+}
+

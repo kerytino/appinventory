@@ -165,19 +165,31 @@
                         </div>
                     </div>
 
-                    <!-- Serial y MAC -->
+                    <!-- Serial y MAC con Escáner de Código de Barras / QR -->
                     <div class="form-grid-2col-equal">
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-serial" style="font-size: 13px; margin-bottom: 6px;">
-                                Número de Serie (S/N):
+                            <label class="form-label" for="device-serial" style="font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fa-solid fa-barcode" style="color: var(--color-primary); margin-right: 4px;"></i>Número de Serie (S/N):</span>
+                                <small style="color: var(--color-text-tertiary); font-weight: normal;">Opcional</small>
                             </label>
-                            <input class="form-control" type="text" id="device-serial" placeholder="Opcional" style="height: 40px;">
+                            <div class="input-with-action">
+                                <input class="form-control" type="text" id="device-serial" placeholder="Ej: SN-982347209" style="height: 40px; font-family: monospace; font-weight: 600;">
+                                <button type="button" class="btn-input-scan" id="btn-scan-serial" title="Escanear Código de Barras o QR del Serial" data-target="device-serial" data-label="Número de Serie">
+                                    <i class="fa-solid fa-camera"></i> <span>Escanear</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-mac" style="font-size: 13px; margin-bottom: 6px;">
-                                Dirección MAC:
+                            <label class="form-label" for="device-mac" style="font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fa-solid fa-network-wired" style="color: #6366f1; margin-right: 4px;"></i>Dirección MAC:</span>
+                                <small style="color: var(--color-text-tertiary); font-weight: normal;">Opcional</small>
                             </label>
-                            <input class="form-control" type="text" id="device-mac" placeholder="Opcional" style="height: 40px;">
+                            <div class="input-with-action">
+                                <input class="form-control" type="text" id="device-mac" placeholder="Ej: 00:1A:2B:3C:4D:5E" style="height: 40px; font-family: monospace; font-weight: 600;">
+                                <button type="button" class="btn-input-scan" id="btn-scan-mac" title="Escanear Código de Barras o QR de la MAC" data-target="device-mac" data-label="Dirección MAC">
+                                    <i class="fa-solid fa-camera"></i> <span>Escanear</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -674,6 +686,59 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Escáner de Códigos de Barra y QR -->
+    <div class="modal-overlay" id="scanner-modal" style="z-index: 10000;">
+        <div class="modal-content scanner-modal-content" style="max-width: 480px; width: 95vw; border-radius: 16px; padding: 20px; overflow: hidden;">
+            <div class="modal-header" style="padding: 0 0 12px 0; margin-bottom: 14px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: none;">
+                <h3 id="scanner-modal-title" style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; color: var(--color-text);">
+                    <i class="fa-solid fa-qrcode" style="color: var(--color-primary);"></i>
+                    <span>Escanear Código</span>
+                </h3>
+                <button class="btn-close" id="btn-close-scanner" type="button"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; gap: 14px;">
+                <p id="scanner-target-hint" style="font-size: 13px; color: var(--color-text-secondary); margin: 0; text-align: center;">
+                    Apunta la cámara al código de barras o QR del equipo
+                </p>
+
+                <!-- Contenedor del Visor de Cámara -->
+                <div class="scanner-viewport-wrapper" style="position: relative; width: 100%; min-height: 280px; background: #0f172a; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <div id="scanner-reader" style="width: 100%;"></div>
+                    
+                    <!-- Mira visual y láser animado -->
+                    <div class="scanner-reticle" id="scanner-reticle">
+                        <div class="reticle-corner top-left"></div>
+                        <div class="reticle-corner top-right"></div>
+                        <div class="reticle-corner bottom-left"></div>
+                        <div class="reticle-corner bottom-right"></div>
+                        <div class="scanner-laser"></div>
+                    </div>
+                </div>
+
+                <!-- Controles de Cámara (Linterna, Cambiar Cámara, Subir Foto) -->
+                <div class="scanner-controls" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" id="btn-scanner-switch-camera" style="font-size: 12px; padding: 6px 12px; gap: 6px; display: none;">
+                        <i class="fa-solid fa-camera-rotate"></i> <span>Cambiar Cámara</span>
+                    </button>
+                    <button type="button" class="btn btn-outline" id="btn-scanner-torch" style="font-size: 12px; padding: 6px 12px; gap: 6px; display: none;">
+                        <i class="fa-solid fa-lightbulb"></i> <span>Linterna</span>
+                    </button>
+                    <label class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; gap: 6px; cursor: pointer; margin: 0; display: inline-flex; align-items: center;">
+                        <i class="fa-solid fa-image"></i> <span>Cargar Imagen</span>
+                        <input type="file" id="scanner-file-input" accept="image/*" style="display: none;">
+                    </label>
+                </div>
+
+                <div id="scanner-status-msg" style="display: none; font-size: 12px; text-align: center; padding: 8px; border-radius: 6px;"></div>
+            </div>
+
+            <div class="modal-footer" style="padding: 12px 0 0 0; margin-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; background: none;">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-scanner" style="width: 100%; height: 40px; font-weight: 600;">Cerrar Escáner</button>
+            </div>
         </div>
     </div>
 
