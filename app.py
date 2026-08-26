@@ -526,6 +526,7 @@ class Tool(db.Model):
     last_maintenance_date = db.Column(db.String(50), nullable=True, default='')
     notes                = db.Column(db.Text, nullable=True, default='')
     date_added           = db.Column(db.DateTime, default=datetime.utcnow)
+    logs                 = db.relationship('ToolLog', backref='tool', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -547,6 +548,34 @@ class Tool(db.Model):
             'last_maintenance_date': self.last_maintenance_date or '',
             'notes': self.notes or '',
             'date_added': self.date_added.strftime('%Y-%m-%d %H:%M:%S') if self.date_added else ''
+        }
+
+class ToolLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tool_id = db.Column(db.Integer, db.ForeignKey('tool.id', ondelete='CASCADE'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # Asignación, Devolución, Mantenimiento, Registro Inicial, Edición
+    technician = db.Column(db.String(100), nullable=True, default='')
+    location = db.Column(db.String(100), nullable=True, default='')
+    warehouse = db.Column(db.String(100), nullable=True, default='')
+    condition = db.Column(db.String(50), nullable=True, default='')
+    notes = db.Column(db.Text, nullable=True, default='')
+    performed_by = db.Column(db.String(100), nullable=True, default='')
+    date = db.Column(db.String(50), nullable=True, default='')
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tool_id': self.tool_id,
+            'action': self.action,
+            'technician': self.technician or '',
+            'location': self.location or '',
+            'warehouse': self.warehouse or '',
+            'condition': self.condition or '',
+            'notes': self.notes or '',
+            'performed_by': self.performed_by or '',
+            'date': self.date or (self.timestamp.strftime('%Y-%m-%d') if self.timestamp else ''),
+            'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S') if self.timestamp else ''
         }
 
 def log_activity(username, action, details=""):
@@ -1101,6 +1130,20 @@ def create_tool():
         notes=(data.get('notes') or '').strip()
     )
     db.session.add(new_tool)
+    db.session.flush()
+
+    # Log inicial en ToolLog
+    init_log = ToolLog(
+        tool_id=new_tool.id,
+        action='Registro Inicial',
+        warehouse=new_tool.warehouse,
+        condition=new_tool.condition,
+        notes='Herramienta ingresada al catálogo del inventario.',
+        performed_by=current_username(),
+        date=datetime.utcnow().strftime('%Y-%m-%d')
+    )
+    db.session.add(init_log)
+
     db.session.commit()
     log_activity(current_username(), 'Registro de Herramienta', f'Herramienta {new_tool.name} ({new_tool.code or new_tool.serial_number}) registrada.')
     return jsonify(new_tool.to_dict()), 201
@@ -1156,9 +1199,18 @@ def assign_tool(tool_id):
     tool.assigned_to = tech
     tool.assigned_date = date_str
     tool.location = loc
-    if notes:
-        existing_notes = tool.notes or ''
-        tool.notes = f"{existing_notes}\n[{date_str}] Asignada a {tech} (Lugar: {loc or 'N/A'}): {notes}".strip()
+
+    # Registrar en ToolLog
+    new_log = ToolLog(
+        tool_id=tool.id,
+        action='Asignación',
+        technician=tech,
+        location=loc,
+        date=date_str,
+        notes=notes or 'Asignada para tareas operativas',
+        performed_by=current_username()
+    )
+    db.session.add(new_log)
 
     db.session.commit()
     log_activity(current_username(), 'Asignación de Herramienta', f'Herramienta #{tool.id} ({tool.name}) asignada a {tech} ({loc}).')
@@ -1174,6 +1226,8 @@ def return_tool(tool_id):
     notes = (data.get('notes') or '').strip()
 
     prev_tech = tool.assigned_to or 'Técnico'
+    prev_loc = tool.location or 'N/A'
+
     tool.status = 'Disponible'
     tool.assigned_to = ''
     tool.assigned_date = ''
@@ -1181,13 +1235,78 @@ def return_tool(tool_id):
     tool.warehouse = warehouse
     tool.condition = condition
 
-    if notes:
-        existing_notes = tool.notes or ''
-        tool.notes = f"{existing_notes}\n[{date_str}] Devuelta por {prev_tech} (Estado: {condition}, Almacén: {warehouse}): {notes}".strip()
+    # Registrar en ToolLog
+    new_log = ToolLog(
+        tool_id=tool.id,
+        action='Devolución',
+        technician=prev_tech,
+        location=prev_loc,
+        warehouse=warehouse,
+        condition=condition,
+        date=date_str,
+        notes=notes or 'Devuelta al almacén/taller de resguardo',
+        performed_by=current_username()
+    )
+    db.session.add(new_log)
 
     db.session.commit()
     log_activity(current_username(), 'Devolución de Herramienta', f'Herramienta #{tool.id} ({tool.name}) devuelta a {warehouse}.')
     return jsonify(tool.to_dict())
+
+@app.route('/api/tools/<int:tool_id>/history', methods=['GET'])
+def get_tool_history(tool_id):
+    tool = Tool.query.get_or_404(tool_id)
+    logs = ToolLog.query.filter_by(tool_id=tool_id).order_by(ToolLog.timestamp.desc(), ToolLog.id.desc()).all()
+    
+    # Si aún no tiene logs pero tiene notas con historial concatenado previo [YYYY-MM-DD]...
+    if not logs and tool.notes:
+        legacy_found = False
+        clean_notes = []
+        for line in tool.notes.split('\n'):
+            line_s = line.strip()
+            if line_s.startswith('[') and ']' in line_s:
+                try:
+                    date_part = line_s[1:line_s.index(']')]
+                    rest = line_s[line_s.index(']')+1:].strip()
+                    action = 'Asignación' if 'Asignada a' in rest else ('Devolución' if 'Devuelta por' in rest else 'Movimiento')
+                    
+                    tech_match = ''
+                    if 'Asignada a ' in rest:
+                        tech_match = rest.split('Asignada a ')[1].split('(')[0].strip()
+                    elif 'Devuelta por ' in rest:
+                        tech_match = rest.split('Devuelta por ')[1].split('(')[0].strip()
+
+                    loc_match = ''
+                    if 'Lugar:' in rest:
+                        loc_match = rest.split('Lugar:')[1].split(')')[0].strip()
+
+                    note_text = rest.split('):')[-1].strip() if '):' in rest else rest
+
+                    new_log = ToolLog(
+                        tool_id=tool.id,
+                        action=action,
+                        technician=tech_match,
+                        location=loc_match,
+                        date=date_part,
+                        notes=note_text,
+                        performed_by='Histórico'
+                    )
+                    db.session.add(new_log)
+                    legacy_found = True
+                except Exception:
+                    clean_notes.append(line)
+            else:
+                clean_notes.append(line)
+
+        if legacy_found:
+            tool.notes = '\n'.join(clean_notes).strip()
+            db.session.commit()
+            logs = ToolLog.query.filter_by(tool_id=tool_id).order_by(ToolLog.timestamp.desc(), ToolLog.id.desc()).all()
+
+    return jsonify({
+        'tool': tool.to_dict(),
+        'history': [l.to_dict() for l in logs]
+    })
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices():

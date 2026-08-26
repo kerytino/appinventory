@@ -993,7 +993,34 @@ document.addEventListener('DOMContentLoaded', () => {
     let allTechnicians = [];
     let equipmentCatalog = [];
 
+    function initSidebarCollapse() {
+        const group = document.getElementById('nav-group-inventory');
+        const btnToggle = document.getElementById('btn-toggle-inventory-submenu');
+        if (!group || !btnToggle) return;
+
+        // Restore saved preference (default to open/expanded)
+        const isCollapsed = localStorage.getItem('sidebar_warehouses_collapsed') === 'true';
+        if (isCollapsed) {
+            group.classList.add('collapsed');
+        } else {
+            group.classList.remove('collapsed');
+        }
+
+        // Avoid adding multiple listeners if called again
+        if (!btnToggle.dataset.hasListener) {
+            btnToggle.dataset.hasListener = 'true';
+            btnToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                group.classList.toggle('collapsed');
+                const nowCollapsed = group.classList.contains('collapsed');
+                localStorage.setItem('sidebar_warehouses_collapsed', nowCollapsed);
+            });
+        }
+    }
+
     async function populateSidebarWarehouses() {
+        initSidebarCollapse();
         const container = document.getElementById('sidebar-sub-items');
         if (!container) return;
         try {

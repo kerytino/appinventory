@@ -46,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnOpenNew = document.getElementById('btn-open-new-tool');
     const tbody = document.getElementById('tools-tbody');
 
+    let currentEditingTool = null;
+
     // Modals
     const toolModal = document.getElementById('tool-modal');
     const formTool = document.getElementById('form-tool');
@@ -53,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const formAssign = document.getElementById('form-tool-assign');
     const returnModal = document.getElementById('tool-return-modal');
     const formReturn = document.getElementById('form-tool-return');
+    const historyModal = document.getElementById('tool-history-modal');
+    const historyTimelineContainer = document.getElementById('history-timeline-container');
 
     // Init
     init();
@@ -312,6 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="text-align: right;">
                     <div class="actions-cell-wrapper">
                         ${primaryActionBtn}
+                        <button class="tool-action-btn history btn-history-tool" data-id="${t.id}" title="Ver Historial de Movimientos" style="color: #6366f1;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </button>
                         <button class="tool-action-btn edit btn-edit-tool" data-id="${t.id}" title="Editar Herramienta" style="color: var(--color-primary);">
                             <i class="fa-solid fa-pen"></i>
                         </button>
@@ -344,6 +351,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const id = parseInt(btn.getAttribute('data-id'));
                 const tool = allTools.find(item => item.id === id);
                 if (tool) openReturnModal(tool);
+            });
+        });
+
+        // History Tool button
+        tbody.querySelectorAll('.btn-history-tool').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                const tool = allTools.find(item => item.id === id);
+                if (tool) openHistoryModal(tool);
             });
         });
 
@@ -381,7 +397,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function openToolModal(mode = 'add', tool = null) {
         formTool.reset();
         const whSelect = document.getElementById('tool-warehouse');
+        const btnModalHistory = document.getElementById('btn-modal-tool-history');
+
         if (mode === 'edit' && tool) {
+            currentEditingTool = tool;
+            if (btnModalHistory) btnModalHistory.style.display = 'inline-flex';
             document.getElementById('tool-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color: var(--color-primary); margin-right: 8px;"></i><span>Editar Herramienta: ${escapeHtml(tool.name)}</span>`;
             document.getElementById('tool-id').value = tool.id;
             document.getElementById('tool-code').value = tool.code || '';
@@ -395,8 +415,18 @@ document.addEventListener('DOMContentLoaded', () => {
             populateWarehouseDropdown(whSelect, tool.warehouse || 'Taller IT');
             document.getElementById('tool-value').value = tool.value || 0;
             document.getElementById('tool-quantity').value = tool.quantity || 1;
-            document.getElementById('tool-notes').value = tool.notes || '';
+
+            // Limpiar notas de cualquier log histórico legado para que solo se muestren accesorios y notas puras
+            const rawNotes = tool.notes || '';
+            const cleanNotes = rawNotes
+                .split('\n')
+                .filter(l => !(l.trim().startsWith('[') && l.includes(']')))
+                .join('\n')
+                .trim();
+            document.getElementById('tool-notes').value = cleanNotes;
         } else {
+            currentEditingTool = null;
+            if (btnModalHistory) btnModalHistory.style.display = 'none';
             document.getElementById('tool-modal-title').innerHTML = `<i class="fa-solid fa-toolbox" style="color: var(--color-primary); margin-right: 8px;"></i><span>Nueva Herramienta de Trabajo</span>`;
             document.getElementById('tool-id').value = '';
             populateWarehouseDropdown(whSelect, 'Taller IT');
@@ -404,6 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tool-value').value = '0.00';
             document.getElementById('tool-condition').value = 'Buena';
             document.getElementById('tool-status').value = 'Disponible';
+            document.getElementById('tool-notes').value = '';
         }
         toolModal.classList.add('active');
     }
@@ -427,6 +458,135 @@ document.addEventListener('DOMContentLoaded', () => {
         populateWarehouseDropdown(returnWhSelect, tool.warehouse || 'Taller IT');
         document.getElementById('return-condition').value = tool.condition || 'Buena';
         returnModal.classList.add('active');
+    }
+
+    async function openHistoryModal(tool) {
+        if (!tool) return;
+        document.getElementById('history-tool-title').textContent = `${tool.name} ${tool.brand ? `(${tool.brand} ${tool.model || ''})` : ''}`;
+        document.getElementById('history-tool-code').textContent = tool.code || `HER-${tool.id}`;
+        document.getElementById('history-tool-sn').textContent = tool.serial_number || 'S/N';
+        document.getElementById('history-tool-assigned').textContent = tool.assigned_to ? `${tool.assigned_to} (${tool.location || 'N/A'})` : 'En Taller IT';
+
+        // Badge de estado actual
+        let stBadge = '';
+        if (tool.status === 'Disponible') {
+            stBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Disponible</span>`;
+        } else if (tool.status === 'En Uso / Asignada') {
+            stBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-user-gear"></i> En Uso</span>`;
+        } else if (tool.status === 'En Mantenimiento') {
+            stBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700;"><i class="fa-solid fa-screwdriver-wrench"></i> Mantenimiento</span>`;
+        } else {
+            stBadge = `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #64748b; font-weight: 700;">${escapeHtml(tool.status)}</span>`;
+        }
+        document.getElementById('history-tool-status-badge').innerHTML = stBadge;
+
+        historyTimelineContainer.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: var(--color-text-secondary);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 22px; margin-bottom: 8px; display: block;"></i>
+                Cargando historial de movimientos...
+            </div>
+        `;
+
+        historyModal.classList.add('active');
+
+        try {
+            const res = await fetch(`/api/tools/${tool.id}/history`);
+            if (res.ok) {
+                const data = await res.json();
+                const logs = data.history || [];
+                renderHistoryTimeline(logs);
+            } else {
+                historyTimelineContainer.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: var(--color-danger);">
+                        <i class="fa-solid fa-circle-exclamation" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                        Error al cargar el historial.
+                    </div>
+                `;
+            }
+        } catch (err) {
+            console.error(err);
+            historyTimelineContainer.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: var(--color-danger);">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                    Error de conexión al cargar historial.
+                </div>
+            `;
+        }
+    }
+
+    function renderHistoryTimeline(logs) {
+        document.getElementById('history-count-badge').textContent = `${logs.length} ${logs.length === 1 ? 'movimiento registrado' : 'movimientos registrados'}`;
+        if (!logs || logs.length === 0) {
+            historyTimelineContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--color-text-secondary);">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--color-surface-2, rgba(0,0,0,0.04)); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                        <i class="fa-solid fa-clock-rotate-left" style="font-size: 22px; opacity: 0.5;"></i>
+                    </div>
+                    <div style="font-weight: 700; color: var(--color-text); margin-bottom: 4px;">Sin movimientos registrados</div>
+                    <div style="font-size: 13px;">Esta herramienta aún no tiene registros de asignación o devolución en el historial.</div>
+                </div>
+            `;
+            return;
+        }
+
+        historyTimelineContainer.innerHTML = '';
+        logs.forEach(log => {
+            const item = document.createElement('div');
+            item.style.cssText = 'position: relative; padding-left: 36px; padding-bottom: 18px; border-left: 2px solid var(--color-border); margin-left: 10px;';
+
+            let iconHtml = '<i class="fa-solid fa-circle-dot"></i>';
+            let iconColor = '#6366f1';
+            let iconBg = 'rgba(99, 102, 241, 0.15)';
+            let actionBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366f1; font-weight: 700;">${escapeHtml(log.action)}</span>`;
+
+            if (log.action === 'Asignación') {
+                iconHtml = '<i class="fa-solid fa-handshake"></i>';
+                iconColor = '#f59e0b';
+                iconBg = 'rgba(245, 158, 11, 0.15)';
+                actionBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Asignación</span>`;
+            } else if (log.action === 'Devolución') {
+                iconHtml = '<i class="fa-solid fa-warehouse"></i>';
+                iconColor = '#10b981';
+                iconBg = 'rgba(16, 185, 129, 0.15)';
+                actionBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Devolución</span>`;
+            } else if (log.action === 'Registro Inicial') {
+                iconHtml = '<i class="fa-solid fa-box"></i>';
+                iconColor = '#3b82f6';
+                iconBg = 'rgba(59, 130, 246, 0.15)';
+                actionBadge = `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 700;"><i class="fa-solid fa-plus"></i> Registro Inicial</span>`;
+            }
+
+            item.innerHTML = `
+                <div style="position: absolute; left: -14px; top: 0; width: 26px; height: 26px; border-radius: 50%; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; font-size: 11px; border: 2px solid var(--color-surface);">
+                    ${iconHtml}
+                </div>
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${actionBadge}
+                            ${log.technician ? `<strong style="font-size: 13px; color: var(--color-text);"><i class="fa-solid fa-user" style="color: #f59e0b; margin-right: 4px;"></i>${escapeHtml(log.technician)}</strong>` : ''}
+                        </div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-regular fa-calendar"></i> ${escapeHtml(log.date || '')} ${log.timestamp ? `<span style="opacity: 0.7;">${escapeHtml(log.timestamp.split(' ')[1] || '')}</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--color-text-secondary); margin-bottom: ${log.notes ? '10px' : '0'};">
+                        ${log.location ? `<div><i class="fa-solid fa-location-dot" style="color: var(--color-primary); margin-right: 4px;"></i><strong>Ubicación:</strong> ${escapeHtml(log.location)}</div>` : ''}
+                        ${log.warehouse ? `<div><i class="fa-solid fa-warehouse" style="color: #10b981; margin-right: 4px;"></i><strong>Almacén:</strong> ${escapeHtml(log.warehouse)}</div>` : ''}
+                        ${log.condition ? `<div><i class="fa-solid fa-circle-check" style="color: #6366f1; margin-right: 4px;"></i><strong>Estado:</strong> ${escapeHtml(log.condition)}</div>` : ''}
+                        ${log.performed_by ? `<div><i class="fa-solid fa-user-shield" style="margin-right: 4px;"></i><strong>Registrado por:</strong> ${escapeHtml(log.performed_by)}</div>` : ''}
+                    </div>
+
+                    ${log.notes ? `
+                        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 9px 12px; font-size: 12.5px; color: var(--color-text); line-height: 1.4;">
+                            <i class="fa-solid fa-comment-dots" style="color: #64748b; margin-right: 4px;"></i>${escapeHtml(log.notes)}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            historyTimelineContainer.appendChild(item);
+        });
     }
 
     function setupEventListeners() {
@@ -461,6 +621,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const closeReturnM = () => returnModal.classList.remove('active');
         document.getElementById('btn-close-return-modal')?.addEventListener('click', closeReturnM);
         document.getElementById('btn-cancel-return-modal')?.addEventListener('click', closeReturnM);
+
+        const closeHistoryM = () => historyModal.classList.remove('active');
+        document.getElementById('btn-close-history-modal')?.addEventListener('click', closeHistoryM);
+        document.getElementById('btn-close-history-modal-footer')?.addEventListener('click', closeHistoryM);
+
+        // Open History from Tool Modal
+        document.getElementById('btn-modal-tool-history')?.addEventListener('click', () => {
+            if (currentEditingTool) {
+                openHistoryModal(currentEditingTool);
+            }
+        });
 
         // Submit Tool Form
         formTool.addEventListener('submit', async (e) => {

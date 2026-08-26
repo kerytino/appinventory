@@ -9,14 +9,16 @@
             <span>Dashboard</span>
         </a>
         
-        <div class="nav-item-group">
-            <a href="{{ url_for('inventario') }}" class="nav-item {% if request.endpoint == 'inventario' %}active{% endif %}" style="justify-content: space-between;">
-                <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="nav-item-group" id="nav-group-inventory">
+            <div class="nav-item {% if request.endpoint == 'inventario' %}active{% endif %}" style="justify-content: space-between; padding-right: 8px;">
+                <a href="{{ url_for('inventario') }}" style="display: flex; gap: 12px; align-items: center; color: inherit; text-decoration: none; flex-grow: 1;">
                     <i class="fa-solid fa-boxes-stacked"></i>
                     <span>Inventario General</span>
-                </div>
-                <i class="fa-solid fa-chevron-down" style="font-size: 11px; width: auto;"></i>
-            </a>
+                </a>
+                <button type="button" class="btn-toggle-submenu" id="btn-toggle-inventory-submenu" onclick="toggleSidebarSubmenu(event)" title="Mostrar/Ocultar Almacenes" style="background: none; border: none; color: inherit; cursor: pointer; padding: 4px 8px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                    <i class="fa-solid fa-chevron-down submenu-chevron" style="font-size: 11px; width: auto; transition: transform 0.25s ease;"></i>
+                </button>
+            </div>
             <div class="nav-sub-items" id="sidebar-sub-items">
                 <a href="{{ url_for('inventario') }}" class="nav-sub-item data-wh-link" data-warehouse="all"><span style="width: 6px; height: 6px; background: var(--color-primary); border-radius: 50%;"></span> Todos</a>
             </div>
@@ -74,3 +76,28 @@
         </div>
     </div>
 </nav>
+
+<script>
+function toggleSidebarSubmenu(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    var grp = document.getElementById('nav-group-inventory');
+    if (grp) {
+        grp.classList.toggle('collapsed');
+        try {
+            localStorage.setItem('sidebar_warehouses_collapsed', grp.classList.contains('collapsed'));
+        } catch(err) {}
+    }
+}
+
+(function() {
+    try {
+        if (localStorage.getItem('sidebar_warehouses_collapsed') === 'true') {
+            var grp = document.getElementById('nav-group-inventory');
+            if (grp) grp.classList.add('collapsed');
+        }
+    } catch(err) {}
+})();
+</script>
