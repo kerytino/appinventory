@@ -67,6 +67,17 @@
         <button class="btn-sidebar-cta" id="btn-new-device">
             <i class="fa-solid fa-plus"></i> <span>Nuevo Equipo</span>
         </button>
+
+        <!-- Controles Móviles: Modo y Salir -->
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 4px;">
+            <select id="sidebar-theme-selector" class="theme-pill-select" style="flex: 1; height: 36px; padding: 0 10px; border-radius: 8px; font-size: 13px;">
+                <option value="light">☀️ Modo Claro</option>
+                <option value="dark">🌙 Modo Oscuro</option>
+            </select>
+            <button id="btn-sidebar-logout" class="btn btn-outline" style="height: 36px; padding: 0 12px; font-size: 13px; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);" title="Cerrar Sesión">
+                <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
+            </button>
+        </div>
         
         <div class="system-status-card">
             <div class="system-status-icon">

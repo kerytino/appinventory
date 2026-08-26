@@ -22,21 +22,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
                 applyRolePermissions();
-                await fetchSettings();
-                await fetchStockLimits();
-                await fetchCatalog();
-                await fetchInactivitySettings();
-                await populateSidebarWarehouses();
-                await fetchDevices();
-                await fetchDecommissions();
+                const overlay = document.getElementById('login-overlay');
+                const mainApp = document.getElementById('main-app');
+                if (overlay) overlay.style.display = 'none';
+                if (mainApp) mainApp.style.display = 'flex';
+                
+                const loggedUserEl = document.getElementById('logged-username');
+                if (loggedUserEl && currentUser) {
+                    loggedUserEl.innerText = currentUser.username + ' (' + currentUser.role + ')';
+                }
+                
+                try { applyRolePermissions(); } catch(e){}
+                try { await fetchSettings(); } catch(e){}
+                try { await fetchStockLimits(); } catch(e){}
+                try { await fetchCatalog(); } catch(e){}
+                try { await fetchInactivitySettings(); } catch(e){}
+                try { await populateSidebarWarehouses(); } catch(e){}
+                try { await fetchDevices(); } catch(e){}
+                try { await fetchDecommissions(); } catch(e){}
                 try { loadOperationalTasks(); } catch(e){}
-                resetInactivityTimer();
+                try { resetInactivityTimer(); } catch(e){}
             } else {
-                document.getElementById('login-overlay').style.display = 'flex';
-                document.getElementById('main-app').style.display = 'none';
+                const overlay = document.getElementById('login-overlay');
+                const mainApp = document.getElementById('main-app');
+                if (overlay) overlay.style.display = 'flex';
+                if (mainApp) mainApp.style.display = 'none';
             }
         } catch (e) {
-            console.error(e);
+            console.error('Error en checkAuth:', e);
+            const overlay = document.getElementById('login-overlay');
+            const mainApp = document.getElementById('main-app');
+            if (overlay) overlay.style.display = 'flex';
+            if (mainApp) mainApp.style.display = 'none';
         }
     }
 
@@ -56,17 +73,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 currentUser = data.user;
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('main-app').style.display = 'flex';
-                document.getElementById('logged-username').innerText = currentUser.username + ' (' + currentUser.role + ')';
-                applyRolePermissions();
-                await fetchStockLimits();
-                await fetchInactivitySettings();
-                await populateSidebarWarehouses();
-                await fetchDevices();
-                await fetchDecommissions();
+                const overlay = document.getElementById('login-overlay');
+                const mainApp = document.getElementById('main-app');
+                if (overlay) overlay.style.display = 'none';
+                if (mainApp) mainApp.style.display = 'flex';
+                
+                const loggedUserEl = document.getElementById('logged-username');
+                if (loggedUserEl && currentUser) {
+                    loggedUserEl.innerText = currentUser.username + ' (' + currentUser.role + ')';
+                }
+                
+                try { applyRolePermissions(); } catch(e){}
+                try { await fetchStockLimits(); } catch(e){}
+                try { await fetchInactivitySettings(); } catch(e){}
+                try { await populateSidebarWarehouses(); } catch(e){}
+                try { await fetchDevices(); } catch(e){}
+                try { await fetchDecommissions(); } catch(e){}
                 try { loadOperationalTasks(); } catch(e){}
-                resetInactivityTimer();
+                try { resetInactivityTimer(); } catch(e){}
                 if (window.showToast) showToast('Bienvenido, ' + currentUser.username, 'success');
             } else {
                 if (errEl) {
@@ -82,14 +106,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+    async function handleLogout() {
         try {
             await fetch('/api/logout', { method: 'POST' });
         } catch(e) {}
         currentUser = null;
-        document.getElementById('login-overlay').style.display = 'flex';
-        document.getElementById('main-app').style.display = 'none';
-    });
+        const overlay = document.getElementById('login-overlay');
+        const mainApp = document.getElementById('main-app');
+        if (overlay) overlay.style.display = 'flex';
+        if (mainApp) mainApp.style.display = 'none';
+        closeMobileSidebar?.();
+    }
+
+    document.getElementById('btn-logout')?.addEventListener('click', handleLogout);
+    document.getElementById('btn-sidebar-logout')?.addEventListener('click', handleLogout);
     
     function applyRolePermissions() {
         const role = currentUser.role;
@@ -3975,13 +4005,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('app-theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
     const themeSelect = document.getElementById('theme-selector');
+    const sidebarThemeSelect = document.getElementById('sidebar-theme-selector');
+    
+    function applyTheme(newTheme) {
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('app-theme', newTheme);
+        if (themeSelect) themeSelect.value = newTheme;
+        if (sidebarThemeSelect) sidebarThemeSelect.value = newTheme;
+    }
+
     if (themeSelect) {
         themeSelect.value = savedTheme;
-        themeSelect.addEventListener('change', (e) => {
-            const newTheme = e.target.value;
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('app-theme', newTheme);
-        });
+        themeSelect.addEventListener('change', (e) => applyTheme(e.target.value));
+    }
+    if (sidebarThemeSelect) {
+        sidebarThemeSelect.value = savedTheme;
+        sidebarThemeSelect.addEventListener('change', (e) => applyTheme(e.target.value));
     }
 
     // --- Sidebar + Nuevo Equipo Button (Desktop & Mobile) ---

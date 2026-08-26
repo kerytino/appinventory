@@ -1,13 +1,9 @@
-const CACHE_NAME = 'excellence-inv-cache-v1';
+const CACHE_NAME = 'excellence-inv-cache-v2';
 const STATIC_ASSETS = [
-    '/',
-    '/dashboard',
-    '/inventario',
-    '/despacho',
-    '/static/css/design-system.css',
-    '/static/css/layout.css',
-    '/static/css/components.css',
-    '/static/css/pages.css',
+    '/static/css/design-system.css?v=5.9.0',
+    '/static/css/layout.css?v=5.9.0',
+    '/static/css/components.css?v=5.9.0',
+    '/static/css/pages.css?v=5.9.0',
     '/static/img/logo.png',
     '/static/manifest.json'
 ];
@@ -16,7 +12,7 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(STATIC_ASSETS).catch((err) => {
-                console.warn('Error al precachear algunos recursos:', err);
+                console.warn('Error precacheando recursos estáticos:', err);
             });
         })
     );
@@ -29,6 +25,7 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 keys.map((key) => {
                     if (key !== CACHE_NAME) {
+                        console.log('Purgando caché vieja de PWA:', key);
                         return caches.delete(key);
                     }
                 })
@@ -42,22 +39,29 @@ self.addEventListener('fetch', (event) => {
     // Solo manejar peticiones GET
     if (event.request.method !== 'GET') return;
     
-    // Ignorar endpoints de API para no servir datos de base de datos desactualizados
-    if (event.request.url.includes('/api/')) return;
+    // IMPORTANTE: NO interceptar navegación a páginas HTML ni APIs dinámicas
+    // Esto previene pantallas en blanco en Safari iOS y mantiene las sesiones de Flask funcionando
+    if (event.request.mode === 'navigate' || event.request.url.includes('/api/')) {
+        return;
+    }
 
-    event.respondWith(
-        fetch(event.request)
-            .then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-                    const responseToCache = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
-                    });
+    // Solo cachear archivos estáticos dentro de /static/
+    if (event.request.url.includes('/static/')) {
+        event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
                 }
-                return networkResponse;
+                return fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
+                    }
+                    return networkResponse;
+                });
             })
-            .catch(() => {
-                return caches.match(event.request);
-            })
-    );
+        );
+    }
 });

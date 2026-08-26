@@ -480,8 +480,19 @@
 @media (max-width: 768px) {
     .top-header {
         padding: 0 12px;
-        height: 60px;
-        gap: 8px;
+        height: 56px;
+        gap: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .top-header > div:first-child {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .header-title-area {
@@ -490,10 +501,12 @@
     }
 
     .page-title {
-        font-size: 16px;
+        font-size: 17px;
+        font-weight: 700;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        margin: 0;
     }
 
     .page-subtitle {
@@ -501,11 +514,24 @@
     }
 
     .header-actions {
-        gap: 6px;
+        gap: 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
     }
 
     .header-search {
         display: none; /* Accessible via search in pages or global modal */
+    }
+
+    /* Ocultar selector de tema y botones secundarios del header en móvil para evitar saturación */
+    .theme-pill-select {
+        display: none !important;
+    }
+
+    #btn-change-password,
+    #btn-logout {
+        display: none !important;
     }
 
     .user-profile-name {
@@ -513,13 +539,16 @@
     }
 
     .user-profile-widget {
-        padding: 2px 4px;
-        gap: 4px;
+        padding: 0;
+        gap: 0;
+        background: transparent;
+        border: none;
     }
 
-    .theme-pill-select {
-        padding: 4px 8px;
-        font-size: 11px;
+    .user-avatar-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
     }
 
     .page-content {
