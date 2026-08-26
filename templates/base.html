@@ -39,6 +39,9 @@
     <!-- Main App Container -->
     <div class="app-container" id="main-app" style="display: none;">
         
+        <!-- Sidebar Backdrop for Mobile -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
         <!-- Sidebar Partial -->
         {% include 'partials/sidebar.html' %}
         
@@ -47,9 +50,15 @@
             
             <!-- Header Partial -->
             <header class="top-header">
-                <div class="header-title-area">
-                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
-                    <span class="page-subtitle">Hola, admin 👋</span>
+                <div style="display: flex; align-items: center; min-width: 0;">
+                    <!-- Mobile Hamburger Button -->
+                    <button class="btn-mobile-menu" id="btn-mobile-menu" type="button" title="Abrir Menú">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="header-title-area">
+                        <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                        <span class="page-subtitle">Hola, admin 👋</span>
+                    </div>
                 </div>
                 
                 <div class="header-actions">
@@ -95,6 +104,30 @@
                 {% endblock %}
             </div>
         </main>
+
+        <!-- Mobile Bottom Navigation Bar -->
+        <nav class="mobile-bottom-nav">
+            <a href="{{ url_for('dashboard') }}" class="bottom-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Inicio</span>
+            </a>
+            <a href="{{ url_for('inventario') }}" class="bottom-nav-item {% if request.endpoint == 'inventario' %}active{% endif %}">
+                <i class="fa-solid fa-boxes-stacked"></i>
+                <span>Stock</span>
+            </a>
+            <!-- Central Action Button: Registrar Equipo -->
+            <button type="button" class="bottom-nav-item bottom-nav-fab" id="btn-mobile-new-device" title="Registrar Artículo">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <a href="{{ url_for('despacho') }}" class="bottom-nav-item {% if request.endpoint == 'despacho' %}active{% endif %}">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+                <span>Despacho</span>
+            </a>
+            <button type="button" class="bottom-nav-item" id="btn-mobile-nav-menu" title="Más opciones">
+                <i class="fa-solid fa-bars"></i>
+                <span>Menú</span>
+            </button>
+        </nav>
     </div>
 
     <!-- Modals from original SPA -->

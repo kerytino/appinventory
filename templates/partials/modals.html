@@ -19,7 +19,7 @@
                     </div>
 
                     <!-- Fila Superior: Categoría/Tipo, Marca, Modelo (Cascada del Catálogo con Selectores) -->
-                    <div style="display: grid; grid-template-columns: 1.1fr 1.2fr 1.3fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-grid-3col" style="margin-bottom: 16px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-type" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">
                                 <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría / Tipo: <span style="color:var(--color-danger)">*</span>
@@ -47,7 +47,7 @@
                     </div>
 
                     <!-- Fila Intermedia: Código SKU y Nombre Comercial -->
-                    <div style="display: grid; grid-template-columns: 1fr 2.3fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-grid-sku-title" style="margin-bottom: 16px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-sku" style="font-weight: 700; color: var(--color-primary); font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-barcode" style="margin-right: 4px;"></i>Código SKU:
@@ -72,14 +72,14 @@
 
                     <!-- Fila: Vincular Proveedor con botón + Proveedor -->
                     <div style="background: rgba(37, 99, 235, 0.04); border: 1px dashed rgba(37, 99, 235, 0.3); border-radius: 8px; padding: 12px 14px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px;">
                             <label class="form-label" for="device-provider" style="font-weight: 700; color: var(--color-primary); font-size: 13px; margin-bottom: 0;">
                                 <i class="fa-solid fa-truck" style="margin-right: 6px;"></i>Proveedor / Mayorista Asociado:
                             </label>
                             <small style="color: var(--color-text-secondary); font-size: 12px;"><i class="fa-solid fa-circle-info"></i> Opcional para trazabilidad de compras y costos</small>
                         </div>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <select id="device-provider" class="form-control" style="flex: 1; height: 38px;">
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <select id="device-provider" class="form-control" style="flex: 1; min-width: 180px; height: 38px;">
                                 <option value="">-- Sin Proveedor Asignado / Opcional --</option>
                             </select>
                             <button type="button" class="btn btn-secondary" id="btn-device-open-new-provider" style="white-space: nowrap; height: 38px; padding: 0 16px; font-weight: 600; gap: 6px;">
@@ -96,7 +96,7 @@
                     </div>
 
                     <!-- Fila: Costo Unitario, Cantidad y Valor Total en Inventario -->
-                    <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 16px; margin-bottom: 16px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px;">
+                    <div class="form-grid-costs" style="margin-bottom: 16px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-cost-price" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
                                 <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Unitario ($ USD): <span style="color:var(--color-danger)">*</span>
@@ -119,7 +119,7 @@
                     </div>
 
                     <!-- Fila: Reorden, Almacén y Estado -->
-                    <div style="display: grid; grid-template-columns: 1fr 1.3fr 1.2fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-grid-stock-status" style="margin-bottom: 16px;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-min-stock" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
                                 Stock Mínimo (Alerta):
@@ -149,7 +149,7 @@
                     </div>
 
                     <!-- Campos condicionales si es Despachado -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-grid-2col-equal" style="margin-bottom: 16px;">
                         <div class="form-group" id="group-location" style="display: none; margin-bottom: 0;">
                             <label class="form-label" for="device-location" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
                                 Ubicación (Hotel / Área): <span style="color:var(--color-danger)">*</span>
@@ -166,7 +166,7 @@
                     </div>
 
                     <!-- Serial y MAC -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-grid-2col-equal">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" for="device-serial" style="font-size: 13px; margin-bottom: 6px;">
                                 Número de Serie (S/N):
@@ -183,7 +183,7 @@
                 </div>
 
                 <!-- Botones Cancelar / Guardar -->
-                <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 14px; padding-top: 10px; margin-top: 4px; border-top: 1px solid var(--color-border);">
+                <div class="form-actions">
                     <button type="button" class="btn-secondary" id="btn-cancel" style="padding: 11px 24px; font-size: 14px; font-weight: 600; border-radius: 8px;">Cancelar</button>
                     <button type="submit" class="btn-primary" id="btn-save" style="padding: 11px 28px; font-size: 14px; font-weight: 700; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
                         <i class="fa-solid fa-check"></i> Guardar Artículo

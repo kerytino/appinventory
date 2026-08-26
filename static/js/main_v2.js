@@ -95,11 +95,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const role = currentUser.role;
         // Hide/Show elements based on role
         const btnNewDevice = document.getElementById('btn-new-device');
+        const btnMobileNewDevice = document.getElementById('btn-mobile-new-device');
         const tabSettings = document.querySelector('[data-tab="settings"]');
         const tabDispatch = document.querySelector('[data-tab="dispatch"]');
         
         if (role === 'Viewer') {
             if(btnNewDevice) btnNewDevice.style.display = 'none';
+            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'none';
             if(tabSettings) tabSettings.style.display = 'none';
             if(tabDispatch) tabDispatch.style.display = 'none';
             // Disable action buttons in tables
@@ -108,11 +110,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else if (role === 'Tecnico') {
             if(btnNewDevice) btnNewDevice.style.display = 'block';
+            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'flex';
             if(tabSettings) tabSettings.style.display = 'none';
             if(tabDispatch) tabDispatch.style.display = 'block';
         } else {
             // Admin
             if(btnNewDevice) btnNewDevice.style.display = 'block';
+            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'flex';
             if(tabSettings) tabSettings.style.display = 'flex';
             if(tabDispatch) tabDispatch.style.display = 'block';
         }
@@ -3980,7 +3984,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Sidebar + Nuevo Equipo Button ---
+    // --- Sidebar + Nuevo Equipo Button (Desktop & Mobile) ---
+    const sidebarEl = document.getElementById('sidebar');
+    const backdropEl = document.getElementById('sidebar-backdrop');
+
+    function openMobileSidebar() {
+        sidebarEl?.classList.add('sidebar-open');
+        backdropEl?.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileSidebar() {
+        sidebarEl?.classList.remove('sidebar-open');
+        backdropEl?.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('btn-mobile-menu')?.addEventListener('click', openMobileSidebar);
+    document.getElementById('btn-mobile-nav-menu')?.addEventListener('click', openMobileSidebar);
+    document.getElementById('btn-sidebar-close')?.addEventListener('click', closeMobileSidebar);
+    backdropEl?.addEventListener('click', closeMobileSidebar);
+
+    // Auto-close mobile sidebar when clicking a link
+    document.querySelectorAll('.sidebar-nav .nav-item, .sidebar-nav .nav-sub-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) {
+                closeMobileSidebar();
+            }
+        });
+    });
+
     document.getElementById('btn-new-device')?.addEventListener('click', () => {
         const deviceModal = document.getElementById('device-modal');
         if (!deviceModal) return;
@@ -3992,6 +4025,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (title) title.innerText = 'Registrar Equipo';
         populateDeviceTypeDropdown();
         deviceModal.classList.add('active');
+    });
+
+    // Mobile Bottom Nav FAB triggers same registration modal
+    document.getElementById('btn-mobile-new-device')?.addEventListener('click', () => {
+        document.getElementById('btn-new-device')?.click();
     });
 
     document.getElementById('btn-close-modal')?.addEventListener('click', () => {
