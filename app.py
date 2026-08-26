@@ -804,6 +804,18 @@ with app.app_context():
     consolidate_existing_inventory()
 
 
+@app.route('/manifest.json')
+def serve_manifest():
+    from flask import send_from_directory
+    return send_from_directory(os.path.join(basedir, 'static'), 'manifest.json', mimetype='application/manifest+json')
+
+@app.route('/sw.js')
+def serve_sw():
+    from flask import send_from_directory
+    response = send_from_directory(os.path.join(basedir, 'static'), 'sw.js', mimetype='application/javascript')
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
 @app.route('/')
 def index():
     return redirect(url_for('dashboard'))

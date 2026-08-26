@@ -4040,7 +4040,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // ESCÁNER DE CÓDIGOS DE BARRA Y QR
+    // ESCÁNER DE CÓDIGOS DE BARRA Y QR (HÍBRIDO HTTP / HTTPS)
     // ==========================================
     let html5QrScanner = null;
     let scannerActiveTargetInput = null;
@@ -4066,33 +4066,79 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
     }
 
+    function checkIsSecureContext() {
+        return window.isSecureContext === true || 
+               window.location.hostname === 'localhost' || 
+               window.location.hostname === '127.0.0.1' || 
+               window.location.protocol === 'https:';
+    }
+
+    function showHttpFallbackView(statusText) {
+        const liveWrapper = document.getElementById('scanner-viewport-wrapper');
+        const fallbackBox = document.getElementById('scanner-http-fallback-box');
+        const statusEl = document.getElementById('scanner-status-msg');
+        const switchCamBtn = document.getElementById('btn-scanner-switch-camera');
+        const torchBtn = document.getElementById('btn-scanner-torch');
+
+        if (liveWrapper) liveWrapper.style.display = 'none';
+        if (fallbackBox) fallbackBox.style.display = 'flex';
+        if (switchCamBtn) switchCamBtn.style.display = 'none';
+        if (torchBtn) torchBtn.style.display = 'none';
+
+        if (statusEl && statusText) {
+            statusEl.innerText = statusText;
+            statusEl.style.display = 'block';
+            statusEl.style.background = 'rgba(239, 68, 68, 0.08)';
+            statusEl.style.color = '#ef4444';
+        }
+    }
+
+    function showLiveCameraView() {
+        const liveWrapper = document.getElementById('scanner-viewport-wrapper');
+        const fallbackBox = document.getElementById('scanner-http-fallback-box');
+        const statusEl = document.getElementById('scanner-status-msg');
+
+        if (liveWrapper) liveWrapper.style.display = 'flex';
+        if (fallbackBox) fallbackBox.style.display = 'none';
+        if (statusEl) {
+            statusEl.style.display = 'none';
+            statusEl.innerText = '';
+        }
+    }
+
     async function startScanner(targetInputId, fieldLabel) {
         scannerActiveTargetInput = targetInputId;
         const scannerModal = document.getElementById('scanner-modal');
         const hintEl = document.getElementById('scanner-target-hint');
-        const statusEl = document.getElementById('scanner-status-msg');
         const switchCamBtn = document.getElementById('btn-scanner-switch-camera');
         const torchBtn = document.getElementById('btn-scanner-torch');
 
         if (hintEl) {
             hintEl.innerText = `Apunta la cámara al código de barras o QR para: ${fieldLabel}`;
         }
-        if (statusEl) {
-            statusEl.style.display = 'none';
-            statusEl.innerText = '';
-        }
         if (switchCamBtn) switchCamBtn.style.display = 'none';
         if (torchBtn) torchBtn.style.display = 'none';
 
         scannerModal?.classList.add('active');
 
-        if (typeof Html5Qrcode === 'undefined') {
-            if (statusEl) {
-                statusEl.innerText = 'Librería de escáner no disponible. Puedes ingresar el valor manualmente o cargar una imagen.';
-                statusEl.style.display = 'block';
-                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
-                statusEl.style.color = '#ef4444';
+        const isSecure = checkIsSecureContext();
+
+        // En entornos HTTP sin SSL (IP local directa), Chrome/Safari restringen getUserMedia
+        if (!isSecure || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showHttpFallbackView('En conexiones HTTP (sin SSL), usa el botón para capturar la foto con la cámara de tu teléfono.');
+            // En dispositivos móviles, activar directamente el selector de cámara nativa
+            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                setTimeout(() => {
+                    document.getElementById('scanner-native-camera-input')?.click();
+                }, 300);
             }
+            return;
+        }
+
+        showLiveCameraView();
+
+        if (typeof Html5Qrcode === 'undefined') {
+            showHttpFallbackView('Librería de escáner no disponible. Usa la opción de capturar foto.');
             return;
         }
 
@@ -4124,9 +4170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await html5QrScanner.start(
                 cameraConfig,
                 config,
-                (decodedText) => {
-                    handleScanSuccess(decodedText);
-                },
+                (decodedText) => handleScanSuccess(decodedText),
                 () => {}
             );
 
@@ -4138,13 +4182,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {}
 
         } catch (err) {
-            console.error('Error al iniciar escáner:', err);
-            if (statusEl) {
-                statusEl.innerText = 'No se pudo acceder a la cámara. Revisa los permisos del navegador o usa "Cargar Imagen".';
-                statusEl.style.display = 'block';
-                statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
-                statusEl.style.color = '#ef4444';
-            }
+            console.warn('Error al iniciar stream de cámara en vivo, activando modo nativo:', err);
+            showHttpFallbackView('No se pudo iniciar el vídeo continuo. Usa el botón para capturar la foto con la cámara.');
         }
     }
 
@@ -4248,11 +4287,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Escanear desde archivo de imagen
-    document.getElementById('scanner-file-input')?.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
+    // Procesador genérico de archivos de imagen (Cámara Nativa o Galería)
+    async function processScannedImageFile(file) {
         if (!file || typeof Html5Qrcode === 'undefined') return;
         const statusEl = document.getElementById('scanner-status-msg');
+        if (statusEl) {
+            statusEl.innerText = 'Procesando imagen...';
+            statusEl.style.display = 'block';
+            statusEl.style.background = 'rgba(37, 99, 235, 0.08)';
+            statusEl.style.color = 'var(--color-primary)';
+        }
         try {
             const scannerInstance = html5QrScanner || new Html5Qrcode("scanner-reader");
             const decodedText = await scannerInstance.scanFile(file, true);
@@ -4260,15 +4304,46 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(err) {
             console.error('Error al leer imagen:', err);
             if (statusEl) {
-                statusEl.innerText = 'No se encontró ningún código de barras o QR legible en la imagen.';
+                statusEl.innerText = 'No se detectó ningún código legible en la foto. Intenta tomarla más cerca y con buena iluminación.';
                 statusEl.style.display = 'block';
                 statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
                 statusEl.style.color = '#ef4444';
             }
-        } finally {
-            e.target.value = '';
         }
+    }
+
+    // Cámara nativa de 1 toque (ideal para conexiones HTTP)
+    document.getElementById('scanner-native-camera-input')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            await processScannedImageFile(file);
+        }
+        e.target.value = '';
     });
+
+    // Cargar archivo desde galería
+    document.getElementById('scanner-file-input')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            await processScannedImageFile(file);
+        }
+        e.target.value = '';
+    });
+
+    // ==========================================
+    // PWA: REGISTRO DE SERVICE WORKER
+    // ==========================================
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then((reg) => {
+                    console.log('Service Worker PWA registrado exitosamente:', reg.scope);
+                })
+                .catch((err) => {
+                    console.warn('Registro de Service Worker PWA:', err);
+                });
+        });
+    }
 
     // --- Global Dashboard Filters & Navigation ---
     window.filterByStatus = function(status) {
