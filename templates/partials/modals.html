@@ -363,10 +363,6 @@
                             <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="pedidos" checked>
-                            <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Pedidos y Compras</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" name="user-module" value="despacho">
                             <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
                         </label>
@@ -378,6 +374,43 @@
                             <input type="checkbox" name="user-module" value="configuracion">
                             <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración</span>
                         </label>
+
+                        <!-- Acordeón Desplegable de Pedidos y Compras -->
+                        <div style="grid-column: 1 / -1; background: rgba(249, 115, 22, 0.04); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700;">
+                                    <input type="checkbox" name="user-module" value="pedidos" id="chk-user-module-pedidos" checked>
+                                    <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Pedidos y Compras</span>
+                                </label>
+                                <button type="button" class="btn-toggle-subperms" id="btn-toggle-order-subperms" style="background: none; border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #ea580c; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                    <span>Acciones / Permisos</span> <i class="fa-solid fa-chevron-down" id="icon-order-subperms" style="font-size: 10px; transition: transform 0.2s;"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Sub-permisos desplegables -->
+                            <div id="user-order-subperms-panel" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(249, 115, 22, 0.25); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="user-subperm" value="pedidos:crear" checked>
+                                    <span><i class="fa-solid fa-plus" style="color: #10b981; width: 14px;"></i> Crear Solicitudes</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(239, 68, 68, 0.06); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                    <input type="checkbox" name="user-subperm" value="pedidos:aprobar">
+                                    <span><i class="fa-solid fa-signature" style="color: #ef4444; width: 14px;"></i> <strong>Aprobar / Rechazar</strong></span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="user-subperm" value="pedidos:cotizar" checked>
+                                    <span><i class="fa-solid fa-file-invoice-dollar" style="color: #3b82f6; width: 14px;"></i> Cotizaciones</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="user-subperm" value="pedidos:comprar" checked>
+                                    <span><i class="fa-solid fa-receipt" style="color: #8b5cf6; width: 14px;"></i> Órdenes de Compra (OC)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="user-subperm" value="pedidos:recibir" checked>
+                                    <span><i class="fa-solid fa-truck-ramp-box" style="color: #f97316; width: 14px;"></i> Recepción de Artículos</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -452,10 +485,6 @@
                             <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="pedidos">
-                            <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Pedidos y Compras</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" name="edit-user-module" value="despacho">
                             <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
                         </label>
@@ -467,6 +496,43 @@
                             <input type="checkbox" name="edit-user-module" value="configuracion">
                             <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración</span>
                         </label>
+
+                        <!-- Acordeón Desplegable de Pedidos y Compras para Edición -->
+                        <div style="grid-column: 1 / -1; background: rgba(249, 115, 22, 0.04); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700;">
+                                    <input type="checkbox" name="edit-user-module" value="pedidos" id="chk-edit-user-module-pedidos">
+                                    <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Pedidos y Compras</span>
+                                </label>
+                                <button type="button" class="btn-toggle-subperms" id="btn-edit-toggle-order-subperms" style="background: none; border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #ea580c; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                    <span>Acciones / Permisos</span> <i class="fa-solid fa-chevron-down" id="icon-edit-order-subperms" style="font-size: 10px; transition: transform 0.2s;"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Sub-permisos desplegables -->
+                            <div id="edit-user-order-subperms-panel" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(249, 115, 22, 0.25); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-subperm" value="pedidos:crear">
+                                    <span><i class="fa-solid fa-plus" style="color: #10b981; width: 14px;"></i> Crear Solicitudes</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(239, 68, 68, 0.06); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                    <input type="checkbox" name="edit-user-subperm" value="pedidos:aprobar">
+                                    <span><i class="fa-solid fa-signature" style="color: #ef4444; width: 14px;"></i> <strong>Aprobar / Rechazar</strong></span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-subperm" value="pedidos:cotizar">
+                                    <span><i class="fa-solid fa-file-invoice-dollar" style="color: #3b82f6; width: 14px;"></i> Cotizaciones</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-subperm" value="pedidos:comprar">
+                                    <span><i class="fa-solid fa-receipt" style="color: #8b5cf6; width: 14px;"></i> Órdenes de Compra (OC)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-subperm" value="pedidos:recibir">
+                                    <span><i class="fa-solid fa-truck-ramp-box" style="color: #f97316; width: 14px;"></i> Recepción de Artículos</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

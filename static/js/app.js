@@ -5825,13 +5825,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getRoleDefaultModules(role) {
         if (role === 'Admin') {
-            return ALL_AVAILABLE_MODULES.map(m => m.id);
+            return [...ALL_AVAILABLE_MODULES.map(m => m.id), 'pedidos:crear', 'pedidos:aprobar', 'pedidos:cotizar', 'pedidos:comprar', 'pedidos:recibir'];
         } else if (role === 'Tecnico') {
-            return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes'];
+            return ['dashboard', 'inventario', 'pedidos', 'pedidos:crear', 'pedidos:cotizar', 'pedidos:comprar', 'pedidos:recibir', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes'];
         } else if (role === 'Viewer') {
             return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes'];
         }
-        return ['dashboard', 'inventario', 'pedidos'];
+        return ['dashboard', 'inventario', 'pedidos', 'pedidos:crear'];
+    }
+
+    // Toggle de Sub-permisos de Pedidos (Creación y Edición)
+    const btnToggleOrderSubperms = document.getElementById('btn-toggle-order-subperms');
+    const panelOrderSubperms = document.getElementById('user-order-subperms-panel');
+    const iconOrderSubperms = document.getElementById('icon-order-subperms');
+    const chkUserModulePedidos = document.getElementById('chk-user-module-pedidos');
+
+    if (btnToggleOrderSubperms && panelOrderSubperms) {
+        btnToggleOrderSubperms.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isHidden = panelOrderSubperms.style.display === 'none';
+            panelOrderSubperms.style.display = isHidden ? 'grid' : 'none';
+            if (iconOrderSubperms) iconOrderSubperms.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+    }
+
+    if (chkUserModulePedidos && panelOrderSubperms) {
+        chkUserModulePedidos.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('input[name="user-subperm"]').forEach(cb => {
+                cb.checked = isChecked && cb.value !== 'pedidos:aprobar'; // Por defecto sin aprobación a menos que sea explícito
+            });
+            panelOrderSubperms.style.display = isChecked ? 'grid' : 'none';
+        });
+    }
+
+    const btnEditToggleOrderSubperms = document.getElementById('btn-edit-toggle-order-subperms');
+    const panelEditOrderSubperms = document.getElementById('edit-user-order-subperms-panel');
+    const iconEditOrderSubperms = document.getElementById('icon-edit-order-subperms');
+    const chkEditUserModulePedidos = document.getElementById('chk-edit-user-module-pedidos');
+
+    if (btnEditToggleOrderSubperms && panelEditOrderSubperms) {
+        btnEditToggleOrderSubperms.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isHidden = panelEditOrderSubperms.style.display === 'none';
+            panelEditOrderSubperms.style.display = isHidden ? 'grid' : 'none';
+            if (iconEditOrderSubperms) iconEditOrderSubperms.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+    }
+
+    if (chkEditUserModulePedidos && panelEditOrderSubperms) {
+        chkEditUserModulePedidos.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('input[name="edit-user-subperm"]').forEach(cb => {
+                cb.checked = isChecked && cb.value !== 'pedidos:aprobar';
+            });
+            panelEditOrderSubperms.style.display = isChecked ? 'grid' : 'none';
+        });
     }
 
     document.getElementById('btn-new-user')?.addEventListener('click', () => {
@@ -5844,6 +5893,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('input[name="user-module"]').forEach(cb => {
             cb.checked = defaultPerms.includes(cb.value);
         });
+        document.querySelectorAll('input[name="user-subperm"]').forEach(cb => {
+            cb.checked = defaultPerms.includes(cb.value);
+        });
         
         userModal.classList.add('active');
     });
@@ -5854,13 +5906,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('input[name="user-module"]').forEach(cb => {
             cb.checked = defaults.includes(cb.value);
         });
+        document.querySelectorAll('input[name="user-subperm"]').forEach(cb => {
+            cb.checked = defaults.includes(cb.value);
+        });
     });
 
     document.getElementById('btn-select-all-modules')?.addEventListener('click', () => {
         document.querySelectorAll('input[name="user-module"]').forEach(cb => cb.checked = true);
+        document.querySelectorAll('input[name="user-subperm"]').forEach(cb => cb.checked = true);
     });
     document.getElementById('btn-clear-all-modules')?.addEventListener('click', () => {
         document.querySelectorAll('input[name="user-module"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('input[name="user-subperm"]').forEach(cb => cb.checked = false);
     });
 
     document.getElementById('btn-close-user-modal')?.addEventListener('click', () => {
@@ -5876,7 +5933,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = document.getElementById('new-user-password').value;
         const role = document.getElementById('new-user-role').value;
 
-        const permissions = Array.from(document.querySelectorAll('input[name="user-module"]:checked')).map(cb => cb.value);
+        const basePerms = Array.from(document.querySelectorAll('input[name="user-module"]:checked')).map(cb => cb.value);
+        const subPerms = Array.from(document.querySelectorAll('input[name="user-subperm"]:checked')).map(cb => cb.value);
+        const permissions = Array.from(new Set([...basePerms, ...subPerms]));
 
         if (!username || !password) {
             showToast('Por favor completa todos los campos requeridos', 'error');
@@ -5911,14 +5970,19 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => {
                 cb.checked = defaults.includes(cb.value);
             });
+            document.querySelectorAll('input[name="edit-user-subperm"]').forEach(cb => {
+                cb.checked = defaults.includes(cb.value);
+            });
         }
     });
 
     document.getElementById('btn-edit-select-all-modules')?.addEventListener('click', () => {
         document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => cb.checked = true);
+        document.querySelectorAll('input[name="edit-user-subperm"]').forEach(cb => cb.checked = true);
     });
     document.getElementById('btn-edit-clear-all-modules')?.addEventListener('click', () => {
         document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('input[name="edit-user-subperm"]').forEach(cb => cb.checked = false);
     });
 
     document.getElementById('btn-close-user-edit-modal')?.addEventListener('click', () => {
@@ -5933,7 +5997,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = document.getElementById('edit-user-id').value;
         const username = document.getElementById('edit-user-username').value.trim();
         const role = document.getElementById('edit-user-role').value;
-        const permissions = Array.from(document.querySelectorAll('input[name="edit-user-module"]:checked')).map(cb => cb.value);
+        
+        const basePerms = Array.from(document.querySelectorAll('input[name="edit-user-module"]:checked')).map(cb => cb.value);
+        const subPerms = Array.from(document.querySelectorAll('input[name="edit-user-subperm"]:checked')).map(cb => cb.value);
+        const permissions = Array.from(new Set([...basePerms, ...subPerms]));
 
         if (!username) {
             showToast('El nombre de usuario es obligatorio', 'error');
@@ -5980,6 +6047,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const SUBPERM_LABELS = {
+        'pedidos:crear': 'Pedidos (Crear)',
+        'pedidos:aprobar': 'Pedidos (Aprobar)',
+        'pedidos:cotizar': 'Pedidos (Cotizar)',
+        'pedidos:comprar': 'Pedidos (OC)',
+        'pedidos:recibir': 'Pedidos (Recibir)'
+    };
+
     function renderUsersTable() {
         const listBody = document.getElementById('settings-user-list');
         if (!listBody) return;
@@ -5992,9 +6067,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         allUsersList.forEach(user => {
             const tr = document.createElement('tr');
-            const roleBadgeClass = user.role === 'Admin' ? 'badge-danger' : (user.role === 'Tecnico' ? 'badge-info' : 'badge-success');
-            
-            // Build Permissions Badges
+            let roleBadgeClass = 'badge-secondary';
+            if (user.role === 'Admin') roleBadgeClass = 'badge-primary';
+            else if (user.role === 'Tecnico') roleBadgeClass = 'badge-warning';
+
             let permissionsHtml = '';
             if (user.role === 'Admin') {
                 permissionsHtml = `<span class="badge" style="background: rgba(37, 99, 235, 0.12); color: var(--color-primary); font-weight: 700;"><i class="fa-solid fa-crown"></i> Control Total (Todos los Módulos)</span>`;
@@ -6002,13 +6078,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const uPerms = Array.isArray(user.permissions) ? user.permissions : [];
                 if (uPerms.length === 0) {
                     permissionsHtml = `<span class="text-secondary" style="font-size: 12px;">Sin accesos</span>`;
-                } else if (uPerms.length === ALL_AVAILABLE_MODULES.length) {
-                    permissionsHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 700;"><i class="fa-solid fa-check-double"></i> Todos los Módulos (${uPerms.length})</span>`;
                 } else {
                     const badgeItems = uPerms.map(p => {
                         const modDef = ALL_AVAILABLE_MODULES.find(m => m.id === p);
-                        const label = modDef ? modDef.label : p;
-                        return `<span class="badge" style="background: var(--color-surface-2, rgba(0,0,0,0.04)); border: 1px solid var(--color-border); font-size: 11px; margin: 2px;">${escapeHtml(label)}</span>`;
+                        const label = modDef ? modDef.label : (SUBPERM_LABELS[p] || p);
+                        const isApprovalBadge = p === 'pedidos:aprobar';
+                        const badgeStyle = isApprovalBadge 
+                            ? 'background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 700;' 
+                            : 'background: var(--color-surface-2, rgba(0,0,0,0.04)); border: 1px solid var(--color-border);';
+                        return `<span class="badge" style="${badgeStyle} font-size: 11px; margin: 2px;">${escapeHtml(label)}</span>`;
                     });
                     permissionsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 380px;">${badgeItems.join('')}</div>`;
                 }
@@ -6049,10 +6127,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('edit-user-username').value = user.username;
                 document.getElementById('edit-user-role').value = user.role;
 
-                const uPerms = Array.isArray(user.permissions) ? user.permissions : (user.role === 'Admin' ? ALL_AVAILABLE_MODULES.map(m => m.id) : []);
+                const uPerms = Array.isArray(user.permissions) ? user.permissions : (user.role === 'Admin' ? getRoleDefaultModules('Admin') : []);
                 document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => {
                     cb.checked = uPerms.includes(cb.value);
                 });
+                document.querySelectorAll('input[name="edit-user-subperm"]').forEach(cb => {
+                    cb.checked = uPerms.includes(cb.value);
+                });
+
+                // Si tiene permisos de pedidos, mostrar el acordeón
+                if (panelEditOrderSubperms) {
+                    const hasPedidos = uPerms.includes('pedidos') || uPerms.some(p => p.startsWith('pedidos:'));
+                    panelEditOrderSubperms.style.display = hasPedidos ? 'grid' : 'none';
+                    if (iconEditOrderSubperms) iconEditOrderSubperms.style.transform = hasPedidos ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
 
                 userEditModal.classList.add('active');
             });

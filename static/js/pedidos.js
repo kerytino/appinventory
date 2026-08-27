@@ -54,23 +54,82 @@ document.addEventListener('DOMContentLoaded', () => {
     const builderProvider = document.getElementById('builder-provider');
     const builderNotes = document.getElementById('builder-notes');
 
+    // --- PERMISOS DE USUARIO ---
+    let currentUserData = null;
+    let userPerms = [];
+    let userIsAdmin = false;
+
     // --- INICIALIZACIÓN ---
     init();
 
     async function init() {
         setupEventListeners();
+        await checkUserPermissions();
         await loadHotels();
         await fetchOrders();
         setupCurrentUser();
+    }
+
+    async function checkUserPermissions() {
+        try {
+            const res = await fetch('/api/me');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.logged_in && data.user) {
+                    currentUserData = data.user;
+                    userIsAdmin = (data.user.role || '').toLowerCase() === 'admin';
+                    userPerms = Array.isArray(data.user.permissions) ? data.user.permissions : [];
+                    applyOrderUIPermissions();
+                }
+            }
+        } catch (e) {
+            console.warn('No se pudo verificar permisos de usuario:', e);
+        }
+    }
+
+    function hasOrderPerm(perm) {
+        if (userIsAdmin) return true;
+        return userPerms.includes(perm);
+    }
+
+    function applyOrderUIPermissions() {
+        // 1. Botón de Crear Nueva Solicitud
+        if (btnOpenNewOrder) {
+            btnOpenNewOrder.style.display = hasOrderPerm('pedidos:crear') ? '' : 'none';
+        }
+
+        // 2. Control de Pestaña Aprobación
+        const tabApproval = document.querySelector('.modal-tab-btn[data-tab="approval"]');
+        if (tabApproval) {
+            tabApproval.style.display = hasOrderPerm('pedidos:aprobar') ? '' : 'none';
+        }
+
+        // 3. Control de Botones de Cotización
+        const btnAddQuote = document.getElementById('btn-add-quote-row');
+        if (btnAddQuote) {
+            btnAddQuote.style.display = hasOrderPerm('pedidos:cotizar') ? '' : 'none';
+        }
+
+        // 4. Control de Botones de Órdenes de Compra
+        const btnCreatePo = document.getElementById('btn-create-po-modal');
+        if (btnCreatePo) {
+            btnCreatePo.style.display = hasOrderPerm('pedidos:comprar') ? '' : 'none';
+        }
+
+        // 5. Control de Botones de Recepción
+        const btnSaveRec = document.getElementById('btn-save-reception');
+        if (btnSaveRec) {
+            btnSaveRec.style.display = hasOrderPerm('pedidos:recibir') ? '' : 'none';
+        }
     }
 
     function setupCurrentUser() {
         const today = new Date().toISOString().split('T')[0];
         if (orderDateInput) orderDateInput.value = today;
 
-        // Intentar obtener usuario de la barra superior o cookie
-        const topUser = document.querySelector('.user-name')?.textContent?.trim() || 'Usuario Conectado';
-        if (orderRequesterInput) orderRequesterInput.value = topUser;
+        // Nombre de usuario actual
+        const username = currentUserData?.username || document.querySelector('.user-name')?.textContent?.trim() || 'Usuario Conectado';
+        if (orderRequesterInput) orderRequesterInput.value = username;
     }
 
     async function loadHotels() {
@@ -463,6 +522,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Renderizar Tab 6: Historial
         renderAuditHistoryTab(order.audit_logs || []);
+
+        // Aplicar permisos visuales en pestañas y botones de acción
+        applyOrderUIPermissions();
 
         // Reset tab activa a Tab 1
         switchTab('items');

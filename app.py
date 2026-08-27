@@ -335,9 +335,12 @@ class User(db.Model):
 
     def get_permissions(self):
         raw_role = (self.role or '').strip().lower()
-        ALL_MODULES = ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion']
+        ALL_PERMS = [
+            'dashboard', 'inventario', 'pedidos', 'pedidos:crear', 'pedidos:aprobar', 'pedidos:cotizar', 'pedidos:comprar', 'pedidos:recibir',
+            'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion'
+        ]
         if raw_role == 'admin':
-            return ALL_MODULES
+            return ALL_PERMS
         try:
             if self.permissions:
                 perms = json.loads(self.permissions)
@@ -347,7 +350,7 @@ class User(db.Model):
             pass
         # Defaults si no tiene permissions explícito
         if raw_role in ['tecnico', 'técnico']:
-            return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes']
+            return ['dashboard', 'inventario', 'pedidos', 'pedidos:crear', 'pedidos:cotizar', 'pedidos:comprar', 'pedidos:recibir', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes']
         # Viewer default
         return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes']
 
@@ -1337,6 +1340,18 @@ def get_orders():
 
     return jsonify({'orders': orders_list, 'kpis': kpis})
 
+def check_order_permission(perm_name):
+    if session.get('role') == 'Admin':
+        return True
+    user_id = session.get('user_id')
+    if not user_id:
+        return True
+    user = User.query.get(user_id)
+    if not user:
+        return False
+    perms = user.get_permissions()
+    return perm_name in perms or (user.role or '').lower() == 'admin'
+
 @app.route('/api/orders/<int:order_id>', methods=['GET'])
 def get_order_detail(order_id):
     order = PurchaseRequest.query.get_or_404(order_id)
@@ -1344,6 +1359,9 @@ def get_order_detail(order_id):
 
 @app.route('/api/orders', methods=['POST'])
 def create_order():
+    if not check_order_permission('pedidos:crear'):
+        return jsonify({'error': 'No tienes permisos para crear solicitudes de compra'}), 403
+
     data = request.json or {}
     requester = (data.get('requester_name') or current_username()).strip()
     dept = (data.get('department') or 'IT').strip()
@@ -1423,6 +1441,9 @@ def update_order(order_id):
 
 @app.route('/api/orders/<int:order_id>/approve', methods=['POST'])
 def approve_order(order_id):
+    if not check_order_permission('pedidos:aprobar'):
+        return jsonify({'error': 'No tienes permisos para aprobar o rechazar pedidos'}), 403
+
     order = PurchaseRequest.query.get_or_404(order_id)
     data = request.json or {}
     action = data.get('action') # 'approve_all', 'reject_all', 'individual'
@@ -1540,6 +1561,9 @@ def approve_order(order_id):
 
 @app.route('/api/orders/<int:order_id>/quote', methods=['POST'])
 def quote_order_items(order_id):
+    if not check_order_permission('pedidos:cotizar'):
+        return jsonify({'error': 'No tienes permisos para registrar cotizaciones'}), 403
+
     order = PurchaseRequest.query.get_or_404(order_id)
     data = request.json or {}
     item_ids = data.get('item_ids', [])
@@ -1610,6 +1634,9 @@ def quote_order_items(order_id):
 
 @app.route('/api/orders/<int:order_id>/purchase-order', methods=['POST'])
 def create_purchase_order_for_request(order_id):
+    if not check_order_permission('pedidos:comprar'):
+        return jsonify({'error': 'No tienes permisos para generar órdenes de compra'}), 403
+
     order = PurchaseRequest.query.get_or_404(order_id)
     data = request.json or {}
     po_number = (data.get('po_number') or '').strip()
@@ -1686,6 +1713,9 @@ def create_purchase_order_for_request(order_id):
 
 @app.route('/api/orders/<int:order_id>/reception', methods=['POST'])
 def receive_order_items(order_id):
+    if not check_order_permission('pedidos:recibir'):
+        return jsonify({'error': 'No tienes permisos para registrar recepciones'}), 403
+
     order = PurchaseRequest.query.get_or_404(order_id)
     data = request.json or {}
     item_id = data.get('item_id')
