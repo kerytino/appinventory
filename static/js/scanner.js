@@ -49,12 +49,24 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(err => {
                 console.error("Error al iniciar la cámara:", err);
                 const statusMsg = document.getElementById('scanner-status-msg');
+                const viewport = document.getElementById('scanner-viewport-wrapper');
+                
+                if (viewport) {
+                    viewport.style.display = 'none'; // Ocultar el cuadro negro
+                }
+                
                 if (statusMsg) {
                     statusMsg.style.display = 'block';
                     statusMsg.style.color = 'var(--color-danger)';
-                    statusMsg.textContent = 'Error al acceder a la cámara. Verifica los permisos.';
+                    statusMsg.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    
+                    if (!window.isSecureContext) {
+                        statusMsg.innerHTML = '<strong>⚠️ Cámara bloqueada por Apple/Android</strong><br>Estás usando una conexión HTTP local. Para usar el escáner en vivo con la ranura, necesitas conectarte a través de HTTPS (ej. usando Puertos de VS Code o Ngrok).';
+                    } else {
+                        statusMsg.textContent = 'Error al acceder a la cámara. Verifica los permisos del navegador.';
+                    }
                 } else {
-                    alert("No se pudo acceder a la cámara. Por favor, verifica los permisos.");
+                    alert(!window.isSecureContext ? "Se requiere HTTPS para usar la cámara en vivo." : "No se pudo acceder a la cámara.");
                 }
             });
     }
