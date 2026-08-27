@@ -1,9 +1,9 @@
-const CACHE_NAME = 'excellence-inv-cache-v2';
+const CACHE_NAME = 'excellence-inv-cache-v3';
 const STATIC_ASSETS = [
-    '/static/css/design-system.css?v=5.9.0',
-    '/static/css/layout.css?v=5.9.0',
-    '/static/css/components.css?v=5.9.0',
-    '/static/css/pages.css?v=5.9.0',
+    '/static/css/design-system.css?v=6.0.0',
+    '/static/css/layout.css?v=6.0.0',
+    '/static/css/components.css?v=6.0.0',
+    '/static/css/pages.css?v=6.0.0',
     '/static/img/logo.png',
     '/static/manifest.json'
 ];

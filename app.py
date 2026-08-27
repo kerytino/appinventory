@@ -335,7 +335,7 @@ class User(db.Model):
 
     def get_permissions(self):
         raw_role = (self.role or '').strip().lower()
-        ALL_MODULES = ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion']
+        ALL_MODULES = ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion']
         if raw_role == 'admin':
             return ALL_MODULES
         try:
@@ -347,9 +347,9 @@ class User(db.Model):
             pass
         # Defaults si no tiene permissions explícito
         if raw_role in ['tecnico', 'técnico']:
-            return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes']
+            return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes']
         # Viewer default
-        return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes']
+        return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes']
 
     def to_dict(self):
         raw_role = (self.role or '').strip()
@@ -607,6 +607,354 @@ class ToolLog(db.Model):
             'date': self.date or (self.timestamp.strftime('%Y-%m-%d') if self.timestamp else ''),
             'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S') if self.timestamp else ''
         }
+
+# ==============================================================================
+# --- MODELOS PARA EL MÓDULO DE PEDIDOS Y SOLICITUDES DE COMPRA ---
+# ==============================================================================
+
+class PurchaseRequest(db.Model):
+    __tablename__ = 'purchase_request'
+    id = db.Column(db.Integer, primary_key=True)
+    request_number = db.Column(db.String(30), unique=True, nullable=False, index=True) # Ej: SOL-2026-000001
+    requester_name = db.Column(db.String(100), nullable=False)
+    requester_user_id = db.Column(db.Integer, nullable=True)
+    department = db.Column(db.String(100), nullable=False, default='IT')
+    hotel = db.Column(db.String(100), nullable=False, default='')
+    priority = db.Column(db.String(20), nullable=False, default='Normal') # Baja, Normal, Alta, Urgente
+    general_notes = db.Column(db.Text, nullable=True, default='')
+    status = db.Column(db.String(50), nullable=False, default='En Espera de Aprobación') 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    items = db.relationship('PurchaseRequestItem', backref='purchase_request', lazy=True, cascade='all, delete-orphan')
+    audit_logs = db.relationship('PurchaseRequestAuditLog', backref='purchase_request', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self, include_details=False):
+        items_list = [item.to_dict(include_subdetails=include_details) for item in self.items] if self.items else []
+        total_items = len(items_list)
+        total_qty_requested = sum(i['quantity_requested'] for i in items_list)
+        total_qty_approved = sum(i['quantity_approved'] for i in items_list)
+        total_qty_received = sum(i['quantity_received'] for i in items_list)
+
+        # Resumen de proveedores y OCs
+        providers = list(set(filter(None, [i.get('provider_quoted') or i.get('recommended_provider') for i in items_list])))
+        pos = list(set(filter(None, [i.get('po_numbers_str') for i in items_list])))
+
+        data = {
+            'id': self.id,
+            'request_number': self.request_number,
+            'requester_name': self.requester_name,
+            'requester_user_id': self.requester_user_id,
+            'department': self.department,
+            'hotel': self.hotel,
+            'priority': self.priority,
+            'general_notes': self.general_notes or '',
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'created_date': self.created_at.strftime('%Y-%m-%d') if self.created_at else '',
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
+            'total_items': total_items,
+            'total_qty_requested': total_qty_requested,
+            'total_qty_approved': total_qty_approved,
+            'total_qty_received': total_qty_received,
+            'providers_summary': ', '.join(providers) if providers else '',
+            'pos_summary': ', '.join(pos) if pos else '',
+            'items': items_list
+        }
+        if include_details:
+            data['audit_logs'] = [l.to_dict() for l in self.audit_logs] if self.audit_logs else []
+        return data
+
+class PurchaseRequestItem(db.Model):
+    __tablename__ = 'purchase_request_item'
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('purchase_request.id'), nullable=False, index=True)
+    description = db.Column(db.String(250), nullable=False)
+    reference = db.Column(db.String(150), nullable=True, default='')
+    quantity_requested = db.Column(db.Integer, nullable=False, default=1)
+    quantity_approved = db.Column(db.Integer, nullable=False, default=0)
+    quantity_received = db.Column(db.Integer, nullable=False, default=0)
+    unit = db.Column(db.String(30), nullable=False, default='Unidades')
+    recommended_provider = db.Column(db.String(150), nullable=True, default='')
+    notes = db.Column(db.Text, nullable=True, default='')
+    status = db.Column(db.String(50), nullable=False, default='Solicitado') # Solicitado, Aprobado, Rechazado, En Cotización, Cotizado, En Compra, Pedido, Parcialmente Recibido, Recibido, Cancelado
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    approvals = db.relationship('PurchaseItemApproval', backref='request_item', lazy=True, cascade='all, delete-orphan')
+    quotes = db.relationship('PurchaseItemQuote', backref='request_item', lazy=True, cascade='all, delete-orphan')
+    receptions = db.relationship('PurchaseItemReception', backref='request_item', lazy=True, cascade='all, delete-orphan')
+    po_links = db.relationship('PurchaseOrderItem', backref='request_item', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self, include_subdetails=False):
+        latest_quote = self.quotes[-1] if self.quotes else None
+        latest_approval = self.approvals[-1] if self.approvals else None
+        
+        pos = [link.purchase_order.po_number for link in self.po_links if link.purchase_order] if self.po_links else []
+        po_str = ', '.join(set(filter(None, pos)))
+
+        data = {
+            'id': self.id,
+            'request_id': self.request_id,
+            'description': self.description,
+            'reference': self.reference or '',
+            'quantity_requested': self.quantity_requested,
+            'quantity_approved': self.quantity_approved,
+            'quantity_received': self.quantity_received,
+            'quantity_pending': max(0, (self.quantity_approved if self.quantity_approved > 0 else self.quantity_requested) - self.quantity_received),
+            'unit': self.unit or 'Unidades',
+            'recommended_provider': self.recommended_provider or '',
+            'notes': self.notes or '',
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'provider_quoted': latest_quote.provider_name if latest_quote else '',
+            'quoted_unit_price': latest_quote.unit_price if latest_quote else 0.0,
+            'quoted_total_price': latest_quote.total_price if latest_quote else 0.0,
+            'quoted_currency': latest_quote.currency if latest_quote else 'USD',
+            'po_numbers_str': po_str,
+            'approver_name': latest_approval.approver_name if latest_approval else '',
+            'approval_date': latest_approval.approval_date if latest_approval else '',
+            'approval_notes': latest_approval.notes if latest_approval else ''
+        }
+
+        if include_subdetails:
+            data['approvals'] = [a.to_dict() for a in self.approvals] if self.approvals else []
+            data['quotes'] = [q.to_dict() for q in self.quotes] if self.quotes else []
+            data['receptions'] = [r.to_dict() for r in self.receptions] if self.receptions else []
+            data['orders'] = [{
+                'po_id': l.po_id,
+                'po_number': l.purchase_order.po_number if l.purchase_order else '',
+                'quantity_ordered': l.quantity_ordered,
+                'unit_price': l.unit_price,
+                'provider_name': l.purchase_order.provider_name if l.purchase_order else '',
+                'order_date': l.purchase_order.order_date if l.purchase_order else '',
+                'estimated_delivery_date': l.purchase_order.estimated_delivery_date if l.purchase_order else '',
+                'status': l.purchase_order.status if l.purchase_order else ''
+            } for l in self.po_links if l.purchase_order] if self.po_links else []
+        return data
+
+class PurchaseItemApproval(db.Model):
+    __tablename__ = 'purchase_item_approval'
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('purchase_request_item.id'), nullable=False, index=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('purchase_request.id'), nullable=False, index=True)
+    approver_name = db.Column(db.String(100), nullable=False)
+    approval_date = db.Column(db.String(30), nullable=False)
+    status = db.Column(db.String(30), nullable=False) # Aprobado, Rechazado, Modificado
+    original_quantity = db.Column(db.Integer, nullable=False, default=0)
+    approved_quantity = db.Column(db.Integer, nullable=False, default=0)
+    notes = db.Column(db.Text, nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'item_id': self.item_id,
+            'request_id': self.request_id,
+            'approver_name': self.approver_name,
+            'approval_date': self.approval_date,
+            'status': self.status,
+            'original_quantity': self.original_quantity,
+            'approved_quantity': self.approved_quantity,
+            'notes': self.notes or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+class PurchaseItemQuote(db.Model):
+    __tablename__ = 'purchase_item_quote'
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('purchase_request_item.id'), nullable=False, index=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('purchase_request.id'), nullable=False, index=True)
+    provider_name = db.Column(db.String(150), nullable=False)
+    quote_number = db.Column(db.String(100), nullable=True, default='')
+    quote_date = db.Column(db.String(30), nullable=True, default='')
+    unit_price = db.Column(db.Float, nullable=False, default=0.0)
+    total_price = db.Column(db.Float, nullable=False, default=0.0)
+    currency = db.Column(db.String(10), nullable=False, default='USD')
+    notes = db.Column(db.Text, nullable=True, default='')
+    attachment_name = db.Column(db.String(200), nullable=True, default='')
+    attachment_data = db.Column(db.Text, nullable=True, default='')
+    created_by = db.Column(db.String(100), nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'item_id': self.item_id,
+            'request_id': self.request_id,
+            'provider_name': self.provider_name,
+            'quote_number': self.quote_number or '',
+            'quote_date': self.quote_date or '',
+            'unit_price': self.unit_price,
+            'total_price': self.total_price,
+            'currency': self.currency or 'USD',
+            'notes': self.notes or '',
+            'attachment_name': self.attachment_name or '',
+            'has_attachment': bool(self.attachment_data),
+            'created_by': self.created_by or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+class PurchaseOrder(db.Model):
+    __tablename__ = 'purchase_order'
+    id = db.Column(db.Integer, primary_key=True)
+    po_number = db.Column(db.String(50), unique=True, nullable=False, index=True) # Ej: OC-10025
+    provider_name = db.Column(db.String(150), nullable=False)
+    order_date = db.Column(db.String(30), nullable=False)
+    estimated_delivery_date = db.Column(db.String(30), nullable=True, default='')
+    buyer_name = db.Column(db.String(100), nullable=True, default='')
+    status = db.Column(db.String(50), nullable=False, default='Emitida') # Emitida, En Proceso, Entregada, Cancelada
+    total_amount = db.Column(db.Float, nullable=False, default=0.0)
+    currency = db.Column(db.String(10), nullable=False, default='USD')
+    notes = db.Column(db.Text, nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    items = db.relationship('PurchaseOrderItem', backref='purchase_order', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'po_number': self.po_number,
+            'provider_name': self.provider_name,
+            'order_date': self.order_date,
+            'estimated_delivery_date': self.estimated_delivery_date or '',
+            'buyer_name': self.buyer_name or '',
+            'status': self.status,
+            'total_amount': self.total_amount,
+            'currency': self.currency or 'USD',
+            'notes': self.notes or '',
+            'items_count': len(self.items) if self.items else 0,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+class PurchaseOrderItem(db.Model):
+    __tablename__ = 'purchase_order_item'
+    id = db.Column(db.Integer, primary_key=True)
+    po_id = db.Column(db.Integer, db.ForeignKey('purchase_order.id'), nullable=False, index=True)
+    request_item_id = db.Column(db.Integer, db.ForeignKey('purchase_request_item.id'), nullable=False, index=True)
+    quantity_ordered = db.Column(db.Integer, nullable=False, default=1)
+    unit_price = db.Column(db.Float, nullable=False, default=0.0)
+
+class PurchaseItemReception(db.Model):
+    __tablename__ = 'purchase_item_reception'
+    id = db.Column(db.Integer, primary_key=True)
+    request_item_id = db.Column(db.Integer, db.ForeignKey('purchase_request_item.id'), nullable=False, index=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('purchase_request.id'), nullable=False, index=True)
+    po_id = db.Column(db.Integer, db.ForeignKey('purchase_order.id'), nullable=True, index=True)
+    quantity_received = db.Column(db.Integer, nullable=False, default=1)
+    reception_date = db.Column(db.String(30), nullable=False)
+    received_by = db.Column(db.String(100), nullable=False)
+    provider_name = db.Column(db.String(150), nullable=True, default='')
+    invoice_number = db.Column(db.String(100), nullable=True, default='')
+    notes = db.Column(db.Text, nullable=True, default='')
+    evidence_doc = db.Column(db.String(200), nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        po_num = ''
+        if self.po_id:
+            po_obj = PurchaseOrder.query.get(self.po_id)
+            if po_obj: po_num = po_obj.po_number
+
+        return {
+            'id': self.id,
+            'request_item_id': self.request_item_id,
+            'request_id': self.request_id,
+            'po_id': self.po_id,
+            'po_number': po_num,
+            'quantity_received': self.quantity_received,
+            'reception_date': self.reception_date,
+            'received_by': self.received_by,
+            'provider_name': self.provider_name or '',
+            'invoice_number': self.invoice_number or '',
+            'notes': self.notes or '',
+            'evidence_doc': self.evidence_doc or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+class PurchaseRequestAuditLog(db.Model):
+    __tablename__ = 'purchase_request_audit_log'
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('purchase_request.id'), nullable=False, index=True)
+    item_id = db.Column(db.Integer, nullable=True)
+    username = db.Column(db.String(100), nullable=False)
+    action = db.Column(db.String(100), nullable=False)
+    field_name = db.Column(db.String(100), nullable=True)
+    old_value = db.Column(db.Text, nullable=True)
+    new_value = db.Column(db.Text, nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'request_id': self.request_id,
+            'item_id': self.item_id,
+            'username': self.username,
+            'action': self.action,
+            'field_name': self.field_name or '',
+            'old_value': self.old_value or '',
+            'new_value': self.new_value or '',
+            'details': self.details or '',
+            'date': self.timestamp.strftime('%Y-%m-%d') if self.timestamp else '',
+            'time': self.timestamp.strftime('%H:%M:%S') if self.timestamp else '',
+            'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S') if self.timestamp else ''
+        }
+
+def log_order_audit(request_id, username, action, item_id=None, field_name=None, old_value=None, new_value=None, details=None):
+    try:
+        entry = PurchaseRequestAuditLog(
+            request_id=request_id,
+            item_id=item_id,
+            username=username or 'Sistema',
+            action=action,
+            field_name=field_name,
+            old_value=str(old_value) if old_value is not None else None,
+            new_value=str(new_value) if new_value is not None else None,
+            details=details
+        )
+        db.session.add(entry)
+        db.session.commit()
+    except Exception as e:
+        print(f"[AUDIT LOG ERROR] {e}")
+
+def generate_request_number():
+    year = datetime.utcnow().strftime('%Y')
+    count = PurchaseRequest.query.count() + 1
+    return f"SOL-{year}-{count:06d}"
+
+def update_request_general_status(request_id):
+    req = PurchaseRequest.query.get(request_id)
+    if not req or not req.items:
+        return
+    
+    statuses = [item.status for item in req.items]
+    
+    if all(s == 'Recibido' for s in statuses):
+        req.status = 'Recibido'
+    elif any(s in ['Recibido', 'Parcialmente Recibido'] for s in statuses):
+        req.status = 'Parcialmente Recibido'
+    elif all(s == 'Rechazado' for s in statuses):
+        req.status = 'Rechazado'
+    elif all(s == 'Cancelado' for s in statuses):
+        req.status = 'Cancelado'
+    elif all(s in ['Pedido', 'En Compra'] for s in statuses):
+        req.status = 'En Compra'
+    elif any(s in ['Pedido', 'En Compra'] for s in statuses):
+        req.status = 'En Compra'
+    elif any(s in ['En Cotización', 'Cotizado'] for s in statuses):
+        req.status = 'En Cotización'
+    elif all(s == 'Aprobado' for s in statuses):
+        req.status = 'Aprobado'
+    elif any(s == 'Aprobado' for s in statuses):
+        req.status = 'Aprobado Parcial'
+    elif any(s == 'En Espera de Aprobación' for s in statuses) or any(s == 'Solicitado' for s in statuses):
+        req.status = 'En Espera de Aprobación'
+    
+    db.session.commit()
+
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"[DB INIT ERROR] {e}")
 
 def log_activity(username, action, details=""):
     try:
@@ -889,9 +1237,517 @@ def prestamos():
 def herramientas():
     return render_template('herramientas.html')
 
+@app.route('/pedidos')
+def pedidos():
+    return render_template('pedidos.html')
+
 @app.route('/configuracion')
 def configuracion():
     return render_template('configuracion.html')
+
+# ==============================================================================
+# --- APIS PARA EL MÓDULO DE PEDIDOS Y SOLICITUDES DE COMPRA ---
+# ==============================================================================
+
+@app.route('/api/orders', methods=['GET'])
+def get_orders():
+    status = request.args.get('status')
+    department = request.args.get('department')
+    hotel = request.args.get('hotel')
+    priority = request.args.get('priority')
+    search = (request.args.get('search') or '').strip().lower()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    provider = (request.args.get('provider') or '').strip().lower()
+    po_number = (request.args.get('po_number') or '').strip().lower()
+
+    query = PurchaseRequest.query
+
+    if status and status != 'all':
+        if status == 'pendientes_aprobacion':
+            query = query.filter(PurchaseRequest.status.in_(['En Espera de Aprobación', 'Solicitado']))
+        elif status == 'aprobadas':
+            query = query.filter(PurchaseRequest.status.in_(['Aprobado', 'Aprobado Parcial']))
+        elif status == 'en_compras':
+            query = query.filter(PurchaseRequest.status.in_(['En Cotización', 'Cotizado', 'En Compra', 'Pedido']))
+        elif status == 'pendientes_recepcion':
+            query = query.filter(PurchaseRequest.status.in_(['En Compra', 'Pedido', 'Parcialmente Recibido']))
+        elif status == 'recibidas':
+            query = query.filter_by(status='Recibido')
+        elif status == 'canceladas':
+            query = query.filter(PurchaseRequest.status.in_(['Cancelado', 'Rechazado']))
+        else:
+            query = query.filter_by(status=status)
+
+    if department and department != 'all':
+        query = query.filter_by(department=department)
+    if hotel and hotel != 'all':
+        query = query.filter_by(hotel=hotel)
+    if priority and priority != 'all':
+        query = query.filter_by(priority=priority)
+    if start_date:
+        try:
+            sd = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(PurchaseRequest.created_at >= sd)
+        except Exception:
+            pass
+    if end_date:
+        try:
+            ed = datetime.strptime(end_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
+            query = query.filter(PurchaseRequest.created_at <= ed)
+        except Exception:
+            pass
+
+    all_orders = query.order_by(PurchaseRequest.id.desc()).all()
+    orders_list = []
+
+    for o in all_orders:
+        o_dict = o.to_dict(include_details=False)
+        # Filtro de búsqueda en memoria para campos agregados o de items
+        if search:
+            match_req = search in (o_dict['request_number'] or '').lower() or \
+                        search in (o_dict['requester_name'] or '').lower() or \
+                        search in (o_dict['department'] or '').lower() or \
+                        search in (o_dict['hotel'] or '').lower() or \
+                        search in (o_dict['general_notes'] or '').lower()
+            match_items = any(search in (i['description'] or '').lower() or search in (i['reference'] or '').lower() for i in o_dict['items'])
+            match_prov = search in (o_dict['providers_summary'] or '').lower()
+            match_po = search in (o_dict['pos_summary'] or '').lower()
+            if not (match_req or match_items or match_prov or match_po):
+                continue
+
+        if provider and provider not in (o_dict['providers_summary'] or '').lower():
+            continue
+        if po_number and po_number not in (o_dict['pos_summary'] or '').lower():
+            continue
+
+        orders_list.append(o_dict)
+
+    # Cálculo global de KPIs
+    all_unfiltered = PurchaseRequest.query.all()
+    kpis = {
+        'total': len(all_unfiltered),
+        'pendientes_aprobacion': sum(1 for o in all_unfiltered if o.status in ['En Espera de Aprobación', 'Solicitado']),
+        'aprobadas': sum(1 for o in all_unfiltered if o.status in ['Aprobado', 'Aprobado Parcial']),
+        'en_compras': sum(1 for o in all_unfiltered if o.status in ['En Cotización', 'Cotizado', 'En Compra', 'Pedido']),
+        'pendientes_recepcion': sum(1 for o in all_unfiltered if o.status in ['En Compra', 'Pedido', 'Parcialmente Recibido']),
+        'recibidas': sum(1 for o in all_unfiltered if o.status == 'Recibido'),
+        'canceladas': sum(1 for o in all_unfiltered if o.status in ['Cancelado', 'Rechazado'])
+    }
+
+    return jsonify({'orders': orders_list, 'kpis': kpis})
+
+@app.route('/api/orders/<int:order_id>', methods=['GET'])
+def get_order_detail(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    return jsonify(order.to_dict(include_details=True))
+
+@app.route('/api/orders', methods=['POST'])
+def create_order():
+    data = request.json or {}
+    requester = (data.get('requester_name') or current_username()).strip()
+    dept = (data.get('department') or 'IT').strip()
+    hotel = (data.get('hotel') or '').strip()
+    priority = (data.get('priority') or 'Normal').strip()
+    notes = (data.get('general_notes') or '').strip()
+    raw_items = data.get('items', [])
+
+    if not raw_items or len(raw_items) == 0:
+        return jsonify({'error': 'Debes agregar al menos un artículo a la solicitud'}), 400
+
+    req_num = generate_request_number()
+    u_id = session.get('user_id')
+
+    new_request = PurchaseRequest(
+        request_number=req_num,
+        requester_name=requester,
+        requester_user_id=u_id,
+        department=dept,
+        hotel=hotel,
+        priority=priority,
+        general_notes=notes,
+        status='En Espera de Aprobación'
+    )
+    db.session.add(new_request)
+    db.session.flush() # Para obtener new_request.id
+
+    for idx, item in enumerate(raw_items, start=1):
+        desc = (item.get('description') or '').strip()
+        if not desc: continue
+        qty = int(item.get('quantity_requested') or item.get('quantity') or 1)
+        ref = (item.get('reference') or '').strip()
+        rec_prov = (item.get('recommended_provider') or '').strip()
+        item_obs = (item.get('notes') or item.get('observation') or '').strip()
+
+        new_item = PurchaseRequestItem(
+            request_id=new_request.id,
+            description=desc,
+            reference=ref,
+            quantity_requested=max(1, qty),
+            quantity_approved=0,
+            quantity_received=0,
+            unit=item.get('unit', 'Unidades'),
+            recommended_provider=rec_prov,
+            notes=item_obs,
+            status='Solicitado'
+        )
+        db.session.add(new_item)
+
+    db.session.commit()
+
+    # Auditoría inicial
+    log_order_audit(
+        request_id=new_request.id,
+        username=current_username(),
+        action='Creación de Solicitud',
+        details=f"Solicitud {new_request.request_number} creada por {requester} con {len(raw_items)} artículo(s)."
+    )
+    log_activity(current_username(), 'Nueva Solicitud de Compra', f'Solicitud {new_request.request_number} creada con {len(raw_items)} artículos.')
+
+    return jsonify(new_request.to_dict(include_details=True)), 201
+
+@app.route('/api/orders/<int:order_id>', methods=['PUT'])
+def update_order(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    data = request.json or {}
+
+    if 'department' in data: order.department = data['department'].strip()
+    if 'hotel' in data: order.hotel = data['hotel'].strip()
+    if 'priority' in data: order.priority = data['priority'].strip()
+    if 'general_notes' in data: order.general_notes = data['general_notes'].strip()
+    if 'status' in data: order.status = data['status'].strip()
+
+    db.session.commit()
+    log_order_audit(order.id, current_username(), 'Actualización de Cabecera', details="Datos generales actualizados.")
+    return jsonify(order.to_dict(include_details=True))
+
+@app.route('/api/orders/<int:order_id>/approve', methods=['POST'])
+def approve_order(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    data = request.json or {}
+    action = data.get('action') # 'approve_all', 'reject_all', 'individual'
+    approver = current_username()
+    today_str = datetime.utcnow().strftime('%Y-%m-%d')
+    global_notes = (data.get('notes') or '').strip()
+
+    items_payload = data.get('items', []) # Para aprobación individual
+
+    if action == 'approve_all':
+        for item in order.items:
+            old_status = item.status
+            old_qty = item.quantity_approved
+            item.status = 'Aprobado'
+            item.quantity_approved = item.quantity_requested
+            
+            approval_entry = PurchaseItemApproval(
+                item_id=item.id,
+                request_id=order.id,
+                approver_name=approver,
+                approval_date=today_str,
+                status='Aprobado',
+                original_quantity=item.quantity_requested,
+                approved_quantity=item.quantity_approved,
+                notes=global_notes
+            )
+            db.session.add(approval_entry)
+            log_order_audit(
+                request_id=order.id,
+                item_id=item.id,
+                username=approver,
+                action='Aprobación de Artículo',
+                field_name='status',
+                old_value=old_status,
+                new_value='Aprobado',
+                details=f"Aprobado por {approver}. Cantidad: {item.quantity_approved} unids. {global_notes}"
+            )
+        order.status = 'Aprobado'
+
+    elif action == 'reject_all':
+        for item in order.items:
+            old_status = item.status
+            item.status = 'Rechazado'
+            item.quantity_approved = 0
+            
+            approval_entry = PurchaseItemApproval(
+                item_id=item.id,
+                request_id=order.id,
+                approver_name=approver,
+                approval_date=today_str,
+                status='Rechazado',
+                original_quantity=item.quantity_requested,
+                approved_quantity=0,
+                notes=global_notes
+            )
+            db.session.add(approval_entry)
+            log_order_audit(
+                request_id=order.id,
+                item_id=item.id,
+                username=approver,
+                action='Rechazo de Artículo',
+                field_name='status',
+                old_value=old_status,
+                new_value='Rechazado',
+                details=f"Rechazado por {approver}. Motivo: {global_notes}"
+            )
+        order.status = 'Rechazado'
+
+    elif action == 'individual':
+        for item_data in items_payload:
+            i_id = item_data.get('item_id')
+            item = PurchaseRequestItem.query.filter_by(id=i_id, request_id=order.id).first()
+            if not item: continue
+
+            new_st = item_data.get('status', 'Aprobado')
+            new_qty = int(item_data.get('approved_quantity') if item_data.get('approved_quantity') is not None else item.quantity_requested)
+            item_notes = (item_data.get('notes') or '').strip()
+
+            old_st = item.status
+            old_qty = item.quantity_approved
+
+            item.status = new_st
+            item.quantity_approved = new_qty if new_st == 'Aprobado' else 0
+
+            # Guardar registro de aprobación
+            approval_entry = PurchaseItemApproval(
+                item_id=item.id,
+                request_id=order.id,
+                approver_name=approver,
+                approval_date=today_str,
+                status=new_st,
+                original_quantity=item.quantity_requested,
+                approved_quantity=item.quantity_approved,
+                notes=item_notes
+            )
+            db.session.add(approval_entry)
+
+            # Auditoría
+            log_order_audit(
+                request_id=order.id,
+                item_id=item.id,
+                username=approver,
+                action='Revisión de Aprobación',
+                field_name='quantity_approved' if old_qty != item.quantity_approved else 'status',
+                old_value=f"Cant: {old_qty}, Estado: {old_st}",
+                new_value=f"Cant: {item.quantity_approved}, Estado: {new_st}",
+                details=f"Revisado por {approver}. Solicitadas: {item.quantity_requested}, Aprobadas: {item.quantity_approved}. {item_notes}"
+            )
+
+        update_request_general_status(order.id)
+
+    db.session.commit()
+    log_activity(approver, 'Aprobación de Pedido', f'Solicitud {order.request_number} evaluada (Acción: {action}).')
+    return jsonify(order.to_dict(include_details=True))
+
+@app.route('/api/orders/<int:order_id>/quote', methods=['POST'])
+def quote_order_items(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    data = request.json or {}
+    item_ids = data.get('item_ids', [])
+    provider_name = (data.get('provider_name') or '').strip()
+    quote_num = (data.get('quote_number') or '').strip()
+    quote_date = data.get('quote_date', datetime.utcnow().strftime('%Y-%m-%d'))
+    unit_price = float(data.get('unit_price') or 0.0)
+    currency = data.get('currency', 'USD')
+    notes = (data.get('notes') or '').strip()
+    att_name = (data.get('attachment_name') or '').strip()
+    att_data = (data.get('attachment_data') or '').strip()
+
+    if not provider_name:
+        return jsonify({'error': 'El nombre del proveedor es requerido'}), 400
+    if not item_ids:
+        return jsonify({'error': 'Selecciona al menos un artículo para cotizar'}), 400
+
+    # Auto-registrar proveedor si no existe
+    existing_p = Provider.query.filter(db.func.lower(Provider.name) == provider_name.lower()).first()
+    if not existing_p:
+        db.session.add(Provider(name=provider_name))
+        db.session.commit()
+
+    buyer = current_username()
+
+    for i_id in item_ids:
+        item = PurchaseRequestItem.query.filter_by(id=i_id, request_id=order.id).first()
+        if not item: continue
+
+        effective_qty = item.quantity_approved if item.quantity_approved > 0 else item.quantity_requested
+        tot_price = round(unit_price * effective_qty, 2)
+
+        quote_entry = PurchaseItemQuote(
+            item_id=item.id,
+            request_id=order.id,
+            provider_name=provider_name,
+            quote_number=quote_num,
+            quote_date=quote_date,
+            unit_price=unit_price,
+            total_price=tot_price,
+            currency=currency,
+            notes=notes,
+            attachment_name=att_name,
+            attachment_data=att_data,
+            created_by=buyer
+        )
+        db.session.add(quote_entry)
+
+        if item.status in ['Aprobado', 'Solicitado', 'En Cotización']:
+            item.status = 'Cotizado'
+
+        log_order_audit(
+            request_id=order.id,
+            item_id=item.id,
+            username=buyer,
+            action='Cotización Registrada',
+            field_name='provider_quoted',
+            old_value=None,
+            new_value=f"{provider_name} ({currency} ${unit_price:.2f} c/u)",
+            details=f"Cotización #{quote_num} registrada por {buyer}. Total: {currency} ${tot_price:.2f}."
+        )
+
+    update_request_general_status(order.id)
+    db.session.commit()
+
+    log_activity(buyer, 'Cotización de Pedido', f'Cotización para Solicitud {order.request_number} registrada (Proveedor: {provider_name}).')
+    return jsonify(order.to_dict(include_details=True))
+
+@app.route('/api/orders/<int:order_id>/purchase-order', methods=['POST'])
+def create_purchase_order_for_request(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    data = request.json or {}
+    po_number = (data.get('po_number') or '').strip()
+    provider_name = (data.get('provider_name') or '').strip()
+    order_date = data.get('order_date', datetime.utcnow().strftime('%Y-%m-%d'))
+    est_delivery = data.get('estimated_delivery_date', '')
+    buyer = (data.get('buyer_name') or current_username()).strip()
+    notes = (data.get('notes') or '').strip()
+    currency = data.get('currency', 'USD')
+    raw_items = data.get('items', []) # [{ item_id, quantity_ordered, unit_price }]
+
+    if not po_number or not provider_name:
+        return jsonify({'error': 'Número de Orden de Compra y Proveedor son obligatorios'}), 400
+    if not raw_items:
+        return jsonify({'error': 'Selecciona los artículos que pertenecerán a esta Orden de Compra'}), 400
+
+    # Buscar o crear PurchaseOrder
+    po = PurchaseOrder.query.filter_by(po_number=po_number).first()
+    if not po:
+        po = PurchaseOrder(
+            po_number=po_number,
+            provider_name=provider_name,
+            order_date=order_date,
+            estimated_delivery_date=est_delivery,
+            buyer_name=buyer,
+            status='Emitida',
+            currency=currency,
+            notes=notes
+        )
+        db.session.add(po)
+        db.session.flush()
+
+    total_po_amount = po.total_amount or 0.0
+
+    for it in raw_items:
+        i_id = it.get('item_id')
+        item = PurchaseRequestItem.query.filter_by(id=i_id, request_id=order.id).first()
+        if not item: continue
+
+        q_ord = int(it.get('quantity_ordered') or item.quantity_approved or item.quantity_requested)
+        u_pr = float(it.get('unit_price') or 0.0)
+
+        # Evitar duplicar link
+        existing_link = PurchaseOrderItem.query.filter_by(po_id=po.id, request_item_id=item.id).first()
+        if not existing_link:
+            link = PurchaseOrderItem(
+                po_id=po.id,
+                request_item_id=item.id,
+                quantity_ordered=q_ord,
+                unit_price=u_pr
+            )
+            db.session.add(link)
+            total_po_amount += (q_ord * u_pr)
+
+        item.status = 'Pedido'
+
+        log_order_audit(
+            request_id=order.id,
+            item_id=item.id,
+            username=buyer,
+            action='Orden de Compra Generada',
+            field_name='po_number',
+            old_value=None,
+            new_value=po_number,
+            details=f"Asignado a Orden de Compra {po_number} (Proveedor: {provider_name}, Comprador: {buyer})."
+        )
+
+    po.total_amount = round(total_po_amount, 2)
+    update_request_general_status(order.id)
+    db.session.commit()
+
+    log_activity(buyer, 'Orden de Compra', f'Orden de Compra {po_number} generada para Solicitud {order.request_number}.')
+    return jsonify(order.to_dict(include_details=True))
+
+@app.route('/api/orders/<int:order_id>/reception', methods=['POST'])
+def receive_order_items(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    data = request.json or {}
+    item_id = data.get('item_id')
+    qty_rec = int(data.get('quantity_received') or 0)
+    rec_date = data.get('reception_date', datetime.utcnow().strftime('%Y-%m-%d'))
+    receiver = (data.get('received_by') or current_username()).strip()
+    provider_name = (data.get('provider_name') or '').strip()
+    invoice_num = (data.get('invoice_number') or '').strip()
+    notes = (data.get('notes') or '').strip()
+    po_id = data.get('po_id')
+
+    if not item_id or qty_rec <= 0:
+        return jsonify({'error': 'Artículo y Cantidad Recibida válida son requeridos'}), 400
+
+    item = PurchaseRequestItem.query.filter_by(id=item_id, request_id=order.id).first()
+    if not item:
+        return jsonify({'error': 'Artículo no encontrado en la solicitud'}), 404
+
+    target_qty = item.quantity_approved if item.quantity_approved > 0 else item.quantity_requested
+    new_total_rec = item.quantity_received + qty_rec
+
+    reception_entry = PurchaseItemReception(
+        request_item_id=item.id,
+        request_id=order.id,
+        po_id=po_id,
+        quantity_received=qty_rec,
+        reception_date=rec_date,
+        received_by=receiver,
+        provider_name=provider_name or item.recommended_provider,
+        invoice_number=invoice_num,
+        notes=notes
+    )
+    db.session.add(reception_entry)
+
+    item.quantity_received = new_total_rec
+    if new_total_rec >= target_qty:
+        item.status = 'Recibido'
+    else:
+        item.status = 'Parcialmente Recibido'
+
+    log_order_audit(
+        request_id=order.id,
+        item_id=item.id,
+        username=receiver,
+        action='Recepción de Artículo',
+        field_name='quantity_received',
+        old_value=item.quantity_received - qty_rec,
+        new_value=item.quantity_received,
+        details=f"Recibidas {qty_rec} unidades por {receiver}. Factura: {invoice_num or 'N/A'}. (Total recibido: {item.quantity_received}/{target_qty})."
+    )
+
+    update_request_general_status(order.id)
+    db.session.commit()
+
+    log_activity(receiver, 'Recepción de Pedido', f'{qty_rec} unidades de "{item.description}" recibidas en Solicitud {order.request_number}.')
+    return jsonify(order.to_dict(include_details=True))
+
+@app.route('/api/orders/<int:order_id>/history', methods=['GET'])
+def get_order_history(order_id):
+    order = PurchaseRequest.query.get_or_404(order_id)
+    logs = [l.to_dict() for l in order.audit_logs]
+    return jsonify({'history': logs})
 
 # --- APIS PARA PRÉSTAMOS Y DEMOS ---
 @app.route('/api/loans', methods=['GET'])

@@ -46,6 +46,11 @@
             <i class="fa-solid fa-toolbox"></i>
             <span>Herramientas IT</span>
         </a>
+
+        <a href="{{ url_for('pedidos') }}" class="nav-item {% if request.endpoint == 'pedidos' %}active{% endif %}" data-module="pedidos" id="nav-orders">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span>Pedidos y Compras</span>
+        </a>
         
         <a href="{{ url_for('despacho') }}" class="nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" data-module="despacho" id="nav-dispatch">
             <i class="fa-solid fa-truck-ramp-box"></i>

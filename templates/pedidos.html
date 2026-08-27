@@ -1,0 +1,801 @@
+{% extends "base.html" %}
+
+{% block title %}Módulo de Pedidos y Solicitudes de Compra | The Excellence Collection{% endblock %}
+{% block page_title %}Pedidos y Solicitudes de Compra{% endblock %}
+{% block page_subtitle %}Flujo integral de solicitudes, aprobación multinivel, cotizaciones, órdenes de compra y recepción de artículos{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Estilos para badges de estado */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.status-solicitado { background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); }
+.status-espera-aprobacion { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+.status-aprobado { background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+.status-aprobado-parcial { background: rgba(20, 184, 166, 0.12); color: #14b8a6; border: 1px solid rgba(20, 184, 166, 0.3); }
+.status-rechazado { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+.status-cancelado { background: rgba(100, 116, 139, 0.12); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.3); }
+.status-cotizacion { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); }
+.status-cotizado { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+.status-compra { background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3); }
+.status-pedido { background: rgba(6, 182, 212, 0.12); color: #06b6d4; border: 1px solid rgba(6, 182, 212, 0.3); }
+.status-parcial-recibido { background: rgba(234, 179, 8, 0.12); color: #ca8a04; border: 1px solid rgba(234, 179, 8, 0.3); }
+.status-recibido { background: rgba(34, 197, 94, 0.15); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.4); }
+
+.priority-badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+.priority-urgente { background: rgba(239, 68, 68, 0.15); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); }
+.priority-alta { background: rgba(249, 115, 22, 0.15); color: #ea580c; border: 1px solid rgba(249, 115, 22, 0.3); }
+.priority-normal { background: rgba(59, 130, 246, 0.12); color: #2563eb; border: 1px solid rgba(59, 130, 246, 0.25); }
+.priority-baja { background: rgba(100, 116, 139, 0.12); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.25); }
+
+/* KPI Cards interactivos */
+.order-kpi-card {
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.order-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.07);
+    border-color: var(--color-primary);
+}
+.order-kpi-card.active {
+    border-color: var(--color-primary);
+    background: rgba(37, 99, 235, 0.04);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+.order-kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* Acciones en tabla */
+.order-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13px;
+}
+.order-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+.order-action-btn.view:hover { background: rgba(37, 99, 235, 0.12); color: var(--color-primary); border-color: rgba(37, 99, 235, 0.4); }
+.order-action-btn.edit:hover { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); }
+.order-action-btn.delete:hover { background: rgba(239, 68, 68, 0.12); color: #ef4444; border-color: rgba(239, 68, 68, 0.4); }
+
+/* Modal Cards y Tabs */
+.modal-solid-card {
+    background: var(--color-surface, #ffffff) !important;
+    border: 1px solid var(--color-border) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+}
+
+.modal-nav-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 22px;
+    background: var(--color-surface-2, rgba(0,0,0,0.02));
+    overflow-x: auto;
+}
+.modal-tab-btn {
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.modal-tab-btn:hover {
+    color: var(--color-text);
+}
+.modal-tab-btn.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    font-weight: 700;
+}
+
+/* Tarjeta de artículo en creación */
+.item-card-row {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 14px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+.item-card-row:hover {
+    border-color: rgba(37, 99, 235, 0.4);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="view-orders" class="view-section active">
+    <!-- Notice Banner -->
+    <div style="background: rgba(249, 115, 22, 0.05); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="display: flex; gap: 14px; align-items: center;">
+            <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(249, 115, 22, 0.12); color: #f97316; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                <i class="fa-solid fa-cart-shopping"></i>
+            </div>
+            <div>
+                <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--color-text);">Flujo Digital de Compras y Pedidos</h4>
+                <p style="margin: 3px 0 0 0; font-size: 13px; color: var(--color-text-secondary);">Controla el ciclo de vida completo: solicitud, aprobación por jefe/área, cotización, órdenes de compra y recepción de artículos.</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" id="btn-export-orders-csv">
+                <i class="fa-solid fa-file-csv"></i> <span>Exportar CSV</span>
+            </button>
+            <button class="btn btn-primary" id="btn-open-new-order" style="background: #f97316; border-color: #f97316;">
+                <i class="fa-solid fa-plus"></i> <span>Nueva Solicitud</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs Superiores Interactivos -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px;">
+        <div class="order-kpi-card active" data-filter="all" id="kpi-card-all">
+            <div class="order-kpi-icon" style="background: rgba(99, 102, 241, 0.12); color: #6366f1;">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Total Solicitudes</div>
+                <div style="font-size: 22px; font-weight: 800; color: var(--color-text);" id="kpi-total-orders">0</div>
+            </div>
+        </div>
+
+        <div class="order-kpi-card" data-filter="pendientes_aprobacion" id="kpi-card-pendientes-aprobacion">
+            <div class="order-kpi-icon" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b;">
+                <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Por Aprobar</div>
+                <div style="font-size: 22px; font-weight: 800; color: #f59e0b;" id="kpi-pending-approval">0</div>
+            </div>
+        </div>
+
+        <div class="order-kpi-card" data-filter="aprobadas" id="kpi-card-aprobadas">
+            <div class="order-kpi-icon" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Aprobadas</div>
+                <div style="font-size: 22px; font-weight: 800; color: #10b981;" id="kpi-approved-orders">0</div>
+            </div>
+        </div>
+
+        <div class="order-kpi-card" data-filter="en_compras" id="kpi-card-en-compras">
+            <div class="order-kpi-icon" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">En Compras / Cotiz.</div>
+                <div style="font-size: 22px; font-weight: 800; color: #3b82f6;" id="kpi-in-purchase">0</div>
+            </div>
+        </div>
+
+        <div class="order-kpi-card" data-filter="pendientes_recepcion" id="kpi-card-pendientes-recepcion">
+            <div class="order-kpi-icon" style="background: rgba(249, 115, 22, 0.12); color: #f97316;">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Por Recibir</div>
+                <div style="font-size: 22px; font-weight: 800; color: #f97316;" id="kpi-pending-reception">0</div>
+            </div>
+        </div>
+
+        <div class="order-kpi-card" data-filter="recibidas" id="kpi-card-recibidas">
+            <div class="order-kpi-icon" style="background: rgba(34, 197, 94, 0.15); color: #16a34a;">
+                <i class="fa-solid fa-boxes-packing"></i>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Recibidas Total</div>
+                <div style="font-size: 22px; font-weight: 800; color: #16a34a;" id="kpi-received-orders">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda -->
+    <div class="settings-card" style="padding: 16px 20px; margin-bottom: 20px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+            <!-- Buscador Universal -->
+            <div style="flex: 1 1 300px; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-text-secondary);"></i>
+                <input type="text" id="order-search-input" class="form-control" placeholder="Buscar por solicitud #, solicitante, artículo, referencia, proveedor u OC..." style="padding-left: 38px; height: 40px;">
+            </div>
+
+            <!-- Filtros de Dropdown -->
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <select id="filter-order-status" class="form-control" style="width: auto; height: 40px; min-width: 170px;">
+                    <option value="all">Todos los Estados</option>
+                    <option value="En Espera de Aprobación">En Espera de Aprobación</option>
+                    <option value="Aprobado">Aprobado</option>
+                    <option value="Aprobado Parcial">Aprobado Parcial</option>
+                    <option value="En Cotización">En Cotización</option>
+                    <option value="Cotizado">Cotizado</option>
+                    <option value="En Compra">En Compra</option>
+                    <option value="Pedido">Pedido (Con OC)</option>
+                    <option value="Parcialmente Recibido">Parcialmente Recibido</option>
+                    <option value="Recibido">Recibido</option>
+                    <option value="Rechazado">Rechazado</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+
+                <select id="filter-order-priority" class="form-control" style="width: auto; height: 40px;">
+                    <option value="all">Todas las Prioridades</option>
+                    <option value="Urgente">Urgente</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Baja">Baja</option>
+                </select>
+
+                <select id="filter-order-hotel" class="form-control" style="width: auto; height: 40px; min-width: 160px;">
+                    <option value="all">Todas las Propiedades</option>
+                </select>
+
+                <select id="filter-order-department" class="form-control" style="width: auto; height: 40px;">
+                    <option value="all">Todos los Deptos</option>
+                    <option value="IT">IT / Sistemas</option>
+                    <option value="Mantenimiento">Mantenimiento</option>
+                    <option value="Operaciones">Operaciones</option>
+                    <option value="Administración">Administración</option>
+                </select>
+
+                <button class="btn btn-secondary" id="btn-reset-order-filters" title="Limpiar Filtros" style="height: 40px; padding: 0 14px;">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla Principal de Solicitudes -->
+    <div class="table-container" style="background: var(--color-surface); border-radius: 12px; border: 1px solid var(--color-border); overflow-x: auto;">
+        <table class="data-table" id="orders-table">
+            <thead>
+                <tr>
+                    <th style="width: 130px;">Solicitud #</th>
+                    <th>Solicitante</th>
+                    <th>Fecha</th>
+                    <th>Propiedad / Depto</th>
+                    <th>Artículos Solicitados</th>
+                    <th style="text-align: center; width: 100px;">Prioridad</th>
+                    <th style="text-align: center; width: 160px;">Estado General</th>
+                    <th>Proveedor / OC</th>
+                    <th style="text-align: right; width: 110px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="orders-table-body">
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--color-text-secondary);">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 22px; margin-bottom: 8px; display: block;"></i>
+                        Cargando solicitudes de compra...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==============================================================================
+     MODAL 1: NUEVA SOLICITUD DE COMPRA
+============================================================================== -->
+<div class="modal-overlay" id="order-create-modal">
+    <div class="modal-content modal-solid-card" style="max-width: 840px; max-height: 92vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 18px 24px; flex-shrink: 0;">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.2rem; color: var(--color-text);">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(249, 115, 22, 0.12); color: #f97316; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-cart-plus"></i>
+                </div>
+                <span>NUEVA SOLICITUD DE COMPRA</span>
+            </div>
+            <button type="button" class="btn-close-modal" id="btn-close-order-create-modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="form-create-order" style="display: flex; flex-direction: column; flex-grow: 1; overflow: hidden;">
+            <div class="modal-body" style="padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+                
+                <!-- Datos Generales de la Solicitud -->
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                    <div style="font-weight: 700; font-size: 13px; color: var(--color-primary); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-clipboard-list" style="margin-right: 6px;"></i>Información de Solicitud
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 12px;">Solicitante</label>
+                            <input type="text" id="order-requester" class="form-control" readonly style="background: rgba(0,0,0,0.04); font-weight: 600;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 12px;">Fecha de Solicitud</label>
+                            <input type="date" id="order-date" class="form-control" readonly style="background: rgba(0,0,0,0.04); font-weight: 600;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 12px;">Propiedad / Hotel <span style="color:var(--color-danger)">*</span></label>
+                            <select id="order-hotel" class="form-control" required style="font-weight: 600;">
+                                <option value="">Selecciona Propiedad...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 12px;">Departamento / Área <span style="color:var(--color-danger)">*</span></label>
+                            <select id="order-dept" class="form-control" required style="font-weight: 600;">
+                                <option value="IT" selected>IT / Sistemas</option>
+                                <option value="Mantenimiento">Mantenimiento</option>
+                                <option value="Operaciones">Operaciones</option>
+                                <option value="Administración">Administración</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 12px;">Prioridad <span style="color:var(--color-danger)">*</span></label>
+                            <select id="order-priority" class="form-control" required style="font-weight: 700;">
+                                <option value="Normal" selected>Normal</option>
+                                <option value="Baja">Baja</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 14px; margin-bottom: 0;">
+                        <label class="form-label" style="font-size: 12px;">Observaciones Generales de la Solicitud</label>
+                        <textarea id="order-general-notes" class="form-control" rows="2" placeholder="Ej: Renovación de equipamiento para temporada alta / Solicitud programada de repuestos..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Sección: ARTÍCULOS SOLICITADOS -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 14px; font-weight: 800; color: var(--color-text); text-transform: uppercase; letter-spacing: 0.5px;">
+                                <i class="fa-solid fa-boxes-stacked" style="color: #f97316; margin-right: 6px;"></i>Artículos Solicitados
+                            </h4>
+                            <span style="font-size: 12px; color: var(--color-text-secondary);">Agrega todos los productos que componen esta solicitud</span>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="btn-add-item-row" style="background: rgba(249, 115, 22, 0.1); color: #ea580c; border-color: rgba(249, 115, 22, 0.3); font-weight: 700;">
+                            <i class="fa-solid fa-plus"></i> <span>+ Agregar Artículo</span>
+                        </button>
+                    </div>
+
+                    <!-- Mini Formulario Rápido para añadir artículo -->
+                    <div id="quick-item-builder" style="display: none; background: rgba(37, 99, 235, 0.03); border: 1px dashed var(--color-primary); border-radius: 12px; padding: 16px; margin-bottom: 14px;">
+                        <div style="font-weight: 700; font-size: 13px; color: var(--color-primary); margin-bottom: 10px;" id="builder-title">Nuevo Artículo</div>
+                        <input type="hidden" id="builder-index" value="-1">
+                        
+                        <div style="display: grid; grid-template-columns: 90px 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 11px;">Cantidad *</label>
+                                <input type="number" min="1" id="builder-qty" class="form-control" value="1" style="font-weight: 700;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 11px;">Descripción del Artículo *</label>
+                                <input type="text" id="builder-desc" class="form-control" placeholder="Ej: Memoria RAM 16GB Dell Optiplex Micro 3000">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 11px;">Referencia / Parte / Modelo</label>
+                                <input type="text" id="builder-ref" class="form-control" placeholder="Ej: DDR4-3200 SODIMM">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 11px;">Proveedor Recomendado</label>
+                                <input type="text" id="builder-provider" class="form-control" placeholder="Ej: Cecomsa / Omega Tech / Dell Direct">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 11px;">Observación / Justificación</label>
+                                <input type="text" id="builder-notes" class="form-control" placeholder="Ej: Actualización de RAM previo a upgrade de Windows">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-builder">Cancelar</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="btn-save-builder">Aceptar Artículo</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Artículos añadidos -->
+                    <div id="order-items-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Inserción dinámica de tarjetas de artículos -->
+                    </div>
+                </div>
+
+                <!-- Resumen previo a guardar -->
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--color-text);">
+                        <i class="fa-solid fa-list-check" style="color: #10b981; margin-right: 6px;"></i>
+                        <span id="order-items-summary-text">0 artículos serán registrados en esta solicitud.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--color-border); background: var(--color-surface); flex-shrink: 0;">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-order-create">CANCELAR</button>
+                <button type="submit" class="btn btn-primary" style="background: #f97316; border-color: #f97316; font-weight: 700; padding: 0 24px;">
+                    <i class="fa-solid fa-floppy-disk"></i> <span>GUARDAR SOLICITUD</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==============================================================================
+     MODAL 2: VISTA DE DETALLE Y GESTIÓN INTEGRAL (CON TABS)
+============================================================================== -->
+<div class="modal-overlay" id="order-detail-modal">
+    <div class="modal-content modal-solid-card" style="max-width: 980px; max-height: 94vh; display: flex; flex-direction: column;">
+        <!-- Header con resumen de la solicitud -->
+        <div class="modal-header" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 16px 24px; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(37, 99, 235, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;" id="detail-order-number">SOL-2026-000000</h3>
+                        <span id="detail-order-status-badge"></span>
+                        <span id="detail-order-priority-badge"></span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 3px; display: flex; gap: 16px; flex-wrap: wrap;">
+                        <span><i class="fa-solid fa-user" style="margin-right: 4px;"></i>Solicitante: <strong id="detail-order-requester" style="color: var(--color-text);">-</strong></span>
+                        <span><i class="fa-regular fa-calendar" style="margin-right: 4px;"></i>Fecha: <strong id="detail-order-date" style="color: var(--color-text);">-</strong></span>
+                        <span><i class="fa-solid fa-hotel" style="margin-right: 4px;"></i>Propiedad: <strong id="detail-order-hotel" style="color: var(--color-text);">-</strong></span>
+                        <span><i class="fa-solid fa-sitemap" style="margin-right: 4px;"></i>Depto: <strong id="detail-order-dept" style="color: var(--color-text);">-</strong></span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn-close-modal" id="btn-close-order-detail-modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Barra de Pestañas (Tabs) -->
+        <div class="modal-nav-tabs" style="flex-shrink: 0;">
+            <button type="button" class="modal-tab-btn active" data-tab="items">
+                <i class="fa-solid fa-boxes-stacked"></i> <span>Artículos Solicitados</span>
+            </button>
+            <button type="button" class="modal-tab-btn" data-tab="approval">
+                <i class="fa-solid fa-signature"></i> <span>Aprobación</span>
+            </button>
+            <button type="button" class="modal-tab-btn" data-tab="quote">
+                <i class="fa-solid fa-file-invoice-dollar"></i> <span>Cotización / Compras</span>
+            </button>
+            <button type="button" class="modal-tab-btn" data-tab="po">
+                <i class="fa-solid fa-receipt"></i> <span>Órdenes de Compra</span>
+            </button>
+            <button type="button" class="modal-tab-btn" data-tab="reception">
+                <i class="fa-solid fa-truck-ramp-box"></i> <span>Recepción de Artículos</span>
+            </button>
+            <button type="button" class="modal-tab-btn" data-tab="history">
+                <i class="fa-solid fa-clock-rotate-left"></i> <span>Historial & Auditoría</span>
+            </button>
+        </div>
+
+        <!-- Contenedor del Cuerpo de los Tabs -->
+        <div class="modal-body" style="padding: 22px; overflow-y: auto; flex-grow: 1; background: var(--color-surface);">
+            
+            <!-- TAB 1: ARTÍCULOS -->
+            <div id="tab-content-items" class="tab-pane">
+                <div class="table-container" style="border: 1px solid var(--color-border); border-radius: 10px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Descripción</th>
+                                <th>Referencia</th>
+                                <th style="text-align: center;">Solicitado</th>
+                                <th style="text-align: center;">Aprobado</th>
+                                <th style="text-align: center;">Recibido</th>
+                                <th style="text-align: center;">Pendiente</th>
+                                <th style="text-align: center;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detail-items-table-body">
+                            <!-- Inserción dinámica -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: APROBACIÓN -->
+            <div id="tab-content-approval" class="tab-pane" style="display: none;">
+                <div style="background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <div style="font-weight: 700; font-size: 14px; color: var(--color-primary);">Evaluación de Solicitud de Compra</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">Aprueba o rechaza los artículos solicitados, o ajusta las cantidades autorizadas.</div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-quick-approve-all" style="background: #10b981; border-color: #10b981;">
+                            <i class="fa-solid fa-check-double"></i> Aprobar Todos
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-quick-reject-all" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+                            <i class="fa-solid fa-xmark"></i> Rechazar Todos
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container" style="border: 1px solid var(--color-border); border-radius: 10px; margin-bottom: 16px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Artículo</th>
+                                <th style="text-align: center; width: 100px;">Cant. Solicitada</th>
+                                <th style="text-align: center; width: 130px;">Cant. Aprobada</th>
+                                <th style="text-align: center; width: 140px;">Decisión</th>
+                                <th>Notas del Aprobador</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approval-items-table-body">
+                            <!-- Inserción dinámica -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn btn-primary" id="btn-save-approval-eval">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Evaluación de Aprobación
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: COTIZACIÓN / COMPRAS -->
+            <div id="tab-content-quote" class="tab-pane" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <!-- Formulario de Registro de Cotización -->
+                    <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px;">
+                        <h4 style="margin: 0 0 14px 0; font-size: 14px; font-weight: 700; color: var(--color-primary);">
+                            <i class="fa-solid fa-tag" style="margin-right: 6px;"></i>Registrar Cotización de Proveedor
+                        </h4>
+                        
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Seleccionar Artículos a Cotizar <span style="color:var(--color-danger)">*</span></label>
+                            <div id="quote-items-checklist" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; border: 1px solid var(--color-border); padding: 8px 12px; border-radius: 8px; background: var(--color-surface);">
+                                <!-- Checkboxes dinámicos -->
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Proveedor Cotizado <span style="color:var(--color-danger)">*</span></label>
+                                <input type="text" id="quote-provider" class="form-control" placeholder="Ej: Cecomsa SRL" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">No. Cotización</label>
+                                <input type="text" id="quote-number" class="form-control" placeholder="Ej: COT-2026-998">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Precio Unitario <span style="color:var(--color-danger)">*</span></label>
+                                <input type="number" step="0.01" min="0" id="quote-unit-price" class="form-control" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Moneda</label>
+                                <select id="quote-currency" class="form-control" style="font-weight: 700;">
+                                    <option value="USD" selected>USD ($)</option>
+                                    <option value="DOP">DOP (RD$)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Fecha Cotización</label>
+                                <input type="date" id="quote-date" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Observaciones de Cotización / Términos</label>
+                            <input type="text" id="quote-notes" class="form-control" placeholder="Ej: Incluye flete y entrega en 5 días hábiles...">
+                        </div>
+
+                        <button type="button" class="btn btn-primary" id="btn-save-quote" style="width: 100%;">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Cotización
+                        </button>
+                    </div>
+
+                    <!-- Lista de Cotizaciones Registradas -->
+                    <div>
+                        <h4 style="margin: 0 0 14px 0; font-size: 14px; font-weight: 700; color: var(--color-text);">
+                            <i class="fa-solid fa-list-check" style="margin-right: 6px;"></i>Cotizaciones Registradas
+                        </h4>
+                        <div id="quotes-history-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto;">
+                            <!-- Inserción dinámica -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: ÓRDENES DE COMPRA -->
+            <div id="tab-content-po" class="tab-pane" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <!-- Crear / Asociar OC -->
+                    <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px;">
+                        <h4 style="margin: 0 0 14px 0; font-size: 14px; font-weight: 700; color: var(--color-primary);">
+                            <i class="fa-solid fa-file-signature" style="margin-right: 6px;"></i>Generar / Vincular Orden de Compra (OC)
+                        </h4>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Artículos para esta Orden de Compra <span style="color:var(--color-danger)">*</span></label>
+                            <div id="po-items-checklist" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; border: 1px solid var(--color-border); padding: 8px 12px; border-radius: 8px; background: var(--color-surface);">
+                                <!-- Checkboxes dinámicos -->
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Número de Orden de Compra <span style="color:var(--color-danger)">*</span></label>
+                                <input type="text" id="po-number-input" class="form-control" placeholder="Ej: OC-10025" style="font-family: monospace; font-weight: 700;" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Proveedor Asignado <span style="color:var(--color-danger)">*</span></label>
+                                <input type="text" id="po-provider-input" class="form-control" placeholder="Ej: PINK BALLON SRL" required>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Fecha de Orden</label>
+                                <input type="date" id="po-date-input" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Fecha Estimada de Entrega</label>
+                                <input type="date" id="po-delivery-date-input" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Comprador Responsable</label>
+                            <input type="text" id="po-buyer-input" class="form-control" placeholder="Nombre del comprador">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Notas de la Orden</label>
+                            <input type="text" id="po-notes-input" class="form-control" placeholder="Términos de pago, contacto de despacho...">
+                        </div>
+
+                        <button type="button" class="btn btn-primary" id="btn-save-po" style="width: 100%;">
+                            <i class="fa-solid fa-receipt"></i> Emitir / Vincular Orden de Compra
+                        </button>
+                    </div>
+
+                    <!-- Lista de OCs de esta solicitud -->
+                    <div>
+                        <h4 style="margin: 0 0 14px 0; font-size: 14px; font-weight: 700; color: var(--color-text);">
+                            <i class="fa-solid fa-receipt" style="margin-right: 6px;"></i>Órdenes de Compra Asociadas
+                        </h4>
+                        <div id="po-history-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto;">
+                            <!-- Inserción dinámica -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: RECEPCIÓN DE ARTÍCULOS -->
+            <div id="tab-content-reception" class="tab-pane" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <!-- Registrar Recepción -->
+                    <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px;">
+                        <h4 style="margin: 0 0 14px 0; font-size: 14px; font-weight: 700; color: var(--color-primary);">
+                            <i class="fa-solid fa-boxes-packing" style="margin-right: 6px;"></i>Registrar Recepción de Artículos
+                        </h4>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Artículo a Recibir <span style="color:var(--color-danger)">*</span></label>
+                            <select id="reception-item-select" class="form-control" required style="font-weight: 600;">
+                                <option value="">Selecciona el artículo...</option>
+                            </select>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Cantidad que llega hoy <span style="color:var(--color-danger)">*</span></label>
+                                <input type="number" min="1" id="reception-qty-input" class="form-control" value="1" style="font-weight: 700;" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Fecha de Recepción <span style="color:var(--color-danger)">*</span></label>
+                                <input type="date" id="reception-date-input" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Persona que Recibió <span style="color:var(--color-danger)">*</span></label>
+                                <input type="text" id="reception-receiver-input" class="form-control" placeholder="Nombre completo" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 12px;">Proveedor que Entrega</label>
+                                <input type="text" id="reception-provider-input" class="form-control" placeholder="Proveedor / Transportista">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">No. Factura / Conduce de Entrega</label>
+                            <input type="text" id="reception-invoice-input" class="form-control" placeholder="Ej: B01-00029384">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 12px;">Observaciones del Estado de Entrega</label>
+                            <input type="text" id="reception-notes-input" class="form-control" placeholder="Ej: Llegó sellado, completo con accesorios...">
+                        </div>
+
+                        <button type="button" class="btn btn-primary" id="btn-save-reception" style="width: 100%; background: #10b981; border-color: #10b981;">
+                            <i class="fa-solid fa-circle-check"></i> Registrar Recepción
+                        </button>
+                    </div>
+
+                    <!-- Bitácora de Recepciones -->
+                    <div>
+                        <h4 style="margin: 0 0 14px 0; font-size: 14px; font-weight: 700; color: var(--color-text);">
+                            <i class="fa-solid fa-clock-rotate-left" style="margin-right: 6px;"></i>Historial de Recepciones
+                        </h4>
+                        <div id="receptions-history-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto;">
+                            <!-- Inserción dinámica -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: HISTORIAL & AUDITORÍA -->
+            <div id="tab-content-history" class="tab-pane" style="display: none;">
+                <div id="order-audit-timeline" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Inserción dinámica del timeline -->
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--color-border); background: var(--color-surface); flex-shrink: 0;">
+            <button type="button" class="btn btn-secondary" id="btn-close-order-detail-footer">Cerrar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/pedidos.js') }}?v=1.0.0"></script>
+{% endblock %}

@@ -5813,6 +5813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ALL_AVAILABLE_MODULES = [
         { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', color: '#6366f1' },
         { id: 'inventario', label: 'Inventario', icon: 'fa-boxes-stacked', color: '#10b981' },
+        { id: 'pedidos', label: 'Pedidos y Compras', icon: 'fa-cart-shopping', color: '#f97316' },
         { id: 'decomiso', label: 'Decomiso', icon: 'fa-dumpster-fire', color: '#ef4444' },
         { id: 'reparaciones', label: 'Reparaciones', icon: 'fa-screwdriver-wrench', color: '#f59e0b' },
         { id: 'prestamos', label: 'Préstamos', icon: 'fa-handshake', color: '#3b82f6' },
@@ -5826,11 +5827,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (role === 'Admin') {
             return ALL_AVAILABLE_MODULES.map(m => m.id);
         } else if (role === 'Tecnico') {
-            return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes'];
+            return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes'];
         } else if (role === 'Viewer') {
-            return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes'];
+            return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes'];
         }
-        return ['dashboard', 'inventario'];
+        return ['dashboard', 'inventario', 'pedidos'];
     }
 
     document.getElementById('btn-new-user')?.addEventListener('click', () => {
