@@ -170,14 +170,27 @@
         </div>
 
         <div id="settings-tab-users" class="settings-card" style="display: none;">
-             <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Usuarios</h3>
-             <div style="display: flex; justify-content: flex-end; margin-bottom: var(--spacing-md);">
+             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap; gap: 10px;">
+                 <div>
+                     <h3 class="section-title" style="margin: 0;"><i class="fa-solid fa-users-gear" style="color: var(--color-primary); margin-right: 8px;"></i>Gestión de Usuarios y Permisos</h3>
+                     <p class="text-secondary" style="margin: 4px 0 0 0; font-size: 13px;">Administra los roles y módulos a los que cada usuario tiene acceso dentro del sistema.</p>
+                 </div>
                  <button class="btn btn-primary" id="btn-new-user"><i class="fa-solid fa-user-plus"></i> Nuevo Usuario</button>
              </div>
-             <div class="table-container"><table class="data-table">
-                 <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
-                 <tbody id="settings-user-list"></tbody>
-             </table></div>
+             <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+                 <table class="data-table">
+                     <thead>
+                         <tr>
+                             <th style="width: 70px;">ID</th>
+                             <th>Usuario</th>
+                             <th>Rol</th>
+                             <th>Módulos con Acceso</th>
+                             <th style="text-align: right; width: 140px;">Acciones</th>
+                         </tr>
+                     </thead>
+                     <tbody id="settings-user-list"></tbody>
+                 </table>
+             </div>
         </div>
 
         <div id="settings-tab-stock-limits" class="settings-card" style="display: none;">

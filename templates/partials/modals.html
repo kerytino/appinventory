@@ -299,31 +299,172 @@
 
     <!-- Modal Nuevo Usuario (Configuración) -->
     <div class="modal-overlay" id="user-modal">
-        <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-content" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
-                <h2>Nuevo Usuario</h2>
+                <h2><i class="fa-solid fa-user-plus" style="color: var(--color-primary); margin-right: 8px;"></i>Nuevo Usuario</h2>
                 <button class="btn-close" id="btn-close-user-modal"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form id="user-form" class="form-grid-2col" style="grid-template-columns: 1fr;">
-                <div class="form-group">
-                    <label class="form-label" for="new-user-username">Nombre de Usuario <span style="color:var(--color-danger)">*</span></label>
-                    <input class="form-control" type="text" id="new-user-username" required placeholder="Ej: jrodriguez">
+            <form id="user-form" style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="new-user-username">Nombre de Usuario <span style="color:var(--color-danger)">*</span></label>
+                        <input class="form-control" type="text" id="new-user-username" required placeholder="Ej: jrodriguez" style="height: 38px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="new-user-password">Contraseña Inicial <span style="color:var(--color-danger)">*</span></label>
+                        <input class="form-control" type="password" id="new-user-password" required placeholder="Mínimo 6 caracteres" style="height: 38px;">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="new-user-password">Contraseña Inicial <span style="color:var(--color-danger)">*</span></label>
-                    <input class="form-control" type="password" id="new-user-password" required placeholder="Mínimo 6 caracteres">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="new-user-role">Rol de Acceso <span style="color:var(--color-danger)">*</span></label>
-                    <select class="form-control" id="new-user-role" required>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="new-user-role">Rol de Acceso Base <span style="color:var(--color-danger)">*</span></label>
+                    <select class="form-control" id="new-user-role" required style="height: 38px; font-weight: 600;">
                         <option value="Admin">Administrador (Control Total)</option>
-                        <option value="Tecnico">Técnico (Inventario y Operaciones)</option>
-                        <option value="Viewer" selected>Visualizador (Solo Lectura)</option>
+                        <option value="Tecnico">Técnico (Operaciones y Resguardos)</option>
+                        <option value="Viewer" selected>Visualizador (Solo Consulta)</option>
+                        <option value="Personalizado">Personalizado (Permisos Específicos)</option>
                     </select>
                 </div>
-                <div class="form-actions">
+
+                <!-- Selector de Módulos Permitidos -->
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="form-label" style="font-weight: 700; font-size: 13px; margin: 0; color: var(--color-primary);">
+                            <i class="fa-solid fa-shield-halved" style="margin-right: 6px;"></i>Módulos con Acceso Habilitado:
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-select-all-modules" style="font-size: 11px; padding: 3px 8px;">Todos</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-all-modules" style="font-size: 11px; padding: 3px 8px;">Ninguno</button>
+                        </div>
+                    </div>
+                    <div class="user-permissions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="dashboard" checked>
+                            <span><i class="fa-solid fa-chart-pie" style="color: #6366f1; width: 16px;"></i> Dashboard</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="inventario" checked>
+                            <span><i class="fa-solid fa-boxes-stacked" style="color: #10b981; width: 16px;"></i> Inventario General</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="decomiso" checked>
+                            <span><i class="fa-solid fa-dumpster-fire" style="color: #ef4444; width: 16px;"></i> Decomiso</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="reparaciones" checked>
+                            <span><i class="fa-solid fa-screwdriver-wrench" style="color: #f59e0b; width: 16px;"></i> Reparaciones</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="prestamos" checked>
+                            <span><i class="fa-solid fa-handshake" style="color: #3b82f6; width: 16px;"></i> Préstamos / Demos</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="herramientas" checked>
+                            <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="despacho">
+                            <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="pendientes" checked>
+                            <span><i class="fa-solid fa-list-check" style="color: #ec4899; width: 16px;"></i> Pendientes</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="user-module" value="configuracion">
+                            <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--color-border);">
                     <button type="button" class="btn-secondary" id="btn-cancel-user">Cancelar</button>
-                    <button type="submit" class="btn-primary">Crear Usuario</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-user-plus"></i> Crear Usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Usuario / Permisos (Configuración) -->
+    <div class="modal-overlay" id="user-edit-modal">
+        <div class="modal-content" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-user-pen" style="color: var(--color-primary); margin-right: 8px;"></i>Editar Usuario y Permisos</h2>
+                <button class="btn-close" id="btn-close-user-edit-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="user-edit-form" style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="hidden" id="edit-user-id">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="edit-user-username">Nombre de Usuario <span style="color:var(--color-danger)">*</span></label>
+                        <input class="form-control" type="text" id="edit-user-username" required style="height: 38px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="edit-user-role">Rol Asignado <span style="color:var(--color-danger)">*</span></label>
+                        <select class="form-control" id="edit-user-role" required style="height: 38px; font-weight: 600;">
+                            <option value="Admin">Administrador (Control Total)</option>
+                            <option value="Tecnico">Técnico (Operaciones y Resguardos)</option>
+                            <option value="Viewer">Visualizador (Solo Consulta)</option>
+                            <option value="Personalizado">Personalizado (Permisos Específicos)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Selector de Módulos Permitidos -->
+                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="form-label" style="font-weight: 700; font-size: 13px; margin: 0; color: var(--color-primary);">
+                            <i class="fa-solid fa-shield-halved" style="margin-right: 6px;"></i>Módulos con Acceso Habilitado:
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-select-all-modules" style="font-size: 11px; padding: 3px 8px;">Todos</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-clear-all-modules" style="font-size: 11px; padding: 3px 8px;">Ninguno</button>
+                        </div>
+                    </div>
+                    <div class="edit-user-permissions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="dashboard">
+                            <span><i class="fa-solid fa-chart-pie" style="color: #6366f1; width: 16px;"></i> Dashboard</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="inventario">
+                            <span><i class="fa-solid fa-boxes-stacked" style="color: #10b981; width: 16px;"></i> Inventario General</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="decomiso">
+                            <span><i class="fa-solid fa-dumpster-fire" style="color: #ef4444; width: 16px;"></i> Decomiso</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="reparaciones">
+                            <span><i class="fa-solid fa-screwdriver-wrench" style="color: #f59e0b; width: 16px;"></i> Reparaciones</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="prestamos">
+                            <span><i class="fa-solid fa-handshake" style="color: #3b82f6; width: 16px;"></i> Préstamos / Demos</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="herramientas">
+                            <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="despacho">
+                            <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="pendientes">
+                            <span><i class="fa-solid fa-list-check" style="color: #ec4899; width: 16px;"></i> Pendientes</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="edit-user-module" value="configuracion">
+                            <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--color-border);">
+                    <button type="button" class="btn-secondary" id="btn-cancel-user-edit">Cancelar</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
                 </div>
             </form>
         </div>

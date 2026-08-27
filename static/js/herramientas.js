@@ -294,6 +294,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
+            // Botón de Decomiso para herramientas Dañadas
+            let decommissionBtn = '';
+            if (t.status === 'Dañada' || (t.condition && t.condition.toLowerCase().includes('dañad'))) {
+                decommissionBtn = `
+                    <button class="tool-action-btn decommission btn-decommission-tool" data-id="${t.id}" title="Enviar Herramienta Dañada a Decomiso Oficial" style="color: #dc2626;">
+                        <i class="fa-solid fa-dumpster-fire"></i>
+                    </button>
+                `;
+            }
+
+            // Botón de Historial con indicador de movimientos
+            const movesCount = t.movements_count || 0;
+            const hasMovesClass = movesCount > 0 ? 'has-moves' : '';
+            const movesBadge = movesCount > 0 ? `<span class="movs-badge" title="${movesCount} movimientos">${movesCount}</span>` : '';
+            const historyBtnTitle = movesCount > 0 ? `Ver Historial (${movesCount} movimientos registrados)` : 'Ver Historial de Movimientos';
+
             tr.innerHTML = `
                 <td>
                     <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${escapeHtml(t.code || `HER-${t.id}`)}</span>
@@ -316,8 +332,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="text-align: right;">
                     <div class="actions-cell-wrapper">
                         ${primaryActionBtn}
-                        <button class="tool-action-btn history btn-history-tool" data-id="${t.id}" title="Ver Historial de Movimientos" style="color: #6366f1;">
+                        ${decommissionBtn}
+                        <button class="tool-action-btn history btn-history-tool ${hasMovesClass}" data-id="${t.id}" title="${historyBtnTitle}" style="color: #6366f1;">
                             <i class="fa-solid fa-clock-rotate-left"></i>
+                            ${movesBadge}
                         </button>
                         <button class="tool-action-btn edit btn-edit-tool" data-id="${t.id}" title="Editar Herramienta" style="color: var(--color-primary);">
                             <i class="fa-solid fa-pen"></i>
@@ -351,6 +369,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const id = parseInt(btn.getAttribute('data-id'));
                 const tool = allTools.find(item => item.id === id);
                 if (tool) openReturnModal(tool);
+            });
+        });
+
+        // Decommission Tool button
+        tbody.querySelectorAll('.btn-decommission-tool').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                const tool = allTools.find(item => item.id === id);
+                if (tool) openDecommissionModal(tool);
             });
         });
 
@@ -460,6 +487,52 @@ document.addEventListener('DOMContentLoaded', () => {
         returnModal.classList.add('active');
     }
 
+    const decModal = document.getElementById('tool-decommission-modal');
+    const formDec = document.getElementById('form-tool-decommission');
+
+    function openDecommissionModal(tool) {
+        if (!tool) return;
+        formDec.reset();
+        document.getElementById('dec-tool-id').value = tool.id;
+        document.getElementById('dec-tool-name').textContent = `${tool.name} ${tool.brand ? `(${tool.brand} ${tool.model || ''})` : ''}`;
+        document.getElementById('dec-tool-details').textContent = `Código: ${tool.code || `HER-${tool.id}`} | S/N: ${tool.serial_number || 'S/N'} | Estado actual: ${tool.status}`;
+        document.getElementById('dec-tool-value').value = (tool.value || 0).toFixed(2);
+        document.getElementById('dec-tool-reason').value = tool.notes ? `Herramienta dañada / fuera de servicio. ${tool.notes}` : 'Herramienta dañada / fuera de servicio técnico.';
+
+        // Llenar select de hoteles
+        const hotelSelect = document.getElementById('dec-tool-hotel');
+        hotelSelect.innerHTML = '<option value="">Selecciona la propiedad para generar folio...</option>';
+        if (auxiliaryData.hotels && auxiliaryData.hotels.length > 0) {
+            auxiliaryData.hotels.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h.name || h;
+                opt.textContent = `${h.name || h} (${h.prefix || 'EX'})`;
+                hotelSelect.appendChild(opt);
+            });
+        }
+
+        // Preview del número al cambiar de hotel
+        hotelSelect.onchange = async () => {
+            const selectedHotel = hotelSelect.value;
+            const previewInput = document.getElementById('dec-tool-number-preview');
+            if (!selectedHotel) {
+                previewInput.value = '';
+                return;
+            }
+            try {
+                const res = await fetch(`/api/decommissions/preview-number?hotel=${encodeURIComponent(selectedHotel)}`);
+                if (res.ok) {
+                    const d = await res.json();
+                    previewInput.value = d.decommission_number || 'FOLIO-AUTO';
+                }
+            } catch(e) {
+                previewInput.value = 'FOLIO-AUTO';
+            }
+        };
+
+        if (decModal) decModal.classList.add('active');
+    }
+
     async function openHistoryModal(tool) {
         if (!tool) return;
         document.getElementById('history-tool-title').textContent = `${tool.name} ${tool.brand ? `(${tool.brand} ${tool.model || ''})` : ''}`;
@@ -475,6 +548,10 @@ document.addEventListener('DOMContentLoaded', () => {
             stBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-user-gear"></i> En Uso</span>`;
         } else if (tool.status === 'En Mantenimiento') {
             stBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700;"><i class="fa-solid fa-screwdriver-wrench"></i> Mantenimiento</span>`;
+        } else if (tool.status === 'Dañada') {
+            stBadge = `<span class="badge" style="background: rgba(220, 38, 38, 0.15); color: #dc2626; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> Dañada</span>`;
+        } else if (tool.status === 'Baja') {
+            stBadge = `<span class="badge" style="background: rgba(100, 116, 139, 0.2); color: #475569; font-weight: 700;"><i class="fa-solid fa-dumpster-fire"></i> Decomisada / Baja</span>`;
         } else {
             stBadge = `<span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #64748b; font-weight: 700;">${escapeHtml(tool.status)}</span>`;
         }
@@ -539,16 +616,21 @@ document.addEventListener('DOMContentLoaded', () => {
             let iconBg = 'rgba(99, 102, 241, 0.15)';
             let actionBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366f1; font-weight: 700;">${escapeHtml(log.action)}</span>`;
 
-            if (log.action === 'Asignación') {
+            if (log.action === 'Asignación' || log.action === 'Despacho') {
                 iconHtml = '<i class="fa-solid fa-handshake"></i>';
                 iconColor = '#f59e0b';
                 iconBg = 'rgba(245, 158, 11, 0.15)';
-                actionBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Asignación</span>`;
+                actionBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Asignada / Despachada</span>`;
             } else if (log.action === 'Devolución') {
                 iconHtml = '<i class="fa-solid fa-warehouse"></i>';
                 iconColor = '#10b981';
                 iconBg = 'rgba(16, 185, 129, 0.15)';
-                actionBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Devolución</span>`;
+                actionBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Devolución al Taller</span>`;
+            } else if (log.action === 'Decomiso' || log.action === 'Enviado a Decomiso') {
+                iconHtml = '<i class="fa-solid fa-dumpster-fire"></i>';
+                iconColor = '#dc2626';
+                iconBg = 'rgba(220, 38, 38, 0.15)';
+                actionBadge = `<span class="badge" style="background: rgba(220, 38, 38, 0.15); color: #dc2626; font-weight: 700;"><i class="fa-solid fa-dumpster-fire"></i> Enviado a Decomiso</span>`;
             } else if (log.action === 'Registro Inicial') {
                 iconHtml = '<i class="fa-solid fa-box"></i>';
                 iconColor = '#3b82f6';
@@ -621,6 +703,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const closeReturnM = () => returnModal.classList.remove('active');
         document.getElementById('btn-close-return-modal')?.addEventListener('click', closeReturnM);
         document.getElementById('btn-cancel-return-modal')?.addEventListener('click', closeReturnM);
+
+        const closeDecM = () => decModal?.classList.remove('active');
+        document.getElementById('btn-close-dec-modal')?.addEventListener('click', closeDecM);
+        document.getElementById('btn-cancel-dec-modal')?.addEventListener('click', closeDecM);
 
         const closeHistoryM = () => historyModal.classList.remove('active');
         document.getElementById('btn-close-history-modal')?.addEventListener('click', closeHistoryM);
@@ -733,6 +819,39 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error(err);
                 showToast('Error de conexión', 'error');
+            }
+        });
+
+        // Submit Decommission Form
+        formDec?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const toolId = document.getElementById('dec-tool-id').value;
+            const hotel = document.getElementById('dec-tool-hotel').value;
+            const value = parseFloat(document.getElementById('dec-tool-value').value) || 0.0;
+            const reason = document.getElementById('dec-tool-reason').value.trim();
+
+            if (!hotel) {
+                showToast('Por favor selecciona una propiedad / hotel', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/tools/${toolId}/decommission`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hotel, value, reason })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || 'Herramienta enviada a decomiso exitosamente', 'success');
+                    closeDecM();
+                    await fetchTools();
+                } else {
+                    showToast(data.error || 'Error al enviar a decomiso', 'error');
+                }
+            } catch(err) {
+                console.error(err);
+                showToast('Error de conexión al procesar decomiso', 'error');
             }
         });
 

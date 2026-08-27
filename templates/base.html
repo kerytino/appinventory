@@ -116,11 +116,11 @@
 
         <!-- Mobile Bottom Navigation Bar -->
         <nav class="mobile-bottom-nav">
-            <a href="{{ url_for('dashboard') }}" class="bottom-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+            <a href="{{ url_for('dashboard') }}" class="bottom-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}" data-module="dashboard">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>Inicio</span>
             </a>
-            <a href="{{ url_for('inventario') }}" class="bottom-nav-item {% if request.endpoint == 'inventario' %}active{% endif %}">
+            <a href="{{ url_for('inventario') }}" class="bottom-nav-item {% if request.endpoint == 'inventario' %}active{% endif %}" data-module="inventario">
                 <i class="fa-solid fa-boxes-stacked"></i>
                 <span>Stock</span>
             </a>
@@ -128,7 +128,7 @@
             <button type="button" class="bottom-nav-item bottom-nav-fab" id="btn-mobile-new-device" title="Registrar Artículo">
                 <i class="fa-solid fa-plus"></i>
             </button>
-            <a href="{{ url_for('despacho') }}" class="bottom-nav-item {% if request.endpoint == 'despacho' %}active{% endif %}">
+            <a href="{{ url_for('despacho') }}" class="bottom-nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" data-module="despacho">
                 <i class="fa-solid fa-truck-ramp-box"></i>
                 <span>Despacho</span>
             </a>

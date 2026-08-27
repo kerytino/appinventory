@@ -130,33 +130,40 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-sidebar-logout')?.addEventListener('click', handleLogout);
     
     function applyRolePermissions() {
-        const role = currentUser.role;
-        // Hide/Show elements based on role
+        if (!currentUser) return;
+        const role = currentUser.role || 'Viewer';
+        const userPerms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+        const isAdmin = role === 'Admin';
+
+        const hasModuleAccess = (mod) => isAdmin || userPerms.includes(mod);
+
+        // Control dinámico de navegación en Sidebar y Menú Móvil
+        document.querySelectorAll('[data-module]').forEach(el => {
+            const modName = el.getAttribute('data-module');
+            if (modName) {
+                if (hasModuleAccess(modName)) {
+                    el.style.display = '';
+                } else {
+                    el.style.display = 'none';
+                }
+            }
+        });
+
+        // Botones de acción globales (Nuevo Equipo)
         const btnNewDevice = document.getElementById('btn-new-device');
         const btnMobileNewDevice = document.getElementById('btn-mobile-new-device');
-        const tabSettings = document.querySelector('[data-tab="settings"]');
-        const tabDispatch = document.querySelector('[data-tab="dispatch"]');
+        const canCreateDevices = isAdmin || (role === 'Tecnico' && hasModuleAccess('inventario'));
         
+        if (btnNewDevice) btnNewDevice.style.display = canCreateDevices ? 'flex' : 'none';
+        if (btnMobileNewDevice) btnMobileNewDevice.style.display = canCreateDevices ? 'flex' : 'none';
+
+        // Si es Viewer, ocultar botones de mutación general
         if (role === 'Viewer') {
-            if(btnNewDevice) btnNewDevice.style.display = 'none';
-            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'none';
-            if(tabSettings) tabSettings.style.display = 'none';
-            if(tabDispatch) tabDispatch.style.display = 'none';
-            // Disable action buttons in tables
-            document.querySelectorAll('.action-btn').forEach(btn => {
-                if (btn.id !== 'btn-logout') btn.style.display = 'none';
+            document.querySelectorAll('.action-btn, .btn-admin-only').forEach(btn => {
+                if (btn.id !== 'btn-logout' && btn.id !== 'btn-sidebar-logout') {
+                    btn.style.display = 'none';
+                }
             });
-        } else if (role === 'Tecnico') {
-            if(btnNewDevice) btnNewDevice.style.display = 'block';
-            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'flex';
-            if(tabSettings) tabSettings.style.display = 'none';
-            if(tabDispatch) tabDispatch.style.display = 'block';
-        } else {
-            // Admin
-            if(btnNewDevice) btnNewDevice.style.display = 'block';
-            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'flex';
-            if(tabSettings) tabSettings.style.display = 'flex';
-            if(tabDispatch) tabDispatch.style.display = 'block';
         }
     }
 
@@ -5798,13 +5805,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 9. User Modal and Actions ---
+    // --- 9. User Modal and Actions (Gestión de Roles y Permisos) ---
     const userModal = document.getElementById('user-modal');
+    const userEditModal = document.getElementById('user-edit-modal');
+    
+    // Módulos del sistema
+    const ALL_AVAILABLE_MODULES = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', color: '#6366f1' },
+        { id: 'inventario', label: 'Inventario', icon: 'fa-boxes-stacked', color: '#10b981' },
+        { id: 'decomiso', label: 'Decomiso', icon: 'fa-dumpster-fire', color: '#ef4444' },
+        { id: 'reparaciones', label: 'Reparaciones', icon: 'fa-screwdriver-wrench', color: '#f59e0b' },
+        { id: 'prestamos', label: 'Préstamos', icon: 'fa-handshake', color: '#3b82f6' },
+        { id: 'herramientas', label: 'Herramientas', icon: 'fa-toolbox', color: '#8b5cf6' },
+        { id: 'despacho', label: 'Despacho', icon: 'fa-truck-ramp-box', color: '#06b6d4' },
+        { id: 'pendientes', label: 'Pendientes', icon: 'fa-list-check', color: '#ec4899' },
+        { id: 'configuracion', label: 'Configuración', icon: 'fa-gear', color: '#64748b' }
+    ];
+
+    function getRoleDefaultModules(role) {
+        if (role === 'Admin') {
+            return ALL_AVAILABLE_MODULES.map(m => m.id);
+        } else if (role === 'Tecnico') {
+            return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes'];
+        } else if (role === 'Viewer') {
+            return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes'];
+        }
+        return ['dashboard', 'inventario'];
+    }
+
     document.getElementById('btn-new-user')?.addEventListener('click', () => {
         if (!userModal) return;
         const form = document.getElementById('user-form');
         if (form) form.reset();
+        
+        // Default Viewer checkboxes
+        const defaultPerms = getRoleDefaultModules('Viewer');
+        document.querySelectorAll('input[name="user-module"]').forEach(cb => {
+            cb.checked = defaultPerms.includes(cb.value);
+        });
+        
         userModal.classList.add('active');
+    });
+
+    document.getElementById('new-user-role')?.addEventListener('change', (e) => {
+        const role = e.target.value;
+        const defaults = getRoleDefaultModules(role);
+        document.querySelectorAll('input[name="user-module"]').forEach(cb => {
+            cb.checked = defaults.includes(cb.value);
+        });
+    });
+
+    document.getElementById('btn-select-all-modules')?.addEventListener('click', () => {
+        document.querySelectorAll('input[name="user-module"]').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('btn-clear-all-modules')?.addEventListener('click', () => {
+        document.querySelectorAll('input[name="user-module"]').forEach(cb => cb.checked = false);
     });
 
     document.getElementById('btn-close-user-modal')?.addEventListener('click', () => {
@@ -5820,6 +5875,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = document.getElementById('new-user-password').value;
         const role = document.getElementById('new-user-role').value;
 
+        const permissions = Array.from(document.querySelectorAll('input[name="user-module"]:checked')).map(cb => cb.value);
+
         if (!username || !password) {
             showToast('Por favor completa todos los campos requeridos', 'error');
             return;
@@ -5829,7 +5886,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/settings/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, role })
+                body: JSON.stringify({ username, password, role, permissions })
             });
             const data = await res.json();
             if (res.ok) {
@@ -5839,6 +5896,68 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchUsers();
             } else {
                 showToast(data.error || 'Error al crear usuario', 'error');
+            }
+        } catch (err) {
+            showToast('Error de conexión', 'error');
+        }
+    });
+
+    // Edit User Modal logic
+    document.getElementById('edit-user-role')?.addEventListener('change', (e) => {
+        const role = e.target.value;
+        if (role !== 'Personalizado') {
+            const defaults = getRoleDefaultModules(role);
+            document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => {
+                cb.checked = defaults.includes(cb.value);
+            });
+        }
+    });
+
+    document.getElementById('btn-edit-select-all-modules')?.addEventListener('click', () => {
+        document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('btn-edit-clear-all-modules')?.addEventListener('click', () => {
+        document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => cb.checked = false);
+    });
+
+    document.getElementById('btn-close-user-edit-modal')?.addEventListener('click', () => {
+        if (userEditModal) userEditModal.classList.remove('active');
+    });
+    document.getElementById('btn-cancel-user-edit')?.addEventListener('click', () => {
+        if (userEditModal) userEditModal.classList.remove('active');
+    });
+
+    document.getElementById('user-edit-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-user-id').value;
+        const username = document.getElementById('edit-user-username').value.trim();
+        const role = document.getElementById('edit-user-role').value;
+        const permissions = Array.from(document.querySelectorAll('input[name="edit-user-module"]:checked')).map(cb => cb.value);
+
+        if (!username) {
+            showToast('El nombre de usuario es obligatorio', 'error');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/settings/users/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, role, permissions })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Usuario ${username} actualizado exitosamente`, 'success');
+                if (userEditModal) userEditModal.classList.remove('active');
+                fetchUsers();
+                if (currentUser && currentUser.id === parseInt(id)) {
+                    currentUser.username = data.username;
+                    currentUser.role = data.role;
+                    currentUser.permissions = data.permissions;
+                    applyRolePermissions();
+                }
+            } else {
+                showToast(data.error || 'Error al actualizar usuario', 'error');
             }
         } catch (err) {
             showToast('Error de conexión', 'error');
@@ -5866,7 +5985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listBody.innerHTML = '';
 
         if (allUsersList.length === 0) {
-            listBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay usuarios registrados</td></tr>';
+            listBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-text-secondary); padding: 20px;">No hay usuarios registrados</td></tr>';
             return;
         }
 
@@ -5874,13 +5993,37 @@ document.addEventListener('DOMContentLoaded', () => {
             const tr = document.createElement('tr');
             const roleBadgeClass = user.role === 'Admin' ? 'badge-danger' : (user.role === 'Tecnico' ? 'badge-info' : 'badge-success');
             
+            // Build Permissions Badges
+            let permissionsHtml = '';
+            if (user.role === 'Admin') {
+                permissionsHtml = `<span class="badge" style="background: rgba(37, 99, 235, 0.12); color: var(--color-primary); font-weight: 700;"><i class="fa-solid fa-crown"></i> Control Total (Todos los Módulos)</span>`;
+            } else {
+                const uPerms = Array.isArray(user.permissions) ? user.permissions : [];
+                if (uPerms.length === 0) {
+                    permissionsHtml = `<span class="text-secondary" style="font-size: 12px;">Sin accesos</span>`;
+                } else if (uPerms.length === ALL_AVAILABLE_MODULES.length) {
+                    permissionsHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 700;"><i class="fa-solid fa-check-double"></i> Todos los Módulos (${uPerms.length})</span>`;
+                } else {
+                    const badgeItems = uPerms.map(p => {
+                        const modDef = ALL_AVAILABLE_MODULES.find(m => m.id === p);
+                        const label = modDef ? modDef.label : p;
+                        return `<span class="badge" style="background: var(--color-surface-2, rgba(0,0,0,0.04)); border: 1px solid var(--color-border); font-size: 11px; margin: 2px;">${escapeHtml(label)}</span>`;
+                    });
+                    permissionsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 380px;">${badgeItems.join('')}</div>`;
+                }
+            }
+
             tr.innerHTML = `
                 <td><strong>#${user.id}</strong></td>
-                <td><span style="font-weight: 600;">${escapeHtml(user.username)}</span></td>
+                <td><span style="font-weight: 600; color: var(--color-text);">${escapeHtml(user.username)}</span></td>
                 <td><span class="badge ${roleBadgeClass}">${escapeHtml(user.role)}</span></td>
-                <td>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-icon btn-reset-pass" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Restablecer Contraseña" style="color: var(--color-primary);">
+                <td>${permissionsHtml}</td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <button class="btn-icon btn-edit-user" data-id="${user.id}" title="Editar Usuario y Permisos" style="color: var(--color-primary);">
+                            <i class="fa-solid fa-user-pen"></i>
+                        </button>
+                        <button class="btn-icon btn-reset-pass" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Restablecer Contraseña" style="color: #f59e0b;">
                             <i class="fa-solid fa-key"></i>
                         </button>
                         ${user.username !== 'admin' ? `
@@ -5892,6 +6035,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
             listBody.appendChild(tr);
+        });
+
+        // Event for Edit User
+        listBody.querySelectorAll('.btn-edit-user').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                const user = allUsersList.find(u => u.id === id);
+                if (!user || !userEditModal) return;
+
+                document.getElementById('edit-user-id').value = user.id;
+                document.getElementById('edit-user-username').value = user.username;
+                document.getElementById('edit-user-role').value = user.role;
+
+                const uPerms = Array.isArray(user.permissions) ? user.permissions : (user.role === 'Admin' ? ALL_AVAILABLE_MODULES.map(m => m.id) : []);
+                document.querySelectorAll('input[name="edit-user-module"]').forEach(cb => {
+                    cb.checked = uPerms.includes(cb.value);
+                });
+
+                userEditModal.classList.add('active');
+            });
         });
 
         listBody.querySelectorAll('.btn-delete-user').forEach(btn => {

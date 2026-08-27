@@ -324,7 +324,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, unique=True)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(50), nullable=False, default='Viewer') # Admin, Tecnico, Viewer
+    role = db.Column(db.String(50), nullable=False, default='Viewer') # Admin, Tecnico, Viewer, Personalizado
+    permissions = db.Column(db.Text, nullable=True, default='[]') # JSON con lista de módulos permitidos
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -332,15 +333,42 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
+    def get_permissions(self):
         raw_role = (self.role or '').strip().lower()
+        ALL_MODULES = ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion']
         if raw_role == 'admin':
+            return ALL_MODULES
+        try:
+            if self.permissions:
+                perms = json.loads(self.permissions)
+                if isinstance(perms, list) and len(perms) > 0:
+                    return perms
+        except Exception:
+            pass
+        # Defaults si no tiene permissions explícito
+        if raw_role in ['tecnico', 'técnico']:
+            return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes']
+        # Viewer default
+        return ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes']
+
+    def to_dict(self):
+        raw_role = (self.role or '').strip()
+        r_lower = raw_role.lower()
+        if r_lower == 'admin':
             normalized_role = 'Admin'
-        elif raw_role in ['tecnico', 'técnico']:
+        elif r_lower in ['tecnico', 'técnico']:
             normalized_role = 'Tecnico'
-        else:
+        elif r_lower in ['viewer', 'visualizador']:
             normalized_role = 'Viewer'
-        return {'id': self.id, 'username': self.username, 'role': normalized_role}
+        else:
+            normalized_role = raw_role or 'Personalizado'
+
+        return {
+            'id': self.id,
+            'username': self.username,
+            'role': normalized_role,
+            'permissions': self.get_permissions()
+        }
 
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -529,6 +557,7 @@ class Tool(db.Model):
     logs                 = db.relationship('ToolLog', backref='tool', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
+        m_count = len(self.logs) if self.logs else 0
         return {
             'id': self.id,
             'code': self.code or f"HER-{self.id:03d}",
@@ -547,7 +576,8 @@ class Tool(db.Model):
             'quantity': self.quantity,
             'last_maintenance_date': self.last_maintenance_date or '',
             'notes': self.notes or '',
-            'date_added': self.date_added.strftime('%Y-%m-%d %H:%M:%S') if self.date_added else ''
+            'date_added': self.date_added.strftime('%Y-%m-%d %H:%M:%S') if self.date_added else '',
+            'movements_count': m_count
         }
 
 class ToolLog(db.Model):
@@ -799,6 +829,13 @@ with app.app_context():
             db.session.commit()
         except Exception:
             pass
+
+    # Migración: permissions en tabla user
+    try:
+        db.session.execute(db.text("ALTER TABLE user ADD COLUMN permissions TEXT DEFAULT '[]'"))
+        db.session.commit()
+    except Exception:
+        pass
 
     # Consolidar duplicados en el inicio del servidor
     consolidate_existing_inventory()
@@ -1319,6 +1356,72 @@ def get_tool_history(tool_id):
         'tool': tool.to_dict(),
         'history': [l.to_dict() for l in logs]
     })
+
+@app.route('/api/tools/<int:tool_id>/decommission', methods=['POST'])
+def decommission_tool(tool_id):
+    tool = Tool.query.get_or_404(tool_id)
+    data = request.json or {}
+    hotel_name = (data.get('hotel') or tool.location or '').strip()
+    reason = (data.get('reason') or f"Herramienta dañada / fuera de servicio ({tool.condition})").strip()
+    qty = int(data.get('quantity', tool.quantity or 1))
+    val = float(data.get('value', tool.value or 0.0))
+
+    if not hotel_name:
+        first_hotel = Hotel.query.first()
+        hotel_name = first_hotel.name if first_hotel else 'Excellence Punta Cana'
+
+    dec_number = generate_decommission_number(hotel_name)
+
+    new_dec = Decommission(
+        decommission_number=dec_number,
+        name=f"[Herramienta] {tool.name}",
+        device_type=tool.category or 'Herramienta IT',
+        brand=tool.brand or '',
+        model=tool.model or '',
+        serial_number=tool.serial_number or tool.code or f"HER-{tool.id:03d}",
+        hotel=hotel_name,
+        reason=reason,
+        value=val,
+        quantity=qty
+    )
+    db.session.add(new_dec)
+
+    tool.status = 'Dañada'
+    tool.condition = 'Dañada'
+    tool.assigned_to = ''
+    tool.assigned_date = ''
+    tool.location = f"Decomiso ({hotel_name})"
+
+    dec_log = ToolLog(
+        tool_id=tool.id,
+        action='Decomiso',
+        technician='',
+        location=hotel_name,
+        warehouse='Baja / Decomiso',
+        condition='Dañada',
+        notes=f"Enviada a Decomiso con folio {dec_number}. Motivo: {reason}",
+        performed_by=current_username(),
+        date=datetime.utcnow().strftime('%Y-%m-%d')
+    )
+    db.session.add(dec_log)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        dec_number = generate_decommission_number(hotel_name)
+        new_dec.decommission_number = dec_number
+        db.session.add(new_dec)
+        db.session.commit()
+
+    log_activity(current_username(), 'Decomiso de Herramienta', f'Herramienta #{tool.id} ({tool.name}) enviada a decomiso con registro {dec_number}.')
+    return jsonify({
+        'success': True,
+        'message': f'Herramienta enviada a Decomiso con folio {dec_number}',
+        'decommission_number': dec_number,
+        'tool': tool.to_dict(),
+        'decommission': new_dec.to_dict()
+    }), 201
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices():
@@ -2443,19 +2546,53 @@ def get_users():
 def add_user():
     if session.get('role') != 'Admin':
         return jsonify({'error': 'No autorizado'}), 403
-    data = request.json
-    username = data.get('username')
+    data = request.json or {}
+    username = (data.get('username') or '').strip()
     password = data.get('password')
     role = data.get('role', 'Viewer')
+    perms = data.get('permissions', [])
+    perms_json = json.dumps(perms) if isinstance(perms, list) else '[]'
+
+    if not username or not password:
+        return jsonify({'error': 'Usuario y contraseña son requeridos'}), 400
+
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'El usuario ya existe'}), 400
     
-    new_user = User(username=username, role=role)
+    new_user = User(username=username, role=role, permissions=perms_json)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
-    log_activity(current_username(), 'Nuevo Usuario', f'Usuario {new_user.username} creado.')
+    log_activity(current_username(), 'Nuevo Usuario', f'Usuario {new_user.username} (Rol: {new_user.role}) creado.')
     return jsonify(new_user.to_dict()), 201
+
+@app.route('/api/settings/users/<int:id>', methods=['PUT'])
+def update_user(id):
+    if session.get('role') != 'Admin':
+        return jsonify({'error': 'No autorizado'}), 403
+    user = User.query.get_or_404(id)
+    data = request.json or {}
+    
+    new_username = (data.get('username') or user.username).strip()
+    if new_username != user.username:
+        conflict = User.query.filter(User.username == new_username, User.id != id).first()
+        if conflict:
+            return jsonify({'error': 'El nombre de usuario ya está en uso'}), 400
+        user.username = new_username
+
+    if 'role' in data:
+        user.role = data['role']
+    
+    if 'permissions' in data:
+        perms = data['permissions']
+        user.permissions = json.dumps(perms) if isinstance(perms, list) else '[]'
+
+    if data.get('password') and len(data.get('password', '')) >= 6:
+        user.set_password(data['password'])
+
+    db.session.commit()
+    log_activity(current_username(), 'Editar Usuario', f'Usuario #{user.id} ({user.username}) actualizado (Rol: {user.role}).')
+    return jsonify(user.to_dict()), 200
 
 @app.route('/api/settings/users/<int:id>', methods=['DELETE'])
 def delete_user(id):

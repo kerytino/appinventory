@@ -7,12 +7,12 @@
     </div>
     
     <div class="sidebar-nav">
-        <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}" data-module="dashboard" id="nav-dashboard">
             <i class="fa-solid fa-chart-pie"></i>
             <span>Dashboard</span>
         </a>
         
-        <div class="nav-item-group" id="nav-group-inventory">
+        <div class="nav-item-group" id="nav-group-inventory" data-module="inventario">
             <div class="nav-item {% if request.endpoint == 'inventario' %}active{% endif %}" style="justify-content: space-between; padding-right: 8px;">
                 <a href="{{ url_for('inventario') }}" style="display: flex; gap: 12px; align-items: center; color: inherit; text-decoration: none; flex-grow: 1;">
                     <i class="fa-solid fa-boxes-stacked"></i>
@@ -27,37 +27,37 @@
             </div>
         </div>
         
-        <a href="{{ url_for('decomiso') }}" class="nav-item {% if request.endpoint == 'decomiso' %}active{% endif %}">
+        <a href="{{ url_for('decomiso') }}" class="nav-item {% if request.endpoint == 'decomiso' %}active{% endif %}" data-module="decomiso" id="nav-decomiso">
             <i class="fa-solid fa-dumpster-fire"></i>
             <span>Hoja de Decomiso</span>
         </a>
         
-        <a href="{{ url_for('reparaciones') }}" class="nav-item {% if request.endpoint == 'reparaciones' %}active{% endif %}">
+        <a href="{{ url_for('reparaciones') }}" class="nav-item {% if request.endpoint == 'reparaciones' %}active{% endif %}" data-module="reparaciones" id="nav-reparaciones">
             <i class="fa-solid fa-screwdriver-wrench"></i>
             <span>Reparaciones</span>
         </a>
 
-        <a href="{{ url_for('prestamos') }}" class="nav-item {% if request.endpoint == 'prestamos' %}active{% endif %}" id="nav-loans">
+        <a href="{{ url_for('prestamos') }}" class="nav-item {% if request.endpoint == 'prestamos' %}active{% endif %}" data-module="prestamos" id="nav-loans">
             <i class="fa-solid fa-handshake"></i>
             <span>Préstamos y Demos</span>
         </a>
 
-        <a href="{{ url_for('herramientas') }}" class="nav-item {% if request.endpoint == 'herramientas' %}active{% endif %}" id="nav-tools">
+        <a href="{{ url_for('herramientas') }}" class="nav-item {% if request.endpoint == 'herramientas' %}active{% endif %}" data-module="herramientas" id="nav-tools">
             <i class="fa-solid fa-toolbox"></i>
             <span>Herramientas IT</span>
         </a>
         
-        <a href="{{ url_for('despacho') }}" class="nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" id="nav-dispatch">
+        <a href="{{ url_for('despacho') }}" class="nav-item {% if request.endpoint == 'despacho' %}active{% endif %}" data-module="despacho" id="nav-dispatch">
             <i class="fa-solid fa-truck-ramp-box"></i>
             <span>Despachar Equipo</span>
         </a>
         
-        <a href="{{ url_for('pendientes') }}" class="nav-item {% if request.endpoint == 'pendientes' %}active{% endif %}">
+        <a href="{{ url_for('pendientes') }}" class="nav-item {% if request.endpoint == 'pendientes' %}active{% endif %}" data-module="pendientes" id="nav-pendientes">
             <i class="fa-solid fa-list-check"></i>
             <span>Pendientes y Seguimiento</span>
         </a>
         
-        <a href="{{ url_for('configuracion') }}" class="nav-item {% if request.endpoint == 'configuracion' %}active{% endif %}" id="nav-settings">
+        <a href="{{ url_for('configuracion') }}" class="nav-item {% if request.endpoint == 'configuracion' %}active{% endif %}" data-module="configuracion" id="nav-settings">
             <i class="fa-solid fa-gear"></i>
             <span>Configuración</span>
         </a>
