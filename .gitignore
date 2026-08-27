@@ -21,3 +21,6 @@ __pycache__/
 
 # Logs
 *.log
+
+# Scripts de prueba y archivos temporales
+scratch/
