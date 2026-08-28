@@ -4286,4 +4286,4 @@ if __name__ == '__main__':
     # Detener el scheduler limpiamente al cerrar la app
     atexit.register(lambda: scheduler.shutdown(wait=False))
     
-    app.run(debug=debug_mode, port=5000)
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000, ssl_context='adhoc')
