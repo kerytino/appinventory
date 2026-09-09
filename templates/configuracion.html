@@ -299,6 +299,44 @@
     </div>
 </div>
 
+<!-- Modal Asignar Accesos de Propiedad Radios a Usuario -->
+<div class="modal-overlay" id="modal-radio-user-access">
+    <div class="modal-content" style="max-width: 580px;">
+        <div class="modal-header">
+            <div>
+                <h3 style="margin:0;">Accesos a Propiedades (Radios)</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.82rem;" id="radio-access-user-title">Usuario: ...</p>
+            </div>
+            <button class="btn-close" type="button" onclick="document.getElementById('modal-radio-user-access').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="form-radio-user-access" style="display:flex; flex-direction:column; gap:16px; padding-top:12px;">
+            <input type="hidden" id="radio-access-user-id">
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <p class="text-secondary mb-3" style="font-size: 0.85rem;">
+                    Selecciona las propiedades a las que este usuario tendrá acceso dentro del módulo de Radios y sus permisos (Ver / Gestionar).
+                </p>
+                <div class="table-container">
+                    <table class="data-table" style="font-size: 0.9rem;">
+                        <thead>
+                            <tr>
+                                <th>Propiedad</th>
+                                <th style="text-align: center; width: 100px;">Ver</th>
+                                <th style="text-align: center; width: 100px;">Gestionar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-radio-user-access-properties">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-radio-user-access').classList.remove('active')">Cancelar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar Permisos</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal editar almacén -->
 <div class="modal-overlay" id="warehouse-edit-modal">
     <div class="modal-content" style="max-width: 400px;">

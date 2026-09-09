@@ -1,5 +1,101 @@
 /* LAYOUT STYLES - Modern Tech SaaS Design */
 
+/* GLOBAL MULTI-APP TOP BAR */
+.global-app-bar {
+    height: 48px;
+    background-color: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.global-app-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.global-app-logo {
+    height: 24px;
+    width: auto;
+    object-fit: contain;
+}
+
+.global-app-platform-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #94a3b8;
+    text-transform: uppercase;
+}
+
+.global-app-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+}
+
+.global-app-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.global-app-tab:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.global-app-tab.active {
+    color: #ffffff;
+    background-color: #2563eb;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+}
+
+body.has-global-bar {
+    padding-top: 48px;
+}
+
+body.has-global-bar .app-container {
+    min-height: calc(100vh - 48px);
+}
+
+body.has-global-bar .sidebar {
+    height: calc(100vh - 48px);
+    top: 48px;
+}
+
+@media (max-width: 768px) {
+    .global-app-platform-title {
+        display: none;
+    }
+    .global-app-bar {
+        padding: 0 10px;
+    }
+    .global-app-tab {
+        padding: 0 10px;
+        font-size: 0.8rem;
+    }
+}
+
 .app-container {
     display: flex;
     min-height: 100vh;

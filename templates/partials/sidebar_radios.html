@@ -1,0 +1,72 @@
+<nav class="sidebar sidebar-radios-dark" id="sidebar-radios">
+    <div class="sidebar-radios-header">
+        <div class="sidebar-radios-brand">
+            <div class="sidebar-radios-icon">
+                <i class="fa-solid fa-walkie-talkie"></i>
+            </div>
+            <div class="sidebar-radios-titles">
+                <span class="sidebar-radios-title">TEC-RADIOS</span>
+                <span class="sidebar-radios-subtitle">Gestión e Inventario de Radios de Comunicación</span>
+            </div>
+        </div>
+        <button class="btn-sidebar-close" id="btn-sidebar-radios-close" type="button" title="Cerrar Menú">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    
+    <div class="sidebar-nav sidebar-radios-nav">
+        <button type="button" class="nav-item radio-sidebar-nav-item active" data-tab="tab-dashboard" id="rad-nav-dashboard" onclick="switchRadioTab('tab-dashboard')">
+            <i class="fa-solid fa-house"></i>
+            <span>Inicio</span>
+        </button>
+        
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-inventory" id="rad-nav-inventory" onclick="switchRadioTab('tab-inventory')">
+            <i class="fa-solid fa-walkie-talkie"></i>
+            <span>Radios</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-search" id="rad-nav-search" onclick="switchRadioTab('tab-search')">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>Consultar Radio</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-formal-inv" id="rad-nav-formal-inv" onclick="switchRadioTab('tab-formal-inv')">
+            <i class="fa-solid fa-clipboard-list"></i>
+            <span>Inventario</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-my-inv" id="rad-nav-my-inv" onclick="switchRadioTab('tab-my-inv')">
+            <i class="fa-solid fa-boxes-stacked"></i>
+            <span>Mi Inventario</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-assignments" id="rad-nav-assignments" onclick="switchRadioTab('tab-assignments')">
+            <i class="fa-solid fa-user-check"></i>
+            <span>Asignaciones</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-reports" id="rad-nav-reports" onclick="switchRadioTab('tab-reports')">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Reportes</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-decommissions" id="rad-nav-decommissions" onclick="switchRadioTab('tab-decommissions')">
+            <i class="fa-solid fa-ban"></i>
+            <span>Bajas y Decomisos</span>
+        </button>
+
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-depts" id="rad-nav-depts" onclick="switchRadioTab('tab-depts')">
+            <i class="fa-solid fa-gear"></i>
+            <span>Configuración</span>
+        </button>
+    </div>
+
+    <div class="sidebar-footer sidebar-radios-footer">
+        <div class="sidebar-radios-divider"></div>
+
+        <button id="btn-sidebar-radios-logout" class="nav-item radio-sidebar-nav-item text-danger" onclick="if(confirm('¿Cerrar sesión en la plataforma TEC?')){fetch('/api/logout',{method:'POST'}).then(()=>window.location.reload());}" style="width: 100%; border: none; background: transparent; cursor: pointer; color: #f87171; padding: 10px 14px;">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Cerrar sesión</span>
+        </button>
+    </div>
+</nav>

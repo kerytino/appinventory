@@ -1,203 +1,208 @@
-    <!-- Modal Form (Registrar / Editar Equipo - Rediseño Espacioso y Elegante) -->
+    <!-- Modal Form (Registrar / Editar Equipo - Rediseño Horizontal Panorámico) -->
     <div class="modal-overlay" id="device-modal">
-        <div class="modal-content" style="max-width: 980px; width: 95vw; max-height: 92vh; overflow-y: auto; padding: 26px 30px; border-radius: 16px;">
-            <div class="modal-header" style="padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid var(--color-border);">
-                <h2 id="modal-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.3rem; margin: 0;">
+        <div class="modal-content" style="max-width: 1120px; width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px 28px; border-radius: 16px;">
+            <div class="modal-header" style="padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--color-border);">
+                <h2 id="modal-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.25rem; margin: 0;">
                     <i class="fa-solid fa-box" style="color: var(--color-primary);"></i>
                     <span>Registrar Artículo</span>
                 </h2>
                 <button class="btn-close" id="btn-close-modal" type="button"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <form id="device-form" style="display: flex; flex-direction: column; gap: 22px;">
+            <form id="device-form" style="display: flex; flex-direction: column; gap: 18px;">
                 <input class="form-control" type="hidden" id="device-id">
                 
-                <!-- SECCIÓN 1: Identificación y Clasificación del Artículo -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                    <div style="font-size: 13px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-                        <i class="fa-solid fa-circle-info"></i> 1. Identificación y Clasificación
-                    </div>
+                <!-- GRID HORIZONTAL DE 2 COLUMNAS -->
+                <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px; align-items: start;">
+                    
+                    <!-- SECCIÓN 1: Identificación y Clasificación del Artículo -->
+                    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 14px;">
+                        <div style="font-size: 13px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-circle-info"></i> 1. Identificación y Clasificación
+                        </div>
 
-                    <!-- Fila Superior: Categoría/Tipo, Marca, Modelo (Cascada del Catálogo con Selectores) -->
-                    <div class="form-grid-3col" style="margin-bottom: 16px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-type" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">
-                                <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría / Tipo: <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <select class="form-control" id="device-type" required style="height: 40px; font-weight: 600;">
-                                <option value="" disabled selected>Selecciona una categoría...</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-brand" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-tag" style="color: #f59e0b; margin-right: 4px;"></i>Marca: <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <select class="form-control" id="device-brand" required style="height: 40px; font-weight: 600;">
-                                <option value="" disabled selected>Selecciona una marca...</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-model" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-microchip" style="color: #10b981; margin-right: 4px;"></i>Modelo / Nº de Parte: <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <select class="form-control" id="device-model" required style="height: 40px; font-weight: 600;">
-                                <option value="" disabled selected>Selecciona un modelo...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Fila Intermedia: Código SKU y Nombre Comercial -->
-                    <div class="form-grid-sku-title" style="margin-bottom: 16px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-sku" style="font-weight: 700; color: var(--color-primary); font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-barcode" style="margin-right: 4px;"></i>Código SKU:
-                            </label>
-                            <input class="form-control" type="text" id="device-sku" placeholder="Ej: SRV-HP-01" style="font-family: monospace; font-weight: 700; height: 40px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-name" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                Nombre Comercial / Título del Artículo: <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <input class="form-control" type="text" id="device-name" required placeholder="Ej: Servidor HP ProLiant DL380 Gen10 - 64GB RAM" style="height: 40px; font-weight: 600;">
-                        </div>
-                    </div>
-
-                    <!-- Fila: Descripción Técnica detallada -->
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label class="form-label" for="device-description" style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">
-                            <i class="fa-solid fa-align-left" style="color: #64748b; margin-right: 4px;"></i>Descripción Técnica detallada <small style="color:var(--color-text-secondary); font-weight: normal;">(Especificaciones que aparecen debajo del nombre)</small>:
-                        </label>
-                        <textarea class="form-control" id="device-description" rows="2" placeholder="Ej: 2x Xeon Gold, 64GB RAM ECC, doble fuente redundante y kit de rieles para rack..." style="resize: vertical; min-height: 56px;"></textarea>
-                    </div>
-
-                    <!-- Fila: Vincular Proveedor con botón + Proveedor -->
-                    <div style="background: rgba(37, 99, 235, 0.04); border: 1px dashed rgba(37, 99, 235, 0.3); border-radius: 8px; padding: 12px 14px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px;">
-                            <label class="form-label" for="device-provider" style="font-weight: 700; color: var(--color-primary); font-size: 13px; margin-bottom: 0;">
-                                <i class="fa-solid fa-truck" style="margin-right: 6px;"></i>Proveedor / Mayorista Asociado:
-                            </label>
-                            <small style="color: var(--color-text-secondary); font-size: 12px;"><i class="fa-solid fa-circle-info"></i> Opcional para trazabilidad de compras y costos</small>
-                        </div>
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <select id="device-provider" class="form-control" style="flex: 1; min-width: 180px; height: 38px;">
-                                <option value="">-- Sin Proveedor Asignado / Opcional --</option>
-                            </select>
-                            <button type="button" class="btn btn-secondary" id="btn-device-open-new-provider" style="white-space: nowrap; height: 38px; padding: 0 16px; font-weight: 600; gap: 6px;">
-                                <i class="fa-solid fa-plus"></i> <span>+ Proveedor</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SECCIÓN 2: Existencias, Costos y Ubicación -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                    <div style="font-size: 13px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-                        <i class="fa-solid fa-boxes-stacked"></i> 2. Existencias, Costos y Almacenamiento
-                    </div>
-
-                    <!-- Fila: Costo Unitario, Cantidad y Valor Total en Inventario -->
-                    <div class="form-grid-costs" style="margin-bottom: 16px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-cost-price" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Unitario ($ USD): <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <input class="form-control" type="number" id="device-cost-price" step="0.01" min="0" required placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-quantity" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-box" style="color: #6366f1; margin-right: 4px;"></i>Cantidad (Stock): <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <input class="form-control" type="number" id="device-quantity" min="1" placeholder="1" value="1" required style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-value" style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
-                                <i class="fa-solid fa-calculator" style="color: #10b981; margin-right: 4px;"></i>Valor Total Lote ($ USD):
-                            </label>
-                            <input class="form-control" type="number" id="device-value" step="0.01" min="0" readonly placeholder="0.00" style="font-family: monospace; font-size: 15px; font-weight: 700; color: #10b981; background: var(--color-surface); height: 40px; cursor: default;">
-                            <input type="hidden" id="device-unit-price" value="0">
-                        </div>
-                    </div>
-
-                    <!-- Fila: Reorden, Almacén y Estado -->
-                    <div class="form-grid-stock-status" style="margin-bottom: 16px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-min-stock" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Stock Mínimo (Alerta):
-                            </label>
-                            <input class="form-control" type="number" id="device-min-stock" min="0" value="3" placeholder="3" style="font-family: monospace; font-size: 15px; font-weight: 700; height: 40px;">
-                        </div>
-                        <div class="form-group" id="group-warehouse" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-warehouse" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Almacén de Resguardo: <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <select id="device-warehouse" class="form-control" required style="height: 40px;">
-                                <option value="" disabled selected>Selecciona un almacén...</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-status" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Estado del Artículo: <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <select class="form-control" id="device-status" required style="height: 40px;">
-                                <option value="En Stock" selected>En Stock</option>
-                                <option value="Despachado / Instalado">Despachado / Instalado</option>
-                                <option value="Reparado">Reparado (En Stock)</option>
-                                <option value="Averiado">Averiado</option>
-                                <option value="En Reparación / Garantía">En Reparación / Garantía</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Campos condicionales si es Despachado -->
-                    <div class="form-grid-2col-equal" style="margin-bottom: 16px;">
-                        <div class="form-group" id="group-location" style="display: none; margin-bottom: 0;">
-                            <label class="form-label" for="device-location" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Ubicación (Hotel / Área): <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <input type="text" id="device-location" class="form-control" list="hotel-options" placeholder="Ej: Recepción, Rack Principal..." style="height: 40px;">
-                            <datalist id="hotel-options"></datalist>
-                        </div>
-                        <div class="form-group" id="group-dispatched-by" style="display: none; margin-bottom: 0;">
-                            <label class="form-label" for="device-dispatched-by" style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                                Despachado por (Técnico): <span style="color:var(--color-danger)">*</span>
-                            </label>
-                            <input type="text" id="device-dispatched-by" class="form-control" list="technician-options" placeholder="Nombre del técnico responsable" style="height: 40px;">
-                        </div>
-                    </div>
-
-                    <!-- Serial y MAC con Escáner de Código de Barras / QR -->
-                    <div class="form-grid-2col-equal">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-serial" style="font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                                <span><i class="fa-solid fa-barcode" style="color: var(--color-primary); margin-right: 4px;"></i>Número de Serie (S/N):</span>
-                                <small style="color: var(--color-text-tertiary); font-weight: normal;">Opcional</small>
-                            </label>
-                            <div class="input-with-action">
-                                <input class="form-control" type="text" id="device-serial" placeholder="Ej: SN-982347209" style="height: 40px; font-family: monospace; font-weight: 600;">
-                                <button type="button" class="btn-input-scan" id="btn-scan-serial" title="Escanear Código de Barras o QR del Serial" data-target="device-serial" data-label="Número de Serie">
-                                    <i class="fa-solid fa-camera"></i> <span>Escanear</span>
-                                </button>
+                        <!-- Fila Superior: Categoría/Tipo, Marca, Modelo (Cascada del Catálogo con Selectores) -->
+                        <div class="form-grid-3col">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-type" style="font-size: 12.5px; font-weight: 700; margin-bottom: 6px;">
+                                    <i class="fa-solid fa-layer-group" style="color: #6366f1; margin-right: 4px;"></i>Categoría / Tipo: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <select class="form-control" id="device-type" required style="height: 38px; font-weight: 600;">
+                                    <option value="" disabled selected>Selecciona una categoría...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-brand" style="font-weight: 700; font-size: 12.5px; margin-bottom: 6px;">
+                                    <i class="fa-solid fa-tag" style="color: #f59e0b; margin-right: 4px;"></i>Marca: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <select class="form-control" id="device-brand" required style="height: 38px; font-weight: 600;">
+                                    <option value="" disabled selected>Selecciona una marca...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-model" style="font-weight: 700; font-size: 12.5px; margin-bottom: 6px;">
+                                    <i class="fa-solid fa-microchip" style="color: #10b981; margin-right: 4px;"></i>Modelo: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <select class="form-control" id="device-model" required style="height: 38px; font-weight: 600;">
+                                    <option value="" disabled selected>Selecciona un modelo...</option>
+                                </select>
                             </div>
                         </div>
+
+                        <!-- Fila Intermedia: Código SKU y Nombre Comercial -->
+                        <div class="form-grid-sku-title">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-sku" style="font-weight: 700; color: var(--color-primary); font-size: 12.5px; margin-bottom: 6px;">
+                                    <i class="fa-solid fa-barcode" style="margin-right: 4px;"></i>Código SKU:
+                                </label>
+                                <input class="form-control" type="text" id="device-sku" placeholder="Ej: SRV-HP-01" style="font-family: monospace; font-weight: 700; height: 38px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-name" style="font-weight: 700; font-size: 12.5px; margin-bottom: 6px;">
+                                    Nombre Comercial / Título: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <input class="form-control" type="text" id="device-name" required placeholder="Ej: Servidor HP ProLiant DL380 Gen10" style="height: 38px; font-weight: 600;">
+                            </div>
+                        </div>
+
+                        <!-- Fila: Descripción Técnica detallada -->
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" for="device-mac" style="font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                                <span><i class="fa-solid fa-network-wired" style="color: #6366f1; margin-right: 4px;"></i>Dirección MAC:</span>
-                                <small style="color: var(--color-text-tertiary); font-weight: normal;">Opcional</small>
+                            <label class="form-label" for="device-description" style="font-weight: 600; font-size: 12.5px; margin-bottom: 6px;">
+                                <i class="fa-solid fa-align-left" style="color: #64748b; margin-right: 4px;"></i>Descripción Técnica detallada:
                             </label>
-                            <div class="input-with-action">
-                                <input class="form-control" type="text" id="device-mac" placeholder="Ej: 00:1A:2B:3C:4D:5E" style="height: 40px; font-family: monospace; font-weight: 600;">
-                                <button type="button" class="btn-input-scan" id="btn-scan-mac" title="Escanear Código de Barras o QR de la MAC" data-target="device-mac" data-label="Dirección MAC">
-                                    <i class="fa-solid fa-camera"></i> <span>Escanear</span>
+                            <textarea class="form-control" id="device-description" rows="2" placeholder="Ej: 2x Xeon Gold, 64GB RAM ECC, doble fuente..." style="resize: vertical; min-height: 52px; font-size: 13px;"></textarea>
+                        </div>
+
+                        <!-- Fila: Vincular Proveedor con botón + Proveedor -->
+                        <div style="background: rgba(37, 99, 235, 0.04); border: 1px dashed rgba(37, 99, 235, 0.3); border-radius: 8px; padding: 12px 14px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                                <label class="form-label" for="device-provider" style="font-weight: 700; color: var(--color-primary); font-size: 12.5px; margin-bottom: 0;">
+                                    <i class="fa-solid fa-truck" style="margin-right: 6px;"></i>Proveedor Asociado:
+                                </label>
+                                <small style="color: var(--color-text-secondary); font-size: 11px;">Opcional</small>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <select id="device-provider" class="form-control" style="flex: 1; min-width: 140px; height: 36px; font-size: 12.5px;">
+                                    <option value="">-- Sin Proveedor Asignado --</option>
+                                </select>
+                                <button type="button" class="btn btn-secondary" id="btn-device-open-new-provider" style="white-space: nowrap; height: 36px; padding: 0 12px; font-weight: 600; font-size: 12px; gap: 4px;">
+                                    <i class="fa-solid fa-plus"></i> <span>+ Prov</span>
                                 </button>
                             </div>
                         </div>
                     </div>
+
+                    <!-- SECCIÓN 2: Existencias, Costos y Ubicación -->
+                    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 14px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-boxes-stacked"></i> 2. Existencias, Costos y Almacenamiento
+                        </div>
+
+                        <!-- Fila: Costo Unitario, Cantidad y Valor Total en Inventario -->
+                        <div class="form-grid-costs" style="background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-cost-price" style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">
+                                    <i class="fa-solid fa-coins" style="color: #f59e0b; margin-right: 4px;"></i>Costo Unit. ($): <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <input class="form-control" type="number" id="device-cost-price" step="0.01" min="0" required placeholder="0.00" style="font-family: monospace; font-size: 14px; font-weight: 700; height: 36px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-quantity" style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">
+                                    <i class="fa-solid fa-box" style="color: #6366f1; margin-right: 4px;"></i>Stock: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <input class="form-control" type="number" id="device-quantity" min="1" placeholder="1" value="1" required style="font-family: monospace; font-size: 14px; font-weight: 700; height: 36px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-value" style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">
+                                    <i class="fa-solid fa-calculator" style="color: #10b981; margin-right: 4px;"></i>Total Lote ($):
+                                </label>
+                                <input class="form-control" type="number" id="device-value" step="0.01" min="0" readonly placeholder="0.00" style="font-family: monospace; font-size: 14px; font-weight: 700; color: #10b981; background: var(--color-surface); height: 36px; cursor: default;">
+                                <input type="hidden" id="device-unit-price" value="0">
+                            </div>
+                        </div>
+
+                        <!-- Fila: Reorden, Almacén y Estado -->
+                        <div class="form-grid-stock-status">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-min-stock" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">
+                                    Stock Mín.:
+                                </label>
+                                <input class="form-control" type="number" id="device-min-stock" min="0" value="3" placeholder="3" style="font-family: monospace; font-size: 14px; font-weight: 700; height: 36px;">
+                            </div>
+                            <div class="form-group" id="group-warehouse" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-warehouse" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">
+                                    Almacén: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <select id="device-warehouse" class="form-control" required style="height: 36px; font-size: 12.5px;">
+                                    <option value="" disabled selected>Selecciona almacén...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-status" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">
+                                    Estado: <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <select class="form-control" id="device-status" required style="height: 36px; font-size: 12.5px;">
+                                    <option value="En Stock" selected>En Stock</option>
+                                    <option value="Despachado / Instalado">Despachado / Instalado</option>
+                                    <option value="Reparado">Reparado (En Stock)</option>
+                                    <option value="Averiado">Averiado</option>
+                                    <option value="En Reparación / Garantía">En Reparación / Garantía</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Campos condicionales si es Despachado -->
+                        <div class="form-grid-2col-equal">
+                            <div class="form-group" id="group-location" style="display: none; margin-bottom: 0;">
+                                <label class="form-label" for="device-location" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">
+                                    Ubicación (Hotel / Área): <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <input type="text" id="device-location" class="form-control" list="hotel-options" placeholder="Ej: Recepción..." style="height: 36px;">
+                                <datalist id="hotel-options"></datalist>
+                            </div>
+                            <div class="form-group" id="group-dispatched-by" style="display: none; margin-bottom: 0;">
+                                <label class="form-label" for="device-dispatched-by" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">
+                                    Despachado por (Técnico): <span style="color:var(--color-danger)">*</span>
+                                </label>
+                                <input type="text" id="device-dispatched-by" class="form-control" list="technician-options" placeholder="Nombre técnico" style="height: 36px;">
+                            </div>
+                        </div>
+
+                        <!-- Serial y MAC con Escáner de Código de Barras / QR -->
+                        <div class="form-grid-2col-equal">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-serial" style="font-size: 12px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+                                    <span><i class="fa-solid fa-barcode" style="color: var(--color-primary); margin-right: 4px;"></i>Serial:</span>
+                                    <small style="color: var(--color-text-tertiary);">Opcional</small>
+                                </label>
+                                <div class="input-with-action">
+                                    <input class="form-control" type="text" id="device-serial" placeholder="Ej: SN-982347209" style="height: 36px; font-family: monospace; font-weight: 600; font-size: 12px;">
+                                    <button type="button" class="btn-input-scan" id="btn-scan-serial" title="Escanear Serial" data-target="device-serial" data-label="Número de Serie">
+                                        <i class="fa-solid fa-camera"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="device-mac" style="font-size: 12px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+                                    <span><i class="fa-solid fa-network-wired" style="color: #6366f1; margin-right: 4px;"></i>MAC:</span>
+                                    <small style="color: var(--color-text-tertiary);">Opcional</small>
+                                </label>
+                                <div class="input-with-action">
+                                    <input class="form-control" type="text" id="device-mac" placeholder="Ej: 00:1A:2B:3C:4D:5E" style="height: 36px; font-family: monospace; font-weight: 600; font-size: 12px;">
+                                    <button type="button" class="btn-input-scan" id="btn-scan-mac" title="Escanear MAC" data-target="device-mac" data-label="Dirección MAC">
+                                        <i class="fa-solid fa-camera"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Botones Cancelar / Guardar -->
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="btn-cancel" style="padding: 11px 24px; font-size: 14px; font-weight: 600; border-radius: 8px;">Cancelar</button>
-                    <button type="submit" class="btn-primary" id="btn-save" style="padding: 11px 28px; font-size: 14px; font-weight: 700; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                <div class="form-actions" style="margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel" style="padding: 9px 22px; font-size: 13.5px; font-weight: 600; border-radius: 8px;">Cancelar</button>
+                    <button type="submit" class="btn-primary" id="btn-save" style="padding: 9px 26px; font-size: 13.5px; font-weight: 700; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
                         <i class="fa-solid fa-check"></i> Guardar Artículo
                     </button>
                 </div>
@@ -297,103 +302,126 @@
     </div>
 
 
-    <!-- Modal Nuevo Usuario (Configuración) -->
+    <!-- Modal Nuevo Usuario (Configuración - Diseño Panorámico Horizontal) -->
     <div class="modal-overlay" id="user-modal">
-        <div class="modal-content" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h2><i class="fa-solid fa-user-plus" style="color: var(--color-primary); margin-right: 8px;"></i>Nuevo Usuario</h2>
-                <button class="btn-close" id="btn-close-user-modal"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-content" style="max-width: 1060px; width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px 28px;">
+            <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border);">
+                <h2 style="font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-plus" style="color: var(--color-primary);"></i>
+                    <span>Nuevo Usuario y Asignación de Permisos</span>
+                </h2>
+                <button class="btn-close" id="btn-close-user-modal" type="button"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form id="user-form" style="display: flex; flex-direction: column; gap: 16px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label" for="new-user-username">Nombre de Usuario <span style="color:var(--color-danger)">*</span></label>
-                        <input class="form-control" type="text" id="new-user-username" required placeholder="Ej: jrodriguez" style="height: 38px;">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label" for="new-user-password">Contraseña Inicial <span style="color:var(--color-danger)">*</span></label>
-                        <input class="form-control" type="password" id="new-user-password" required placeholder="Mínimo 6 caracteres" style="height: 38px;">
-                    </div>
-                </div>
+            <form id="user-form" style="display: flex; flex-direction: column; gap: 18px;">
+                
+                <!-- GRID HORIZONTAL DE 2 COLUMNAS PRINCIPALES -->
+                <div style="display: grid; grid-template-columns: 1fr 1.35fr; gap: 24px; align-items: start;">
+                    
+                    <!-- COLUMNA IZQUIERDA: Credenciales de Acceso y Módulos Base -->
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        
+                        <!-- Tarjeta Datos Básicos -->
+                        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                            <div style="font-size: 13px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-id-card"></i> 1. Credenciales y Rol Base
+                            </div>
 
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" for="new-user-role">Rol de Acceso Base <span style="color:var(--color-danger)">*</span></label>
-                    <select class="form-control" id="new-user-role" required style="height: 38px; font-weight: 600;">
-                        <option value="Admin">Administrador (Control Total)</option>
-                        <option value="Tecnico">Técnico (Operaciones y Resguardos)</option>
-                        <option value="Viewer" selected>Visualizador (Solo Consulta)</option>
-                        <option value="Personalizado">Personalizado (Permisos Específicos)</option>
-                    </select>
-                </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="new-user-username" style="font-size: 12px; font-weight: 700;">Usuario <span style="color:var(--color-danger)">*</span></label>
+                                    <input class="form-control" type="text" id="new-user-username" required placeholder="Ej: jrodriguez" style="height: 38px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="new-user-password" style="font-size: 12px; font-weight: 700;">Contraseña <span style="color:var(--color-danger)">*</span></label>
+                                    <input class="form-control" type="password" id="new-user-password" required placeholder="Mínimo 6 carac." style="height: 38px;">
+                                </div>
+                            </div>
 
-                <!-- Selector de Módulos Permitidos -->
-                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <label class="form-label" style="font-weight: 700; font-size: 13px; margin: 0; color: var(--color-primary);">
-                            <i class="fa-solid fa-shield-halved" style="margin-right: 6px;"></i>Módulos con Acceso Habilitado:
-                        </label>
-                        <div style="display: flex; gap: 8px;">
-                            <button type="button" class="btn btn-secondary btn-sm" id="btn-select-all-modules" style="font-size: 11px; padding: 3px 8px;">Todos</button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-all-modules" style="font-size: 11px; padding: 3px 8px;">Ninguno</button>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="new-user-role" style="font-size: 12px; font-weight: 700;">Rol de Acceso Base <span style="color:var(--color-danger)">*</span></label>
+                                <select class="form-control" id="new-user-role" required style="height: 38px; font-weight: 600;">
+                                    <option value="Admin">Administrador (Control Total)</option>
+                                    <option value="Tecnico">Técnico (Operaciones y Resguardos)</option>
+                                    <option value="Viewer" selected>Visualizador (Solo Consulta)</option>
+                                    <option value="Personalizado">Personalizado (Permisos Específicos)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta Módulos Base de TEC-INVENTORY -->
+                        <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <label class="form-label" style="font-weight: 700; font-size: 13px; margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-shield-halved"></i> 2. Módulos Estándar
+                                </label>
+                                <div style="display: flex; gap: 6px;">
+                                    <button type="button" class="btn btn-secondary btn-sm" id="btn-select-all-modules" style="font-size: 11px; padding: 2px 8px;">Todos</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-all-modules" style="font-size: 11px; padding: 2px 8px;">Ninguno</button>
+                                </div>
+                            </div>
+                            <div class="user-permissions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; font-size: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="dashboard" checked>
+                                    <span><i class="fa-solid fa-chart-pie" style="color: #6366f1; width: 16px;"></i> Dashboard</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="inventario" checked>
+                                    <span><i class="fa-solid fa-boxes-stacked" style="color: #10b981; width: 16px;"></i> Inventario General</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="decomiso" checked>
+                                    <span><i class="fa-solid fa-dumpster-fire" style="color: #ef4444; width: 16px;"></i> Decomiso</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="reparaciones" checked>
+                                    <span><i class="fa-solid fa-screwdriver-wrench" style="color: #f59e0b; width: 16px;"></i> Reparaciones</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="prestamos" checked>
+                                    <span><i class="fa-solid fa-handshake" style="color: #3b82f6; width: 16px;"></i> Préstamos / Demos</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="herramientas" checked>
+                                    <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="despacho">
+                                    <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="user-module" value="pendientes" checked>
+                                    <span><i class="fa-solid fa-list-check" style="color: #ec4899; width: 16px;"></i> Pendientes</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; grid-column: 1 / -1;">
+                                    <input type="checkbox" name="user-module" value="configuracion">
+                                    <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración Global</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                    <div class="user-permissions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="dashboard" checked>
-                            <span><i class="fa-solid fa-chart-pie" style="color: #6366f1; width: 16px;"></i> Dashboard</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="inventario" checked>
-                            <span><i class="fa-solid fa-boxes-stacked" style="color: #10b981; width: 16px;"></i> Inventario General</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="decomiso" checked>
-                            <span><i class="fa-solid fa-dumpster-fire" style="color: #ef4444; width: 16px;"></i> Decomiso</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="reparaciones" checked>
-                            <span><i class="fa-solid fa-screwdriver-wrench" style="color: #f59e0b; width: 16px;"></i> Reparaciones</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="prestamos" checked>
-                            <span><i class="fa-solid fa-handshake" style="color: #3b82f6; width: 16px;"></i> Préstamos / Demos</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="herramientas" checked>
-                            <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="despacho">
-                            <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="pendientes" checked>
-                            <span><i class="fa-solid fa-list-check" style="color: #ec4899; width: 16px;"></i> Pendientes</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="user-module" value="configuracion">
-                            <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración</span>
-                        </label>
 
-                        <!-- Acordeón Desplegable de Pedidos y Compras -->
-                        <div style="grid-column: 1 / -1; background: rgba(249, 115, 22, 0.04); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
+                    <!-- COLUMNA DERECHA: Módulos Especializados (Pedidos y TEC-RADIOS) -->
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        
+                        <!-- Tarjeta Pedidos y Compras -->
+                        <div style="background: rgba(249, 115, 22, 0.04); border: 1px solid rgba(249, 115, 22, 0.28); border-radius: 12px; padding: 14px 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 13px; color: #c2410c;">
                                     <input type="checkbox" name="user-module" value="pedidos" id="chk-user-module-pedidos" checked>
-                                    <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Pedidos y Compras</span>
+                                    <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Módulo Pedidos y Compras</span>
                                 </label>
-                                <button type="button" class="btn-toggle-subperms" id="btn-toggle-order-subperms" style="background: none; border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #ea580c; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
-                                    <span>Acciones / Permisos</span> <i class="fa-solid fa-chevron-down" id="icon-order-subperms" style="font-size: 10px; transition: transform 0.2s;"></i>
+                                <button type="button" class="btn-toggle-subperms" id="btn-toggle-order-subperms" style="background: #ffffff; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #ea580c; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                    <span>Sub-permisos</span> <i class="fa-solid fa-chevron-down" id="icon-order-subperms" style="font-size: 10px; transition: transform 0.2s;"></i>
                                 </button>
                             </div>
                             
                             <!-- Sub-permisos desplegables -->
-                            <div id="user-order-subperms-panel" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(249, 115, 22, 0.25); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px;">
+                            <div id="user-order-subperms-panel" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(249, 115, 22, 0.3); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px;">
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                     <input type="checkbox" name="user-subperm" value="pedidos:crear" checked>
                                     <span><i class="fa-solid fa-plus" style="color: #10b981; width: 14px;"></i> Crear Solicitudes</span>
                                 </label>
-                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(239, 68, 68, 0.06); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(239, 68, 68, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.25);">
                                     <input type="checkbox" name="user-subperm" value="pedidos:aprobar">
                                     <span><i class="fa-solid fa-signature" style="color: #ef4444; width: 14px;"></i> <strong>Aprobar / Rechazar</strong></span>
                                 </label>
@@ -411,111 +439,165 @@
                                 </label>
                             </div>
                         </div>
+
+                        <!-- Tarjeta Módulo TEC-RADIOS -->
+                        <div style="background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.28); border-radius: 12px; padding: 14px 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 13px; color: #1e40af;">
+                                    <input type="checkbox" name="user-module" value="tec-radios" id="chk-user-module-radios">
+                                    <span><i class="fa-solid fa-walkie-talkie" style="color: #2563eb; width: 16px;"></i> Módulo TEC-RADIOS</span>
+                                </label>
+                            </div>
+
+                            <!-- Panel de Configuración TEC-RADIOS -->
+                            <div id="user-radios-config-panel" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(37, 99, 235, 0.3); display: none;">
+                                <div class="form-group" style="margin-bottom: 8px;">
+                                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e40af;">Perfil / Rol TEC-RADIOS:</label>
+                                    <select id="new-user-radio-role" class="form-control" style="height: 36px; font-size: 12.5px; font-weight: 600;">
+                                        <option value="admin">Administrador TEC-RADIOS (Acceso Total)</option>
+                                        <option value="dept_manager">Encargado de Departamento</option>
+                                        <option value="viewer" selected>Consulta TEC-RADIOS (Solo Lectura)</option>
+                                    </select>
+                                </div>
+
+                                <div id="new-user-radio-role-explanation" style="font-size: 11.5px; padding: 6px 10px; background: #ffffff; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); margin-bottom: 10px; color: #1e3a8a; line-height: 1.4;">
+                                    <i class="fa-solid fa-circle-info"></i> Consulta TEC-RADIOS: Solo consulta los radios de las propiedades y departamentos explícitamente autorizados.
+                                </div>
+
+                                <div style="font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 4px;">Propiedades y Departamentos Autorizados:</div>
+                                <div id="new-user-radios-dept-matrix" style="max-height: 190px; overflow-y: auto; background: #ffffff; border: 1px solid var(--color-border); border-radius: 8px; padding: 10px;">
+                                    <div style="font-size: 11px; color: var(--color-text-secondary); text-align: center;">Cargando propiedades y departamentos...</div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-                <div class="form-actions" style="margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--color-border);">
-                    <button type="button" class="btn-secondary" id="btn-cancel-user">Cancelar</button>
-                    <button type="submit" class="btn-primary"><i class="fa-solid fa-user-plus"></i> Crear Usuario</button>
+                <div class="form-actions" style="margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel-user" style="padding: 9px 20px;">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="padding: 9px 24px;"><i class="fa-solid fa-user-plus me-1"></i> Crear Usuario</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Editar Usuario / Permisos (Configuración) -->
+    <!-- Modal Editar Usuario / Permisos (Configuración - Diseño Panorámico Horizontal) -->
     <div class="modal-overlay" id="user-edit-modal">
-        <div class="modal-content" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h2><i class="fa-solid fa-user-pen" style="color: var(--color-primary); margin-right: 8px;"></i>Editar Usuario y Permisos</h2>
-                <button class="btn-close" id="btn-close-user-edit-modal"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-content" style="max-width: 1060px; width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px 28px;">
+            <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border);">
+                <h2 style="font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-pen" style="color: var(--color-primary);"></i>
+                    <span>Editar Usuario y Permisos</span>
+                </h2>
+                <button class="btn-close" id="btn-close-user-edit-modal" type="button"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form id="user-edit-form" style="display: flex; flex-direction: column; gap: 16px;">
+            <form id="user-edit-form" style="display: flex; flex-direction: column; gap: 18px;">
                 <input type="hidden" id="edit-user-id">
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label" for="edit-user-username">Nombre de Usuario <span style="color:var(--color-danger)">*</span></label>
-                        <input class="form-control" type="text" id="edit-user-username" required style="height: 38px;">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label" for="edit-user-role">Rol Asignado <span style="color:var(--color-danger)">*</span></label>
-                        <select class="form-control" id="edit-user-role" required style="height: 38px; font-weight: 600;">
-                            <option value="Admin">Administrador (Control Total)</option>
-                            <option value="Tecnico">Técnico (Operaciones y Resguardos)</option>
-                            <option value="Viewer">Visualizador (Solo Consulta)</option>
-                            <option value="Personalizado">Personalizado (Permisos Específicos)</option>
-                        </select>
-                    </div>
-                </div>
+                <!-- GRID HORIZONTAL DE 2 COLUMNAS PRINCIPALES -->
+                <div style="display: grid; grid-template-columns: 1fr 1.35fr; gap: 24px; align-items: start;">
+                    
+                    <!-- COLUMNA IZQUIERDA: Credenciales y Módulos Estándar -->
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        
+                        <!-- Tarjeta Datos Básicos -->
+                        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                            <div style="font-size: 13px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-id-card"></i> 1. Cuenta y Rol Base
+                            </div>
 
-                <!-- Selector de Módulos Permitidos -->
-                <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 10px; padding: 14px 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <label class="form-label" style="font-weight: 700; font-size: 13px; margin: 0; color: var(--color-primary);">
-                            <i class="fa-solid fa-shield-halved" style="margin-right: 6px;"></i>Módulos con Acceso Habilitado:
-                        </label>
-                        <div style="display: flex; gap: 8px;">
-                            <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-select-all-modules" style="font-size: 11px; padding: 3px 8px;">Todos</button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-clear-all-modules" style="font-size: 11px; padding: 3px 8px;">Ninguno</button>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="edit-user-username" style="font-size: 12px; font-weight: 700;">Usuario <span style="color:var(--color-danger)">*</span></label>
+                                    <input class="form-control" type="text" id="edit-user-username" required style="height: 38px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="edit-user-role" style="font-size: 12px; font-weight: 700;">Rol Asignado <span style="color:var(--color-danger)">*</span></label>
+                                    <select class="form-control" id="edit-user-role" required style="height: 38px; font-weight: 600;">
+                                        <option value="Admin">Administrador (Control Total)</option>
+                                        <option value="Tecnico">Técnico (Operaciones y Resguardos)</option>
+                                        <option value="Viewer">Visualizador (Solo Consulta)</option>
+                                        <option value="Personalizado">Personalizado (Permisos Específicos)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta Módulos Base de TEC-INVENTORY -->
+                        <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 18px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <label class="form-label" style="font-weight: 700; font-size: 13px; margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-shield-halved"></i> 2. Módulos Estándar
+                                </label>
+                                <div style="display: flex; gap: 6px;">
+                                    <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-select-all-modules" style="font-size: 11px; padding: 2px 8px;">Todos</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-clear-all-modules" style="font-size: 11px; padding: 2px 8px;">Ninguno</button>
+                                </div>
+                            </div>
+                            <div class="edit-user-permissions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; font-size: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="dashboard">
+                                    <span><i class="fa-solid fa-chart-pie" style="color: #6366f1; width: 16px;"></i> Dashboard</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="inventario">
+                                    <span><i class="fa-solid fa-boxes-stacked" style="color: #10b981; width: 16px;"></i> Inventario General</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="decomiso">
+                                    <span><i class="fa-solid fa-dumpster-fire" style="color: #ef4444; width: 16px;"></i> Decomiso</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="reparaciones">
+                                    <span><i class="fa-solid fa-screwdriver-wrench" style="color: #f59e0b; width: 16px;"></i> Reparaciones</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="prestamos">
+                                    <span><i class="fa-solid fa-handshake" style="color: #3b82f6; width: 16px;"></i> Préstamos / Demos</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="herramientas">
+                                    <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="despacho">
+                                    <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="edit-user-module" value="pendientes">
+                                    <span><i class="fa-solid fa-list-check" style="color: #ec4899; width: 16px;"></i> Pendientes</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; grid-column: 1 / -1;">
+                                    <input type="checkbox" name="edit-user-module" value="configuracion">
+                                    <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración Global</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                    <div class="edit-user-permissions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="dashboard">
-                            <span><i class="fa-solid fa-chart-pie" style="color: #6366f1; width: 16px;"></i> Dashboard</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="inventario">
-                            <span><i class="fa-solid fa-boxes-stacked" style="color: #10b981; width: 16px;"></i> Inventario General</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="decomiso">
-                            <span><i class="fa-solid fa-dumpster-fire" style="color: #ef4444; width: 16px;"></i> Decomiso</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="reparaciones">
-                            <span><i class="fa-solid fa-screwdriver-wrench" style="color: #f59e0b; width: 16px;"></i> Reparaciones</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="prestamos">
-                            <span><i class="fa-solid fa-handshake" style="color: #3b82f6; width: 16px;"></i> Préstamos / Demos</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="herramientas">
-                            <span><i class="fa-solid fa-toolbox" style="color: #8b5cf6; width: 16px;"></i> Herramientas IT</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="despacho">
-                            <span><i class="fa-solid fa-truck-ramp-box" style="color: #06b6d4; width: 16px;"></i> Despacho</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="pendientes">
-                            <span><i class="fa-solid fa-list-check" style="color: #ec4899; width: 16px;"></i> Pendientes</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" name="edit-user-module" value="configuracion">
-                            <span><i class="fa-solid fa-gear" style="color: #64748b; width: 16px;"></i> Configuración</span>
-                        </label>
 
-                        <!-- Acordeón Desplegable de Pedidos y Compras para Edición -->
-                        <div style="grid-column: 1 / -1; background: rgba(249, 115, 22, 0.04); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
+                    <!-- COLUMNA DERECHA: Módulos Especializados (Pedidos y TEC-RADIOS) -->
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        
+                        <!-- Tarjeta Pedidos y Compras -->
+                        <div style="background: rgba(249, 115, 22, 0.04); border: 1px solid rgba(249, 115, 22, 0.28); border-radius: 12px; padding: 14px 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 13px; color: #c2410c;">
                                     <input type="checkbox" name="edit-user-module" value="pedidos" id="chk-edit-user-module-pedidos">
-                                    <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Pedidos y Compras</span>
+                                    <span><i class="fa-solid fa-cart-shopping" style="color: #f97316; width: 16px;"></i> Módulo Pedidos y Compras</span>
                                 </label>
-                                <button type="button" class="btn-toggle-subperms" id="btn-edit-toggle-order-subperms" style="background: none; border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #ea580c; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
-                                    <span>Acciones / Permisos</span> <i class="fa-solid fa-chevron-down" id="icon-edit-order-subperms" style="font-size: 10px; transition: transform 0.2s;"></i>
+                                <button type="button" class="btn-toggle-subperms" id="btn-edit-toggle-order-subperms" style="background: #ffffff; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #ea580c; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                    <span>Sub-permisos</span> <i class="fa-solid fa-chevron-down" id="icon-edit-order-subperms" style="font-size: 10px; transition: transform 0.2s;"></i>
                                 </button>
                             </div>
                             
                             <!-- Sub-permisos desplegables -->
-                            <div id="edit-user-order-subperms-panel" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(249, 115, 22, 0.25); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px;">
+                            <div id="edit-user-order-subperms-panel" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(249, 115, 22, 0.3); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px;">
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                     <input type="checkbox" name="edit-user-subperm" value="pedidos:crear">
                                     <span><i class="fa-solid fa-plus" style="color: #10b981; width: 14px;"></i> Crear Solicitudes</span>
                                 </label>
-                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(239, 68, 68, 0.06); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(239, 68, 68, 0.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.25);">
                                     <input type="checkbox" name="edit-user-subperm" value="pedidos:aprobar">
                                     <span><i class="fa-solid fa-signature" style="color: #ef4444; width: 14px;"></i> <strong>Aprobar / Rechazar</strong></span>
                                 </label>
@@ -533,12 +615,44 @@
                                 </label>
                             </div>
                         </div>
+
+                        <!-- Tarjeta Módulo TEC-RADIOS -->
+                        <div style="background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.28); border-radius: 12px; padding: 14px 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 13px; color: #1e40af;">
+                                    <input type="checkbox" name="edit-user-module" value="tec-radios" id="chk-edit-user-module-radios">
+                                    <span><i class="fa-solid fa-walkie-talkie" style="color: #2563eb; width: 16px;"></i> Módulo TEC-RADIOS</span>
+                                </label>
+                            </div>
+
+                            <!-- Panel de Configuración TEC-RADIOS (Edición) -->
+                            <div id="edit-user-radios-config-panel" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(37, 99, 235, 0.3); display: none;">
+                                <div class="form-group" style="margin-bottom: 8px;">
+                                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e40af;">Perfil / Rol TEC-RADIOS:</label>
+                                    <select id="edit-user-radio-role" class="form-control" style="height: 36px; font-size: 12.5px; font-weight: 600;">
+                                        <option value="admin">Administrador TEC-RADIOS (Acceso Total)</option>
+                                        <option value="dept_manager">Encargado de Departamento</option>
+                                        <option value="viewer" selected>Consulta TEC-RADIOS (Solo Lectura)</option>
+                                    </select>
+                                </div>
+
+                                <div id="edit-user-radio-role-explanation" style="font-size: 11.5px; padding: 6px 10px; background: #ffffff; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); margin-bottom: 10px; color: #1e3a8a; line-height: 1.4;">
+                                    <i class="fa-solid fa-circle-info"></i> Consulta TEC-RADIOS: Solo consulta los radios de las propiedades y departamentos explícitamente autorizados.
+                                </div>
+
+                                <div style="font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 4px;">Propiedades y Departamentos Autorizados:</div>
+                                <div id="edit-user-radios-dept-matrix" style="max-height: 190px; overflow-y: auto; background: #ffffff; border: 1px solid var(--color-border); border-radius: 8px; padding: 10px;">
+                                    <div style="font-size: 11px; color: var(--color-text-secondary); text-align: center;">Cargando propiedades y departamentos...</div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-                <div class="form-actions" style="margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--color-border);">
-                    <button type="button" class="btn-secondary" id="btn-cancel-user-edit">Cancelar</button>
-                    <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+                <div class="form-actions" style="margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" id="btn-cancel-user-edit" style="padding: 9px 20px;">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="padding: 9px 24px;"><i class="fa-solid fa-save me-1"></i> Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -970,6 +1084,199 @@
 
             <div class="modal-footer" style="padding: 12px 0 0 0; margin-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; background: none;">
                 <button type="button" class="btn btn-secondary" id="btn-cancel-scanner" style="width: 100%; height: 42px; font-weight: 600;">Cerrar Escáner</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL REGISTRAR / EDITAR RADIO (Rediseño Amplio y Ultra Legible) -->
+    <div class="modal-overlay" id="modal-radio-item">
+        <div class="modal-content" style="max-width: 840px; width: 95vw; padding: 26px 30px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.18);">
+            <div class="modal-header" style="margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 class="modal-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 800; color: #0f172a; margin: 0;">
+                        <i class="fa-solid fa-walkie-talkie" style="color: #2563eb;"></i> 
+                        <span id="modal-radio-title">Registrar Nuevo Radio</span>
+                    </h3>
+                    <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #64748b;">Completa la ubicación y datos técnicos. El ID se asigna de forma 100% automática según la estructura global.</p>
+                </div>
+                <button class="btn-close" type="button" onclick="closeModal('modal-radio-item')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="form-radio-item" style="display: flex; flex-direction: column; gap: 18px;">
+                <input type="hidden" id="rad-form-id">
+                
+                <!-- 1. UBICACIÓN JERÁRQUICA -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px;">
+                    <div style="font-size: 12px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-hotel text-primary"></i> 1. Ubicación Organizativa
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        <div>
+                            <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                Propiedad / Hotel <span class="text-danger">*</span>
+                            </label>
+                            <select id="rad-form-property" class="form-control" required style="height: 42px; font-size: 14px; font-weight: 600; width: 100%;"></select>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                    Departamento Principal <span class="text-danger">*</span>
+                                </label>
+                                <select id="rad-form-dept" class="form-control" required style="height: 42px; font-size: 13.5px; font-weight: 600; width: 100%;"></select>
+                            </div>
+                            <div>
+                                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                    Subdepartamento
+                                </label>
+                                <select id="rad-form-area" class="form-control" style="height: 42px; font-size: 13.5px; font-weight: 600; width: 100%;"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. TARJETA DESTACADA: ASIGNACIÓN AUTOMÁTICA DE ID -->
+                <div style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 2px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+                    <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+                        <div style="width: 52px; height: 52px; border-radius: 12px; background: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                                <span style="font-size: 12px; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">ID Asignado por el Sistema</span>
+                                <span class="badge badge-primary" style="font-size: 10.5px; padding: 2px 8px; border-radius: 4px; font-weight: 700;">100% Automático</span>
+                            </div>
+                            <div id="rad-form-id-hint" style="font-size: 12.5px; color: #475569; line-height: 1.4;">
+                                Selecciona una propiedad y departamento para identificar el bloque y calcular el ID libre más bajo.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0;">
+                        <input type="text" id="rad-form-code" class="form-control" placeholder="----" readonly style="height: 48px; width: 140px; text-align: center; font-size: 1.35rem; font-weight: 900; color: #1d4ed8; background: #ffffff; border: 2px solid #3b82f6; border-radius: 10px; font-family: 'Courier New', monospace; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);">
+                    </div>
+                </div>
+
+                <!-- 3. DATOS TÉCNICOS Y CONDICIÓN DEL EQUIPO -->
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px;">
+                    <div style="font-size: 12px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-microchip text-primary"></i> 2. Datos Técnicos y Operativos
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                        <div>
+                            <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                Número de Serial <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="rad-form-serial" class="form-control" placeholder="Ej: TCM6X39284" required style="height: 42px; font-size: 14px; font-weight: 700; font-family: monospace; text-transform: uppercase;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                Marca
+                            </label>
+                            <input type="text" id="rad-form-brand" class="form-control" value="Motorola" style="height: 42px; font-size: 13.5px; font-weight: 600;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                Modelo
+                            </label>
+                            <input type="text" id="rad-form-model" class="form-control" value="R7" style="height: 42px; font-size: 13.5px; font-weight: 600;">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 14px;">
+                        <div>
+                            <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                Estado Operativo <span class="text-danger">*</span>
+                            </label>
+                            <select id="rad-form-status" class="form-control" style="height: 42px; font-size: 13.5px; font-weight: 700;">
+                                <option value="operativo" selected>🟢 Operativo</option>
+                                <option value="requiere_revision">🟡 Requiere Revisión</option>
+                                <option value="en_reparacion">🟠 En Reparación</option>
+                                <option value="danado">🔴 Dañado</option>
+                                <option value="perdido">⚫ No Localizado / Perdido</option>
+                                <option value="fuera_servicio">🔵 Fuera de Servicio</option>
+                                <option value="disponible">⚪ Disponible / En Almacén</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">
+                                Observaciones / Accesorios
+                            </label>
+                            <input type="text" id="rad-form-notes" class="form-control" placeholder="Antena, cargador, batería, condición..." style="height: 42px; font-size: 13px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="modal-footer" style="margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-radio-item')" style="padding: 10px 22px; font-size: 14px; font-weight: 600; border-radius: 8px;">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 26px; font-size: 14px; font-weight: 700; border-radius: 8px;"><i class="fa-solid fa-save me-2"></i> Guardar Radio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL ASIGNAR RADIO -->
+    <div class="modal-overlay" id="modal-radio-assign">
+        <div class="modal-content" style="max-width: 500px; width: 95vw;">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-user-pen text-primary me-2"></i> Asignar Custodia de Radio</h3>
+                <button class="btn-close" type="button" onclick="closeModal('modal-radio-assign')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-radio-assign">
+                <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+                    <input type="hidden" id="rad-assign-radio-id">
+                    <div>
+                        <label class="form-label">Empleado / Custodio Responsable <span class="text-danger">*</span></label>
+                        <input type="text" id="rad-assign-name" class="form-control" placeholder="Nombre completo del empleado" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label class="form-label">Nº Ficha / Empleado</label>
+                            <input type="text" id="rad-assign-emp-id" class="form-control" placeholder="Ej: 12345">
+                        </div>
+                        <div>
+                            <label class="form-label">Cargo / Puesto</label>
+                            <input type="text" id="rad-assign-position" class="form-control" placeholder="Ej: Supervisor">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Notas de Asignación</label>
+                        <input type="text" id="rad-assign-notes" class="form-control" placeholder="Accesorios entregados (cargador, clip)...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('modal-radio-assign')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Asignación</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL VER HISTORIAL DE RADIO -->
+    <div class="modal-overlay" id="modal-radio-history">
+        <div class="modal-content" style="max-width: 700px; width: 95vw;">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-history text-primary me-2"></i> Historial del Radio</h3>
+                <button class="btn-close" type="button" onclick="closeModal('modal-radio-history')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <table class="radios-table-compact">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Usuario</th>
+                            <th>Evento / Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rad-modal-history-tbody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="closeModal('modal-radio-history')">Cerrar</button>
             </div>
         </div>
     </div>

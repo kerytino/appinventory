@@ -1,0 +1,771 @@
+{% extends "base.html" %}
+
+{% block title %}TEC-RADIOS | Gestión e Inventario de Radios{% endblock %}
+
+{% block content %}
+<div id="view-radios" class="radios-app-wrapper">
+
+    <!-- BARRA SUPERIOR INTERNA DE TEC-RADIOS -->
+    <div class="radios-header-bar">
+        <div class="radios-header-property">
+            <span class="radios-header-property-label"><i class="fa-solid fa-building-user text-primary me-1"></i> Propiedad:</span>
+            <select id="radio-property-selector" class="radios-header-property-select">
+                <option value="all">Todas las Propiedades</option>
+            </select>
+        </div>
+
+        <div class="radios-header-right">
+            <div class="radios-header-icon-btn" title="Notificaciones">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            
+            <div class="radios-header-user">
+                <div class="radios-header-avatar" id="rad-user-avatar">ER</div>
+                <div class="radios-header-user-info">
+                    <span class="radios-header-user-name" id="rad-user-name">Usuario Activo</span>
+                    <span class="radios-header-user-role" id="rad-user-role">Administrador</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-sm" id="btn-radio-top-new" style="border-radius: 6px; padding: 6px 14px; font-weight: 600;">
+                <i class="fa-solid fa-plus me-1"></i> Nuevo Radio
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL DE TEC-RADIOS -->
+    <div style="padding: 24px;">
+
+        <!-- 1. TAB INICIO / DASHBOARD -->
+        <div id="tab-dashboard" class="radio-tab-content active">
+            <!-- Header Dashboard -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Bienvenido, <span id="rad-dash-welcome-name">Usuario</span></h2>
+                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Aquí tienes un resumen del estado de los radios de tu propiedad.</p>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: block;">Hoy</span>
+                    <span style="font-size: 0.9rem; font-weight: 700; color: #0f172a;" id="rad-dash-current-date">5 de septiembre de 2026</span>
+                </div>
+            </div>
+
+            <!-- GRID 8 KPIS COMPACTAS -->
+            <div class="radios-kpi-grid">
+                <!-- 1. Total Radios -->
+                <div class="radios-kpi-card kpi-blue">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Total de Radios</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-total">0</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-walkie-talkie"></i></div>
+                </div>
+
+                <!-- 2. Operativos -->
+                <div class="radios-kpi-card kpi-green">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Operativos</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-operativos">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-operativos-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                </div>
+
+                <!-- 3. Requieren Revisión -->
+                <div class="radios-kpi-card kpi-yellow">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Requiere Revisión</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-revision">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-revision-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                </div>
+
+                <!-- 4. En Reparación -->
+                <div class="radios-kpi-card kpi-orange">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">En Reparación</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-reparacion">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-reparacion-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-wrench"></i></div>
+                </div>
+
+                <!-- 5. Dañados -->
+                <div class="radios-kpi-card kpi-red">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Dañados</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-danados">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-danados-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-circle-xmark"></i></div>
+                </div>
+
+                <!-- 6. Perdidos -->
+                <div class="radios-kpi-card kpi-dark">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Perdidos</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-perdidos">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-perdidos-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-circle-question"></i></div>
+                </div>
+
+                <!-- 7. Fuera de Servicio -->
+                <div class="radios-kpi-card kpi-cyan">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Fuera de Servicio</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-fuera">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-fuera-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-ban"></i></div>
+                </div>
+
+                <!-- 8. Disponibles -->
+                <div class="radios-kpi-card kpi-gray">
+                    <div class="radios-kpi-left">
+                        <span class="radios-kpi-title">Disponibles</span>
+                        <div class="radios-kpi-value-group">
+                            <span class="radios-kpi-value" id="rad-stat-disponibles">0</span>
+                            <span class="radios-kpi-badge" id="rad-stat-disponibles-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="radios-kpi-icon"><i class="fa-solid fa-warehouse"></i></div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 3 BLOQUES CENTRALES -->
+            <div class="radios-dashboard-middle">
+                <!-- Bloque 1: Radios por Departamento -->
+                <div class="radios-card-box">
+                    <div class="radios-card-header">
+                        <span class="radios-card-title">Radios por Departamento</span>
+                    </div>
+                    <div class="radios-dept-bar-list" id="rad-dept-bar-list">
+                        <div style="text-align: center; color: var(--color-text-muted); padding: 16px; font-size: 13px;">Cargando datos por departamento...</div>
+                    </div>
+                </div>
+
+                <!-- Bloque 2: Estado de los Radios (Dona Chart.js) -->
+                <div class="radios-card-box">
+                    <div class="radios-card-header">
+                        <span class="radios-card-title">Estado de los Radios</span>
+                    </div>
+                    <div style="position: relative; height: 200px; display: flex; align-items: center; justify-content: center;">
+                        <canvas id="rad-status-chart" style="max-height: 190px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bloque 3: Últimos Inventarios -->
+                <div class="radios-card-box">
+                    <div class="radios-card-header">
+                        <span class="radios-card-title">Últimos Inventarios</span>
+                        <button class="btn btn-link btn-sm text-primary p-0 radio-tab-btn" data-tab="tab-formal-inv" style="font-weight: 600; text-decoration: none;">Ver todos</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="radios-table-compact">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Departamento</th>
+                                    <th>Radios</th>
+                                    <th>Responsable</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rad-last-inventories-tbody">
+                                <tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 16px;">Sin inventarios recientes.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN INFERIOR: ALERTAS -->
+            <div class="radios-card-box mb-4">
+                <div class="radios-card-header">
+                    <span class="radios-card-title"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i> Alertas Atendibles</span>
+                </div>
+                <div class="radios-alerts-grid">
+                    <div class="radios-alert-card alert-yellow">
+                        <span class="radios-alert-val" id="rad-alert-noinv-val">0</span>
+                        <span class="radios-alert-txt">Radios sin inventario (&gt; 90 días)</span>
+                    </div>
+                    <div class="radios-alert-card alert-red">
+                        <span class="radios-alert-val" id="rad-alert-danados-val">0</span>
+                        <span class="radios-alert-txt">Radios dañados o fuera de servicio</span>
+                    </div>
+                    <div class="radios-alert-card alert-dark">
+                        <span class="radios-alert-val" id="rad-alert-perdidos-val">0</span>
+                        <span class="radios-alert-txt">Radios no localizados</span>
+                    </div>
+                    <div class="radios-alert-card alert-orange">
+                        <span class="radios-alert-val" id="rad-alert-revision-val">0</span>
+                        <span class="radios-alert-txt">Radios requieren revisión</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. TAB CONSULTAR RADIO -->
+        <div id="tab-search" class="radio-tab-content" style="display: none;">
+            <div class="radio-search-banner">
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">Consultar Radio</h3>
+                <p style="font-size: 0.88rem; color: #64748b; margin: 0 0 16px 0;">Busca un radio por número de serial, ID, nombre de la persona o número de empleado.</p>
+
+                <div class="radio-search-input-group">
+                    <div style="position: relative; flex: 1;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 16px; top: 14px; color: #94a3b8; font-size: 1.1rem;"></i>
+                        <input type="text" id="rad-quick-search-input" class="radio-search-input" placeholder="Ingresa serial, ID o empleado... (ej: TCM6X39284)">
+                    </div>
+                    <button class="btn btn-primary" id="btn-rad-quick-search" style="padding: 0 24px; font-weight: 700; border-radius: 8px;">Buscar</button>
+                </div>
+            </div>
+
+            <!-- FICHA DETALLADA DINÁMICA DE CONSULTA -->
+            <div id="rad-search-empty-state" class="radios-card-box" style="text-align: center; padding: 40px 20px; color: #64748b; margin-top: 16px;">
+                <i class="fa-solid fa-magnifying-glass" style="font-size: 2.5rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+                <h4 style="font-size: 1.1rem; font-weight: 700; color: #1e293b; margin: 0 0 6px 0;">Consultar Ficha Técnica de Radio</h4>
+                <p style="font-size: 0.88rem; margin: 0; color: #64748b;">Ingresa un número de serial, ID o nombre en el buscador superior para ver sus detalles.</p>
+            </div>
+
+            <div class="radio-card-detail-layout" id="rad-search-result-card" style="display: none;">
+                <!-- Columna 1: Imagen del Radio -->
+                <div class="radio-img-box">
+                    <img src="{{ url_for('static', filename='img/motorola_r7.png') }}" alt="Motorola R7 Walkie Talkie" id="rad-card-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3655/3655611.png'">
+                </div>
+
+                <!-- Columna 2: Datos de Control -->
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span class="badge badge-success" id="rad-card-status-badge" style="padding: 6px 12px; font-size: 0.85rem;"><i class="fa-solid fa-circle-check me-1"></i> Operativo</span>
+                        <span style="font-size: 0.78rem; color: #64748b;">Último inventario: <strong id="rad-card-last-inv-date">-</strong></span>
+                    </div>
+
+                    <h3 style="font-size: 1.3rem; font-weight: 800; color: #0f172a; margin: 0 0 12px 0;" id="rad-card-title">Radio ID: -</h3>
+
+                    <div class="radio-detail-grid">
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Serial:</span>
+                            <span class="radio-detail-value" id="rad-card-serial">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Marca:</span>
+                            <span class="radio-detail-value" id="rad-card-brand">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Modelo:</span>
+                            <span class="radio-detail-value" id="rad-card-model">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Propiedad:</span>
+                            <span class="radio-detail-value" id="rad-card-prop">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Departamento:</span>
+                            <span class="radio-detail-value" id="rad-card-dept">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Área:</span>
+                            <span class="radio-detail-value" id="rad-card-area">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Asignado a:</span>
+                            <span class="radio-detail-value" id="rad-card-assigned">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Nº Empleado:</span>
+                            <span class="radio-detail-value" id="rad-card-emp-num">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Fecha Asignación:</span>
+                            <span class="radio-detail-value" id="rad-card-assign-date">-</span>
+                        </div>
+                        <div class="radio-detail-item">
+                            <span class="radio-detail-label">Observaciones:</span>
+                            <span class="radio-detail-value" id="rad-card-obs">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna 3: Botones de Acción -->
+                <div class="radio-detail-actions">
+                    <button type="button" class="btn btn-primary" id="btn-rad-view-history"><i class="fa-solid fa-history me-1"></i> Ver Historial</button>
+                    <button type="button" class="btn btn-outline" id="btn-rad-edit-item"><i class="fa-solid fa-pen me-1"></i> Editar</button>
+                    <button type="button" class="btn btn-outline" id="btn-rad-transfer-item"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Transferir</button>
+                    <button type="button" class="btn btn-danger-soft" id="btn-rad-report-issue" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Reportar Problema</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. TAB INVENTARIOS / RADIOS -->
+        <div id="tab-inventory" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box mb-4">
+                <div class="radios-card-header">
+                    <span class="radios-card-title">Inventario General de Radios</span>
+                    <button class="btn btn-primary btn-sm" id="btn-add-radio-inventory-tab"><i class="fa-solid fa-plus me-1"></i> Nuevo Radio</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Serial</th>
+                                <th>Marca / Modelo</th>
+                                <th>Propiedad</th>
+                                <th>Departamento</th>
+                                <th>Asignado a</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rad-inventory-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. TAB INVENTARIO FORMAL PASO A PASO -->
+        <div id="tab-formal-inv" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-header" style="margin-bottom: 14px;">
+                <div>
+                    <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">Inventario de Radios</h3>
+                    <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Selecciona el área para iniciar un nuevo inventario formal.</p>
+                </div>
+                <button class="btn btn-primary" id="btn-finish-formal-inv"><i class="fa-solid fa-check me-1"></i> Finalizar Inventario</button>
+            </div>
+
+            <!-- PASOS ESCALONADOS -->
+            <div class="radio-inv-steps">
+                <div class="radio-inv-step">
+                    <span class="radio-step-num">1</span>
+                    <select id="rad-finv-prop-step" class="radio-step-select">
+                        <option value="">Propiedad (XPC)</option>
+                    </select>
+                </div>
+                <i class="fa-solid fa-chevron-right radio-step-arrow"></i>
+                <div class="radio-inv-step">
+                    <span class="radio-step-num">2</span>
+                    <select id="rad-finv-dept-step" class="radio-step-select">
+                        <option value="">Departamento (División Cuartos)</option>
+                    </select>
+                </div>
+                <i class="fa-solid fa-chevron-right radio-step-arrow"></i>
+                <div class="radio-inv-step">
+                    <span class="radio-step-num">3</span>
+                    <select id="rad-finv-area-step" class="radio-step-select">
+                        <option value="">Área / Subdepartamento (Ama de Llaves)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- TABLA FORMAL -->
+            <div class="radios-card-box">
+                <div class="table-responsive">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="chk-rad-inv-all"></th>
+                                <th>ID</th>
+                                <th>Serial</th>
+                                <th>Asignado a</th>
+                                <th>Estado Actual</th>
+                                <th>Estado en Inventario</th>
+                                <th>Observaciones</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rad-formal-inv-table-tbody">
+                            <tr>
+                                <td><input type="checkbox"></td>
+                                <td>1201</td>
+                                <td>TCM6X39380</td>
+                                <td>Ana Gómez</td>
+                                <td><span class="badge badge-success">Operativo</span></td>
+                                <td>
+                                    <select class="form-control form-control-sm">
+                                        <option selected>Operativo</option>
+                                        <option>Requiere revisión</option>
+                                        <option>Dañado</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="form-control form-control-sm" placeholder="-"></td>
+                                <td><button class="btn btn-sm btn-icon"><i class="fa-solid fa-comment"></i></button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. TAB MI INVENTARIO -->
+        <div id="tab-my-inv" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box">
+                <div class="radios-card-header">
+                    <span class="radios-card-title">Mi Inventario Asignado</span>
+                </div>
+                <p class="text-secondary">Radios bajo custodia directa de tu usuario o departamento.</p>
+                <div class="table-responsive">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr><th>ID</th><th>Serial</th><th>Modelo</th><th>Fecha Asignación</th><th>Estado</th></tr>
+                        </thead>
+                        <tbody id="rad-my-inv-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. TAB ASIGNACIONES -->
+        <div id="tab-assignments" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box">
+                <div class="radios-card-header">
+                    <span class="radios-card-title">Historial de Asignaciones y Custodias</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr><th>Radio</th><th>Asignado a</th><th>Departamento</th><th>Fecha</th><th>Responsable</th></tr>
+                        </thead>
+                        <tbody id="rad-assignments-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. TAB REPORTES -->
+        <div id="tab-reports" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box">
+                <div class="radios-card-header">
+                    <span class="radios-card-title">Reportes e Historial de Auditoría</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Radio Serial</th><th>Detalles</th></tr>
+                        </thead>
+                        <tbody id="rad-reports-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. TAB BAJAS Y DECOMISOS -->
+        <div id="tab-decommissions" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box">
+                <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span class="radios-card-title"><i class="fa-solid fa-ban text-danger me-2"></i> Radios en Decomiso y Bajas Definitivas</span>
+                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Historial completo de equipos fuera de servicio, perdidos, decomisados o dados de baja sin eliminación física.</p>
+                    </div>
+                </div>
+                <div class="table-responsive" style="margin-top: 16px;">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr>
+                                <th>Propiedad</th>
+                                <th>ID Radio</th>
+                                <th>Serial</th>
+                                <th>Modelo</th>
+                                <th>Departamento</th>
+                                <th>Estado</th>
+                                <th>Motivo / Razón</th>
+                                <th>Fecha Baja</th>
+                                <th>Registrado Por</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rad-decommissions-tbody">
+                            <tr><td colspan="9" style="text-align: center; color: var(--color-text-muted); padding: 16px;">Cargando radios dados de baja...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 9. TAB CONFIGURACIÓN / DEPARTAMENTOS Y RANGOS DE IDS -->
+        <div id="tab-depts" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box mb-4">
+                <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span class="radios-card-title"><i class="fa-solid fa-sitemap text-primary me-2"></i> Departamentos y Subdepartamentos</span>
+                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Estructura organizativa por propiedad.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" id="btn-open-modal-dept"><i class="fa-solid fa-plus me-1"></i> Agregar Departamento / Subdepartamento</button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="margin-top: 12px;">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr><th>Propiedad</th><th>Departamento Principal</th><th>Subdepartamentos / Áreas</th><th>Total Radios</th><th style="text-align: right;">Acciones</th></tr>
+                        </thead>
+                        <tbody id="rad-depts-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Rangos de IDs de Radios -->
+            <div class="radios-card-box mb-4">
+                <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span class="radios-card-title"><i class="fa-solid fa-list-ol text-primary me-2"></i> Bloques de IDs por Departamento y Subdepartamento</span>
+                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Estructura global de asignación automática de IDs por subdepartamento o departamento directo.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-success btn-sm" id="btn-open-modal-id-quick-expand" onclick="openQuickExpandIdModal()" style="font-weight: 700;">
+                            <i class="fa-solid fa-bolt me-1"></i> Aumentar / Transferir IDs
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" id="btn-open-modal-id-range">
+                            <i class="fa-solid fa-plus me-1"></i> Rango Manual
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="margin-top: 12px;">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr>
+                                <th>Propiedad</th>
+                                <th>Departamento Principal</th>
+                                <th>Subdepartamento</th>
+                                <th>Bloque de IDs</th>
+                                <th>Capacidad</th>
+                                <th>Utilizados</th>
+                                <th>Disponibles</th>
+                                <th>Próximo ID</th>
+                                <th>Ocupación</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rad-id-ranges-tbody">
+                            <tr><td colspan="11" style="text-align: center; color: var(--color-text-muted); padding: 16px;">Cargando rangos de IDs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+<!-- MODAL RÁPIDO: AUMENTAR / TRANSFERIR IDs -->
+<div class="modal-overlay" id="modal-radio-id-quick-expand">
+    <div class="modal-content" style="max-width: 620px; width: 95vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin:0; font-size: 1.25rem; font-weight: 800; color: #0f172a;"><i class="fa-solid fa-bolt text-success me-2"></i> Aumentar o Transferir IDs Fácilmente</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.85rem;">Amplía la capacidad de un área o reasigna IDs no utilizados de forma automática.</p>
+            </div>
+            <button class="btn-close" type="button" onclick="document.getElementById('modal-radio-id-quick-expand').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="form-quick-expand-id" style="display:flex; flex-direction:column; gap:16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Propiedad / Hotel <span class="text-danger">*</span></label>
+                    <select id="quick-hotel-select" class="form-control" required style="height: 40px; font-size: 13.5px;"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Departamento Principal <span class="text-danger">*</span></label>
+                    <select id="quick-dept-select" class="form-control" required style="height: 40px; font-size: 13.5px;"></select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Subdepartamento (Destino de IDs):</label>
+                <select id="quick-subdept-select" class="form-control" style="height: 40px; font-size: 13.5px;">
+                    <option value="">Aplica al Departamento Principal Directamente</option>
+                </select>
+            </div>
+
+            <!-- Selección de Operación -->
+            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 10px; display: block;">Selecciona la Acción a Realizar:</label>
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 14px;">
+                    <div class="form-check" style="cursor: pointer;">
+                        <input class="form-check-input" type="radio" name="quick_mode" id="mode-auto-expand" value="expand" checked style="cursor: pointer;">
+                        <label class="form-check-label" for="mode-auto-expand" style="font-weight: 700; font-size: 13px; color: #1e293b; cursor: pointer;">
+                            <i class="fa-solid fa-plus-circle text-primary me-1"></i> Aumentar automáticamente (+IDs)
+                        </label>
+                    </div>
+                    <div class="form-check" style="cursor: pointer;" id="wrapper-radio-mode-reallocate">
+                        <input class="form-check-input" type="radio" name="quick_mode" id="mode-reallocate" value="reallocate" style="cursor: pointer;">
+                        <label class="form-check-label" for="mode-reallocate" style="font-weight: 700; font-size: 13px; color: #1e293b; cursor: pointer;">
+                            <i class="fa-solid fa-right-left text-success me-1"></i> Tomar IDs de otro subdepartamento
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Panel Modo 1: Aumentar Automáticamente -->
+                <div id="panel-mode-expand" style="display: block;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <label class="form-label mb-0" style="font-weight: 600; font-size: 13px; color: #475569; white-space: nowrap;">Cantidad de IDs a agregar:</label>
+                        <input type="number" id="quick-expand-qty" class="form-control" value="10" min="1" max="500" style="height: 38px; max-width: 120px; font-weight: 800; font-size: 15px; text-align: center;">
+                        <span style="font-size: 12px; color: #64748b; font-weight: 600;">IDs adicionales</span>
+                    </div>
+                    <small style="font-size: 11.5px; color: #0284c7; font-weight: 600; display: block; margin-top: 8px;">
+                        <i class="fa-solid fa-shield-halved me-1"></i> El sistema asignará automáticamente el siguiente bloque sin solapar ni modificar radios existentes.
+                    </small>
+                </div>
+
+                <!-- Panel Modo 2: Tomar de otro subdepartamento -->
+                <div id="panel-mode-reallocate" style="display: none;">
+                    <div class="form-group mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 12.5px; color: #334155;">Subdepartamento Origen (Del mismo departamento principal):</label>
+                        <select id="quick-source-subdept-select" class="form-control" style="height: 38px; font-size: 13px;"></select>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #475569;">IDs libres sin asignar en origen:</span>
+                        <span id="badge-source-free-count" class="badge bg-success" style="font-size: 13px; font-weight: 800; padding: 5px 10px;">0 disponibles</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <label class="form-label mb-0" style="font-weight: 600; font-size: 13px; color: #475569; white-space: nowrap;">Cantidad de IDs a transferir:</label>
+                        <input type="number" id="quick-transfer-qty" class="form-control" value="5" min="1" max="100" style="height: 38px; max-width: 120px; font-weight: 800; font-size: 15px; text-align: center;">
+                    </div>
+                </div>
+            </div>
+
+            <div id="quick-expand-status-msg" style="font-size: 12.5px; display: none; padding: 10px 14px; border-radius: 8px;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px; padding-top: 14px; border-top: 1px solid var(--color-border);">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-radio-id-quick-expand').classList.remove('active')" style="padding: 9px 20px; font-weight: 600;">Cancelar</button>
+                <button type="submit" class="btn btn-success" style="padding: 9px 24px; font-weight: 700;" id="btn-submit-quick-expand-action">
+                    <i class="fa-solid fa-bolt me-1"></i> Aplicar Cambio de IDs
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+            <!-- Importación Masiva de Radios (Excel) integrada en Configuración -->
+            <div class="radios-card-box mb-4">
+                <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span class="radios-card-title"><i class="fa-solid fa-file-excel text-success me-2"></i> Importación Masiva de Radios (Excel / CSV)</span>
+                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Carga lotes completos de radios asignando propiedad y datos técnicos automáticamente.</p>
+                    </div>
+                </div>
+                <form id="form-radio-import" style="max-width: 650px; margin-top: 14px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Propiedad Destino: <span class="text-danger">*</span></label>
+                            <select id="rad-import-property" class="form-control" required style="height: 38px;"></select>
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Archivo Excel (.xlsx / .csv): <span class="text-danger">*</span></label>
+                            <input type="file" id="rad-import-file" class="form-control" accept=".xlsx, .csv" required style="height: 38px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 700;"><i class="fa-solid fa-file-excel me-1"></i> Cargar Datos Masivos</button>
+                        <span id="import-excel-status" style="font-size: 12px; color: var(--color-text-secondary);"></span>
+                    </div>
+                </form>
+            </div>
+        </div>
+</div>
+
+<!-- MODAL CREAR DEPARTAMENTO / SUBDEPARTAMENTO -->
+<div class="modal-overlay" id="modal-radio-dept">
+    <div class="modal-content" style="max-width: 560px; width: 95vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.18);">
+        <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin:0; font-size: 1.25rem; font-weight: 800; color: #0f172a;"><i class="fa-solid fa-sitemap text-primary me-2"></i> Nuevo Departamento / Subdepartamento</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.85rem;">Agrega un departamento principal o un subdepartamento vinculado.</p>
+            </div>
+            <button class="btn-close" type="button" onclick="document.getElementById('modal-radio-dept').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="form-radio-dept" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Propiedad / Hotel <span class="text-danger">*</span></label>
+                <select id="modal-dept-hotel" class="form-control" required style="height: 42px; font-size: 14px;"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Nombre del Departamento / Área <span class="text-danger">*</span></label>
+                <input type="text" id="modal-dept-name" class="form-control" placeholder="Ej: Recepción, Ama de Llaves..." required style="height: 42px; font-size: 14px;">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Pertenece a Departamento Principal (Opcional):</label>
+                <select id="modal-dept-parent" class="form-control" style="height: 42px; font-size: 14px;">
+                    <option value="">Es Departamento Principal (Sin Padre)</option>
+                </select>
+                <small class="text-secondary" style="font-size: 11.5px; margin-top: 4px; display: block;">Si seleccionas un padre, se registrará como subdepartamento de dicha área.</small>
+            </div>
+            <div class="form-group" style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <div class="form-check form-switch" style="margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <input class="form-check-input" type="checkbox" id="modal-dept-auto-range" checked style="cursor: pointer;">
+                    <label class="form-check-label" for="modal-dept-auto-range" style="font-weight: 700; font-size: 13px; color: #1e293b; cursor: pointer;">
+                        Asignar Bloque de IDs Automático
+                    </label>
+                </div>
+                <div id="wrapper-dept-range-qty" style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+                    <label class="form-label mb-0" style="font-weight: 600; font-size: 12.5px; color: #475569; white-space: nowrap;">Cantidad de IDs necesitadas:</label>
+                    <input type="number" id="modal-dept-id-qty" class="form-control" value="35" min="1" max="1000" style="height: 36px; max-width: 110px; font-weight: 700;">
+                </div>
+                <small id="dept-range-preview-text" style="font-size: 11.5px; margin-top: 6px; display: block; color: var(--color-primary); font-weight: 600;">
+                    <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Se asignará el bloque secuencial siguiente tomando en cuenta el último bloque registrado.
+                </small>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px; padding-top: 14px; border-top: 1px solid var(--color-border);">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-radio-dept').classList.remove('active')" style="padding: 9px 20px; font-weight: 600;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding: 9px 24px; font-weight: 700;"><i class="fa-solid fa-save me-1"></i> Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CREAR RANGO DE IDS -->
+<div class="modal-overlay" id="modal-radio-id-range">
+    <div class="modal-content" style="max-width: 580px; width: 95vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.18);">
+        <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin:0; font-size: 1.25rem; font-weight: 800; color: #0f172a;"><i class="fa-solid fa-list-ol text-primary me-2"></i> Configurar Rango de IDs Secuenciales</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.85rem;">Asigna o amplía un bloque de números de ID para un departamento o subdepartamento.</p>
+            </div>
+            <button class="btn-close" type="button" onclick="document.getElementById('modal-radio-id-range').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="form-radio-id-range" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Propiedad / Hotel <span class="text-danger">*</span></label>
+                <select id="modal-range-hotel" class="form-control" required style="height: 42px; font-size: 14px;"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">Departamento Principal <span class="text-danger">*</span></label>
+                <select id="modal-range-dept" class="form-control" required style="height: 42px; font-size: 14px;"></select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">ID Inicial (Inicio) <span class="text-danger">*</span></label>
+                    <input type="number" id="modal-range-start" class="form-control" min="1" placeholder="Ej: 1200" required style="height: 42px; font-size: 14px; font-weight: 700; font-family: monospace;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 6px;">ID Final (Fin) <span class="text-danger">*</span></label>
+                    <input type="number" id="modal-range-end" class="form-control" min="1" placeholder="Ej: 1235" required style="height: 42px; font-size: 14px; font-weight: 700; font-family: monospace;">
+                </div>
+            </div>
+            <div id="range-overlap-warning" style="font-size: 12.5px; color: var(--color-danger); display: none; background: rgba(239, 68, 68, 0.1); padding: 10px 14px; border-radius: 8px;">
+                <i class="fa-solid fa-circle-exclamation me-1"></i> Este rango se superpone con un rango activo existente en esta propiedad.
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px; padding-top: 14px; border-top: 1px solid var(--color-border);">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-radio-id-range').classList.remove('active')" style="padding: 9px 20px; font-weight: 600;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding: 9px 24px; font-weight: 700;"><i class="fa-solid fa-save me-1"></i> Guardar Rango</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/radios.js') }}?v=29.0.0"></script>
+{% endblock %}

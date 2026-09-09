@@ -16,21 +16,31 @@
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+            }
+        });
+    }
+    </script>
     
     <!-- FontAwesome para Íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Design System CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=5.9.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}?v=5.9.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=5.9.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}?v=5.9.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=12.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}?v=12.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=12.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}?v=12.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/radios_redesign.css') }}?v=12.0.0">
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="has-global-bar">
     <!-- Login View Overlay -->
-    <div id="login-overlay" style="position: fixed; inset: 0; background: var(--color-background); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+    <div id="login-overlay" style="position: fixed; inset: 0; background: var(--color-background); z-index: 99999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
         <div class="logo" style="margin-bottom: 32px;">
             <img src="{{ url_for('static', filename='img/logo.png') }}" alt="The Excellence Collection" style="width: 100%; max-width: 220px; object-fit: contain;">
         </div>
@@ -45,6 +55,22 @@
         </div>
     </div>
 
+    <!-- Global Multi-App Top Header Bar -->
+    <div class="global-app-bar" id="global-app-bar" style="display: flex;">
+        <div class="global-app-brand">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="TEC Logo" class="global-app-logo">
+            <span class="global-app-platform-title">THE EXCELLENCE COLLECTION</span>
+        </div>
+        <div class="global-app-tabs">
+            <a href="{{ url_for('dashboard') }}" class="global-app-tab {% if request.endpoint != 'radios_view' and request.endpoint != 'tec_radios_view' %}active{% endif %}" id="app-tab-inventory">
+                <i class="fa-solid fa-boxes-stacked"></i> <span>TEC-INVENTORY</span>
+            </a>
+            <a href="{{ url_for('radios_view') }}" class="global-app-tab {% if request.endpoint == 'radios_view' or request.endpoint == 'tec_radios_view' %}active{% endif %}" data-module="tec-radios" id="app-tab-radios">
+                <i class="fa-solid fa-walkie-talkie"></i> <span>TEC-RADIOS</span>
+            </a>
+        </div>
+    </div>
+
     <!-- Main App Container -->
     <div class="app-container" id="main-app" style="display: none;">
         
@@ -52,7 +78,11 @@
         <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
         <!-- Sidebar Partial -->
-        {% include 'partials/sidebar.html' %}
+        {% if request.endpoint == 'radios_view' or request.endpoint == 'tec_radios_view' %}
+            {% include 'partials/sidebar_radios.html' %}
+        {% else %}
+            {% include 'partials/sidebar.html' %}
+        {% endif %}
         
         <!-- Main Wrapper -->
         <main class="main-wrapper">
@@ -176,11 +206,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=6.1.0"></script>
-    <script src="{{ url_for('static', filename='js/components.js') }}?v=6.1.0"></script>
-    <script src="{{ url_for('static', filename='js/tables.js') }}?v=6.1.0"></script>
-    <script src="{{ url_for('static', filename='js/modals.js') }}?v=6.1.0"></script>
-    <script src="{{ url_for('static', filename='js/scanner.js') }}?v=6.1.0"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=15.0.0"></script>
+    <script src="{{ url_for('static', filename='js/components.js') }}?v=15.0.0"></script>
+    <script src="{{ url_for('static', filename='js/tables.js') }}?v=15.0.0"></script>
+    <script src="{{ url_for('static', filename='js/modals.js') }}?v=15.0.0"></script>
+    <script src="{{ url_for('static', filename='js/scanner.js') }}?v=15.0.0"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

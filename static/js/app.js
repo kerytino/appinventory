@@ -135,14 +135,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const userPerms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
         const isAdmin = role === 'Admin';
 
-        const hasModuleAccess = (mod) => isAdmin || userPerms.includes(mod);
+        const hasModuleAccess = (mod) => {
+            if (isAdmin) return true;
+            if (mod === 'tec-radios' || mod === 'radios') {
+                return userPerms.includes('tec-radios') || userPerms.includes('radios');
+            }
+            return userPerms.includes(mod);
+        };
 
-        // Control dinámico de navegación en Sidebar y Menú Móvil
+        // Control dinámico de navegación en Sidebar, Pestañas Globales y Menú Móvil
         document.querySelectorAll('[data-module]').forEach(el => {
             const modName = el.getAttribute('data-module');
             if (modName) {
                 if (hasModuleAccess(modName)) {
-                    el.style.display = '';
+                    if (el.classList.contains('global-app-tab')) {
+                        el.style.display = 'flex';
+                    } else {
+                        el.style.display = '';
+                    }
                 } else {
                     el.style.display = 'none';
                 }
@@ -5820,7 +5830,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'herramientas', label: 'Herramientas', icon: 'fa-toolbox', color: '#8b5cf6' },
         { id: 'despacho', label: 'Despacho', icon: 'fa-truck-ramp-box', color: '#06b6d4' },
         { id: 'pendientes', label: 'Pendientes', icon: 'fa-list-check', color: '#ec4899' },
-        { id: 'configuracion', label: 'Configuración', icon: 'fa-gear', color: '#64748b' }
+        { id: 'configuracion', label: 'Configuración', icon: 'fa-gear', color: '#64748b' },
+        { id: 'tec-radios', label: 'TEC-RADIOS', icon: 'fa-walkie-talkie', color: '#2563eb' }
     ];
 
     function getRoleDefaultModules(role) {
@@ -5853,7 +5864,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chkUserModulePedidos.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
             document.querySelectorAll('input[name="user-subperm"]').forEach(cb => {
-                cb.checked = isChecked && cb.value !== 'pedidos:aprobar'; // Por defecto sin aprobación a menos que sea explícito
+                cb.checked = isChecked && cb.value !== 'pedidos:aprobar';
             });
             panelOrderSubperms.style.display = isChecked ? 'grid' : 'none';
         });
@@ -5883,10 +5894,287 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- TEC-RADIOS Permisos y Configuración de Acceso ---
+    const chkUserRadios = document.getElementById('chk-user-module-radios');
+    const panelUserRadios = document.getElementById('user-radios-config-panel');
+    const chkEditUserRadios = document.getElementById('chk-edit-user-module-radios');
+    const panelEditUserRadios = document.getElementById('edit-user-radios-config-panel');
+
+    if (chkUserRadios && panelUserRadios) {
+        chkUserRadios.addEventListener('change', () => {
+            panelUserRadios.style.display = chkUserRadios.checked ? 'block' : 'none';
+            if (chkUserRadios.checked) loadRadioDeptMatrix('new');
+        });
+    }
+
+    if (chkEditUserRadios && panelEditUserRadios) {
+        chkEditUserRadios.addEventListener('change', () => {
+            panelEditUserRadios.style.display = chkEditUserRadios.checked ? 'block' : 'none';
+            if (chkEditUserRadios.checked) {
+                const userId = document.getElementById('edit-user-id')?.value;
+                loadRadioDeptMatrix('edit', userId);
+            }
+        });
+    }
+
+    const radioRoleExplanations = {
+        admin: '<i class="fa-solid fa-shield-halved"></i> <strong>Administrador TEC-RADIOS:</strong> Tendrá control y gestión completa <u>únicamente sobre las propiedades que selecciones abajo</u> (crear/editar radios, rangos de IDs, asignaciones y decomisos). Las propiedades desmarcadas no serán accesibles.',
+        dept_manager: '<i class="fa-solid fa-user-gear"></i> <strong>Encargado de Departamento:</strong> Podrá consultar y gestionar únicamente los radios asignados a sus departamentos/subdepartamentos autorizados en las propiedades seleccionadas.',
+        viewer: '<i class="fa-solid fa-eye"></i> <strong>Consulta TEC-RADIOS (Solo Lectura):</strong> Podrá consultar el inventario de radios de los departamentos y propiedades autorizadas, sin permisos de creación, edición ni bajas.'
+    };
+
+    document.getElementById('new-user-radio-role')?.addEventListener('change', (e) => {
+        const exp = document.getElementById('new-user-radio-role-explanation');
+        if (exp) exp.innerHTML = radioRoleExplanations[e.target.value] || radioRoleExplanations.viewer;
+        updateRadioMatrixRoleView('new', e.target.value);
+    });
+
+    document.getElementById('edit-user-radio-role')?.addEventListener('change', (e) => {
+        const exp = document.getElementById('edit-user-radio-role-explanation');
+        if (exp) exp.innerHTML = radioRoleExplanations[e.target.value] || radioRoleExplanations.viewer;
+        updateRadioMatrixRoleView('edit', e.target.value);
+    });
+
+    let cachedHotelsList = null;
+    let cachedDeptsList = null;
+
+    async function loadRadioDeptMatrix(prefix, userId = null) {
+        const matrixContainer = document.getElementById(`${prefix}-user-radios-dept-matrix`);
+        if (!matrixContainer) return;
+        matrixContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-secondary); text-align: center; padding: 12px;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando propiedades y departamentos...</div>';
+
+        try {
+            if (!cachedHotelsList) {
+                const resH = await fetch('/api/settings/hotels');
+                cachedHotelsList = resH.ok ? await resH.json() : [];
+            }
+            if (!cachedDeptsList) {
+                const resD = await fetch('/api/radios/departments');
+                cachedDeptsList = resD.ok ? await resD.json() : [];
+            }
+
+            let existingAccesses = [];
+            let existingProperties = [];
+            let currentRadioRole = document.getElementById(`${prefix}-user-radio-role`)?.value || 'admin';
+
+            if (userId) {
+                const resAcc = await fetch(`/api/radios/user-department-access/${userId}`);
+                if (resAcc.ok) {
+                    const dataAcc = await resAcc.json();
+                    existingAccesses = dataAcc.accesses || [];
+                    existingProperties = dataAcc.properties || [];
+                    if (dataAcc.radio_role) {
+                        currentRadioRole = dataAcc.radio_role;
+                        const roleSelect = document.getElementById(`${prefix}-user-radio-role`);
+                        if (roleSelect) roleSelect.value = currentRadioRole;
+                        const exp = document.getElementById(`${prefix}-user-radio-role-explanation`);
+                        if (exp) exp.innerHTML = radioRoleExplanations[currentRadioRole] || radioRoleExplanations.viewer;
+                    }
+                }
+            }
+
+            renderRadioDeptMatrixHtml(matrixContainer, prefix, cachedHotelsList, cachedDeptsList, existingAccesses, existingProperties, currentRadioRole);
+        } catch(e) {
+            console.error('Error cargando matriz de departamentos radios:', e);
+            matrixContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-danger); text-align: center; padding: 10px;">Error al cargar propiedades</div>';
+        }
+    }
+
+    function renderRadioDeptMatrixHtml(container, prefix, hotels, depts, existingAccesses, existingProperties = [], radioRole = 'admin') {
+        if (!hotels || hotels.length === 0) {
+            container.innerHTML = '<div style="font-size: 11px; color: var(--color-text-secondary); text-align: center; padding: 12px;">No hay propiedades registradas en el sistema.</div>';
+            return;
+        }
+
+        const isAdmin = radioRole === 'admin';
+
+        let html = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed var(--color-border);">
+                <span style="font-size: 11px; font-weight: 700; color: var(--color-primary); text-transform: uppercase;">
+                    <i class="fa-solid fa-hotel me-1"></i> Propiedades a las que tendrá acceso:
+                </span>
+                <div style="display: flex; gap: 4px;">
+                    <button type="button" class="btn btn-secondary btn-sm btn-matrix-select-all" data-prefix="${prefix}" style="font-size: 10px; padding: 2px 7px;">Todas</button>
+                    <button type="button" class="btn btn-secondary btn-sm btn-matrix-clear-all" data-prefix="${prefix}" style="font-size: 10px; padding: 2px 7px;">Ninguna</button>
+                </div>
+            </div>
+        `;
+
+        hotels.forEach(h => {
+            const propAcc = existingProperties.find(p => p.hotel_id === h.id);
+            // Por defecto en nuevo admin o si can_view/can_manage es true
+            const isHotelChecked = propAcc ? (propAcc.can_view || propAcc.can_manage) : (existingProperties.length === 0 && prefix === 'new');
+            const hDepts = depts.filter(d => d.hotel_id === h.id && !d.parent_department_id);
+
+            html += `
+                <div class="radio-prop-card" data-hotel-id="${h.id}" style="border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 8px; background: var(--color-surface); overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12px; color: var(--color-primary); cursor: pointer; margin: 0;">
+                            <input type="checkbox" class="chk-matrix-hotel" data-prefix="${prefix}" data-hotel-id="${h.id}" ${isHotelChecked ? 'checked' : ''}>
+                            <span><i class="fa-solid fa-building" style="margin-right: 4px;"></i> ${escapeHtml(h.name)} ${h.sigla ? `(${escapeHtml(h.sigla)})` : ''}</span>
+                        </label>
+                        <span class="badge-prop-role-hint" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(37, 99, 235, 0.08); color: #2563eb;">
+                            ${isAdmin ? '<i class="fa-solid fa-shield me-1"></i> Control Total' : '<i class="fa-solid fa-sitemap me-1"></i> Por Departamentos'}
+                        </span>
+                    </div>
+
+                    <!-- Panel de Departamentos (visible cuando NO es admin o para desglose) -->
+                    <div class="radio-prop-depts-panel" data-hotel-id="${h.id}" style="padding: 8px 12px; font-size: 11.5px; ${isAdmin ? 'display: none;' : ''}">
+            `;
+
+            if (hDepts.length === 0) {
+                html += `<div style="font-size: 11px; color: var(--color-text-muted); font-style: italic;">Sin departamentos configurados en esta propiedad.</div>`;
+            } else {
+                hDepts.forEach(d => {
+                    const subDepts = depts.filter(sd => sd.parent_department_id === d.id);
+                    const matchAcc = existingAccesses.find(a => a.hotel_id === h.id && a.department_id === d.id && !a.subdepartment_id);
+                    const isChecked = !!matchAcc || (isHotelChecked && existingAccesses.length === 0);
+                    const accessLvl = matchAcc ? matchAcc.access_level : (isAdmin ? 'manage' : 'view');
+
+                    html += `
+                        <div style="margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--color-border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" class="chk-matrix-dept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" ${isChecked ? 'checked' : ''}>
+                                    <span>${escapeHtml(d.name)}</span>
+                                </label>
+                                <select class="sel-matrix-access" data-hotel-id="${h.id}" data-dept-id="${d.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-border); height: 26px;">
+                                    <option value="view" ${accessLvl === 'view' ? 'selected' : ''}>Consultar</option>
+                                    <option value="department_manager" ${accessLvl === 'department_manager' ? 'selected' : ''}>Encargado Depto.</option>
+                                    <option value="manage" ${accessLvl === 'manage' ? 'selected' : ''}>Gestionar</option>
+                                </select>
+                            </div>
+                    `;
+
+                    if (subDepts.length > 0) {
+                        html += `<div style="margin-left: 20px; margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">`;
+                        subDepts.forEach(sd => {
+                            const matchSubAcc = existingAccesses.find(a => a.hotel_id === h.id && a.department_id === d.id && a.subdepartment_id === sd.id);
+                            const isSubChecked = !!matchSubAcc || (isChecked && existingAccesses.length === 0);
+                            html += `
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-text-secondary); cursor: pointer; margin: 0;">
+                                    <input type="checkbox" class="chk-matrix-subdept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" data-subdept-id="${sd.id}" ${isSubChecked ? 'checked' : ''}>
+                                    <span>↳ ${escapeHtml(sd.name)}</span>
+                                </label>
+                            `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    html += `</div>`;
+                });
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // Event listeners para botones Seleccionar Todas / Ninguna
+        container.querySelector(`.btn-matrix-select-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
+            container.querySelectorAll('.chk-matrix-hotel').forEach(cb => {
+                cb.checked = true;
+                const hId = cb.getAttribute('data-hotel-id');
+                container.querySelectorAll(`.chk-matrix-dept[data-hotel-id="${hId}"]`).forEach(d => d.checked = true);
+                container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"]`).forEach(sd => sd.checked = true);
+            });
+        });
+
+        container.querySelector(`.btn-matrix-clear-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
+            container.querySelectorAll('.chk-matrix-hotel').forEach(cb => {
+                cb.checked = false;
+                const hId = cb.getAttribute('data-hotel-id');
+                container.querySelectorAll(`.chk-matrix-dept[data-hotel-id="${hId}"]`).forEach(d => d.checked = false);
+                container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"]`).forEach(sd => sd.checked = false);
+            });
+        });
+
+        // Event listener al marcar o desmarcar una propiedad
+        container.querySelectorAll('.chk-matrix-hotel').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const hId = e.target.getAttribute('data-hotel-id');
+                const isChecked = e.target.checked;
+                container.querySelectorAll(`.chk-matrix-dept[data-hotel-id="${hId}"]`).forEach(d => d.checked = isChecked);
+                container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"]`).forEach(sd => sd.checked = isChecked);
+            });
+        });
+    }
+
+    function updateRadioMatrixRoleView(prefix, role) {
+        const container = document.getElementById(`${prefix}-user-radios-dept-matrix`);
+        if (!container) return;
+        const isAdmin = role === 'admin';
+        container.querySelectorAll('.radio-prop-depts-panel').forEach(panel => {
+            panel.style.display = isAdmin ? 'none' : 'block';
+        });
+        container.querySelectorAll('.badge-prop-role-hint').forEach(badge => {
+            badge.innerHTML = isAdmin ? '<i class="fa-solid fa-shield me-1"></i> Control Total' : '<i class="fa-solid fa-sitemap me-1"></i> Por Departamentos';
+        });
+    }
+
+    function collectRadioDeptMatrixData(prefix) {
+        const container = document.getElementById(`${prefix}-user-radios-dept-matrix`);
+        if (!container) return { radio_role: 'viewer', properties: [], accesses: [] };
+
+        const radioRole = document.getElementById(`${prefix}-user-radio-role`)?.value || 'viewer';
+        const properties = [];
+        const accesses = [];
+
+        // Propiedades seleccionadas
+        container.querySelectorAll('.chk-matrix-hotel:checked').forEach(chk => {
+            const hotelId = parseInt(chk.getAttribute('data-hotel-id'));
+            properties.push({
+                hotel_id: hotelId,
+                can_view: true,
+                can_manage: radioRole === 'admin'
+            });
+        });
+
+        // Departamentos (si no es admin o si están seleccionados)
+        container.querySelectorAll('.chk-matrix-dept:checked').forEach(chk => {
+            const hotelId = parseInt(chk.getAttribute('data-hotel-id'));
+            const deptId = parseInt(chk.getAttribute('data-dept-id'));
+            const selAccess = container.querySelector(`.sel-matrix-access[data-hotel-id="${hotelId}"][data-dept-id="${deptId}"]`);
+            const accessLevel = selAccess ? selAccess.value : (radioRole === 'admin' ? 'manage' : 'view');
+
+            accesses.push({
+                hotel_id: hotelId,
+                department_id: deptId,
+                subdepartment_id: null,
+                access_level: accessLevel
+            });
+        });
+
+        container.querySelectorAll('.chk-matrix-subdept:checked').forEach(chk => {
+            const hotelId = parseInt(chk.getAttribute('data-hotel-id'));
+            const deptId = parseInt(chk.getAttribute('data-dept-id'));
+            const subdeptId = parseInt(chk.getAttribute('data-subdept-id'));
+            const selAccess = container.querySelector(`.sel-matrix-access[data-hotel-id="${hotelId}"][data-dept-id="${deptId}"]`);
+            const accessLevel = selAccess ? selAccess.value : (radioRole === 'admin' ? 'manage' : 'view');
+
+            accesses.push({
+                hotel_id: hotelId,
+                department_id: deptId,
+                subdepartment_id: subdeptId,
+                access_level: accessLevel
+            });
+        });
+
+        return {
+            radio_role: radioRole,
+            properties: properties,
+            accesses: accesses
+        };
+    }
+
     document.getElementById('btn-new-user')?.addEventListener('click', () => {
         if (!userModal) return;
         const form = document.getElementById('user-form');
         if (form) form.reset();
+        if (panelUserRadios) panelUserRadios.style.display = 'none';
         
         // Default Viewer checkboxes
         const defaultPerms = getRoleDefaultModules('Viewer');
@@ -5950,9 +6238,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (res.ok) {
+                const createdUserId = data.user_id || data.id;
+                if (permissions.includes('tec-radios') && createdUserId) {
+                    const matrixPayload = collectRadioDeptMatrixData('new');
+                    await fetch(`/api/radios/user-department-access/${createdUserId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(matrixPayload)
+                    });
+                }
+
                 showToast(`Usuario ${username} creado exitosamente`, 'success');
                 if (userModal) userModal.classList.remove('active');
                 document.getElementById('user-form').reset();
+                if (panelUserRadios) panelUserRadios.style.display = 'none';
                 fetchUsers();
             } else {
                 showToast(data.error || 'Error al crear usuario', 'error');
@@ -6015,8 +6314,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (res.ok) {
+                if (permissions.includes('tec-radios')) {
+                    const matrixPayload = collectRadioDeptMatrixData('edit');
+                    await fetch(`/api/radios/user-department-access/${id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(matrixPayload)
+                    });
+                }
+
                 showToast(`Usuario ${username} actualizado exitosamente`, 'success');
                 if (userEditModal) userEditModal.classList.remove('active');
+                if (panelEditUserRadios) panelEditUserRadios.style.display = 'none';
                 fetchUsers();
                 if (currentUser && currentUser.id === parseInt(id)) {
                     currentUser.username = data.username;

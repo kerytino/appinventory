@@ -5405,6 +5405,191 @@ document.addEventListener('DOMContentLoaded', () => {
         if (userModal) userModal.classList.remove('active');
     });
 
+    // --- TEC-RADIOS User Access Configuration Helpers ---
+    const chkUserRadios = document.getElementById('chk-user-module-radios');
+    const panelUserRadios = document.getElementById('user-radios-config-panel');
+    const chkEditUserRadios = document.getElementById('chk-edit-user-module-radios');
+    const panelEditUserRadios = document.getElementById('edit-user-radios-config-panel');
+
+    if (chkUserRadios && panelUserRadios) {
+        chkUserRadios.addEventListener('change', () => {
+            panelUserRadios.style.display = chkUserRadios.checked ? 'block' : 'none';
+            if (chkUserRadios.checked) loadRadioDeptMatrix('new');
+        });
+    }
+
+    if (chkEditUserRadios && panelEditUserRadios) {
+        chkEditUserRadios.addEventListener('change', () => {
+            panelEditUserRadios.style.display = chkEditUserRadios.checked ? 'block' : 'none';
+            if (chkEditUserRadios.checked) {
+                const userId = document.getElementById('edit-user-id')?.value;
+                loadRadioDeptMatrix('edit', userId);
+            }
+        });
+    }
+
+    const roleExplanations = {
+        admin: '<i class="fa-solid fa-shield-check"></i> <strong>Administrador TEC-RADIOS:</strong> Acceso completo a todas las propiedades, departamentos, rangos de IDs, asignaciones, bajas y decomisos.',
+        dept_manager: '<i class="fa-solid fa-user-gear"></i> <strong>Encargado de Departamento:</strong> Solo podrá consultar radios asignados a sus departamentos/subdepartamentos autorizados y/o a su cargo. Sin permisos para crear radios, editar datos técnicos, cambiar rangos de IDs ni realizar decomisos.',
+        viewer: '<i class="fa-solid fa-eye"></i> <strong>Consulta TEC-RADIOS:</strong> Solo consulta los radios de las propiedades y departamentos explícitamente autorizados sin permisos de edición ni gestión.'
+    };
+
+    document.getElementById('new-user-radio-role')?.addEventListener('change', (e) => {
+        const exp = document.getElementById('new-user-radio-role-explanation');
+        if (exp) exp.innerHTML = roleExplanations[e.target.value] || roleExplanations.viewer;
+    });
+
+    document.getElementById('edit-user-radio-role')?.addEventListener('change', (e) => {
+        const exp = document.getElementById('edit-user-radio-role-explanation');
+        if (exp) exp.innerHTML = roleExplanations[e.target.value] || roleExplanations.viewer;
+    });
+
+    let cachedHotels = null;
+    let cachedDepts = null;
+
+    async function loadRadioDeptMatrix(prefix, userId = null) {
+        const matrixContainer = document.getElementById(`${prefix}-user-radios-dept-matrix`);
+        if (!matrixContainer) return;
+        matrixContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-secondary); text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando estructura de departamentos...</div>';
+
+        try {
+            if (!cachedHotels) {
+                const resH = await fetch('/api/hotels');
+                cachedHotels = resH.ok ? await resH.json() : [];
+            }
+            if (!cachedDepts) {
+                const resD = await fetch('/api/radios/departments');
+                cachedDepts = resD.ok ? await resD.json() : [];
+            }
+
+            let existingAccesses = [];
+            if (userId) {
+                const resAcc = await fetch(`/api/radios/user-department-access/${userId}`);
+                if (resAcc.ok) {
+                    const dataAcc = await resAcc.json();
+                    existingAccesses = dataAcc.accesses || [];
+                    const roleSelect = document.getElementById(`${prefix}-user-radio-role`);
+                    if (roleSelect && dataAcc.radio_role) {
+                        roleSelect.value = dataAcc.radio_role;
+                        const exp = document.getElementById(`${prefix}-user-radio-role-explanation`);
+                        if (exp) exp.innerHTML = roleExplanations[dataAcc.radio_role] || roleExplanations.viewer;
+                    }
+                }
+            }
+
+            renderRadioDeptMatrix(matrixContainer, prefix, cachedHotels, cachedDepts, existingAccesses);
+        } catch(e) {
+            console.error('Error cargando matriz de departamentos radios:', e);
+            matrixContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-danger); text-align: center;">Error al cargar departamentos</div>';
+        }
+    }
+
+    function renderRadioDeptMatrix(container, prefix, hotels, depts, existingAccesses) {
+        if (!hotels || hotels.length === 0) {
+            container.innerHTML = '<div style="font-size: 11px; color: var(--color-text-secondary); text-align: center;">No hay propiedades registradas.</div>';
+            return;
+        }
+
+        let html = '';
+        hotels.forEach(h => {
+            const hDepts = depts.filter(d => d.hotel_id === h.id && !d.parent_department_id);
+            html += `
+                <div class="radio-prop-accordion" style="border: 1px solid var(--color-border); border-radius: 6px; margin-bottom: 8px; overflow: hidden;">
+                    <div style="background: var(--color-surface-2); padding: 6px 10px; font-weight: 700; font-size: 12px; color: var(--color-primary); display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-hotel" style="margin-right: 6px;"></i> ${escapeHtml(h.name)} (${escapeHtml(h.sigla || '')})</span>
+                    </div>
+                    <div style="padding: 8px 10px; font-size: 12px;">
+            `;
+
+            if (hDepts.length === 0) {
+                html += `<div style="font-size: 11px; color: var(--color-text-muted); font-style: italic;">Sin departamentos configurados en esta propiedad.</div>`;
+            } else {
+                hDepts.forEach(d => {
+                    const subDepts = depts.filter(sd => sd.parent_department_id === d.id);
+                    const matchAcc = existingAccesses.find(a => a.hotel_id === h.id && a.department_id === d.id && !a.subdepartment_id);
+                    const isChecked = !!matchAcc;
+                    const accessLvl = matchAcc ? matchAcc.access_level : 'view';
+
+                    html += `
+                        <div style="margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--color-border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer;">
+                                    <input type="checkbox" class="chk-matrix-dept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" ${isChecked ? 'checked' : ''}>
+                                    <span>${escapeHtml(d.name)}</span>
+                                </label>
+                                <select class="sel-matrix-access" data-hotel-id="${h.id}" data-dept-id="${d.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-border);">
+                                    <option value="view" ${accessLvl === 'view' ? 'selected' : ''}>Consultar</option>
+                                    <option value="department_manager" ${accessLvl === 'department_manager' ? 'selected' : ''}>Encargado Depto.</option>
+                                    <option value="manage" ${accessLvl === 'manage' ? 'selected' : ''}>Gestionar</option>
+                                </select>
+                            </div>
+                    `;
+
+                    if (subDepts.length > 0) {
+                        html += `<div style="margin-left: 20px; margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">`;
+                        subDepts.forEach(sd => {
+                            const matchSubAcc = existingAccesses.find(a => a.hotel_id === h.id && a.department_id === d.id && a.subdepartment_id === sd.id);
+                            const isSubChecked = !!matchSubAcc;
+                            html += `
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-text-secondary); cursor: pointer;">
+                                    <input type="checkbox" class="chk-matrix-subdept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" data-subdept-id="${sd.id}" ${isSubChecked ? 'checked' : ''}>
+                                    <span>↳ ${escapeHtml(sd.name)}</span>
+                                </label>
+                            `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    html += `</div>`;
+                });
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function collectRadioDeptMatrix(prefix) {
+        const container = document.getElementById(`${prefix}-user-radios-dept-matrix`);
+        if (!container) return [];
+        const accesses = [];
+
+        container.querySelectorAll('.chk-matrix-dept:checked').forEach(chk => {
+            const hotelId = parseInt(chk.getAttribute('data-hotel-id'));
+            const deptId = parseInt(chk.getAttribute('data-dept-id'));
+            const selAccess = container.querySelector(`.sel-matrix-access[data-hotel-id="${hotelId}"][data-dept-id="${deptId}"]`);
+            const accessLevel = selAccess ? selAccess.value : 'view';
+
+            accesses.push({
+                hotel_id: hotelId,
+                department_id: deptId,
+                subdepartment_id: null,
+                access_level: accessLevel
+            });
+        });
+
+        container.querySelectorAll('.chk-matrix-subdept:checked').forEach(chk => {
+            const hotelId = parseInt(chk.getAttribute('data-hotel-id'));
+            const deptId = parseInt(chk.getAttribute('data-dept-id'));
+            const subdeptId = parseInt(chk.getAttribute('data-subdept-id'));
+            const selAccess = container.querySelector(`.sel-matrix-access[data-hotel-id="${hotelId}"][data-dept-id="${deptId}"]`);
+            const accessLevel = selAccess ? selAccess.value : 'view';
+
+            accesses.push({
+                hotel_id: hotelId,
+                department_id: deptId,
+                subdepartment_id: subdeptId,
+                access_level: accessLevel
+            });
+        });
+
+        return accesses;
+    }
+
     document.getElementById('user-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('new-user-username').value.trim();
@@ -5416,17 +5601,34 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const selectedModules = [];
+        document.querySelectorAll('input[name="user-module"]:checked').forEach(chk => {
+            selectedModules.push(chk.value);
+        });
+
         try {
             const res = await fetch('/api/settings/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, role })
+                body: JSON.stringify({ username, password, role, modules: selectedModules })
             });
             const data = await res.json();
             if (res.ok) {
+                const createdUserId = data.user_id || data.id;
+                if (selectedModules.includes('tec-radios') && createdUserId) {
+                    const radioRole = document.getElementById('new-user-radio-role')?.value || 'viewer';
+                    const deptAccesses = collectRadioDeptMatrix('new');
+                    await fetch(`/api/radios/user-department-access/${createdUserId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ radio_role: radioRole, accesses: deptAccesses })
+                    });
+                }
+
                 showToast(`Usuario ${username} creado exitosamente`, 'success');
                 if (userModal) userModal.classList.remove('active');
                 document.getElementById('user-form').reset();
+                if (panelUserRadios) panelUserRadios.style.display = 'none';
                 fetchUsers();
             } else {
                 showToast(data.error || 'Error al crear usuario', 'error');
@@ -5471,6 +5673,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><span class="badge ${roleBadgeClass}">${escapeHtml(user.role)}</span></td>
                 <td>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn-icon btn-radio-access" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Propiedades de Radios" style="color: var(--color-warning);">
+                            <i class="fa-solid fa-building-circle-check"></i>
+                        </button>
                         <button class="btn-icon btn-reset-pass" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Restablecer Contraseña" style="color: var(--color-primary);">
                             <i class="fa-solid fa-key"></i>
                         </button>
@@ -5483,6 +5688,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
             listBody.appendChild(tr);
+        });
+
+        listBody.querySelectorAll('.btn-radio-access').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const uname = btn.getAttribute('data-username');
+                document.getElementById('radio-access-user-id').value = id;
+                document.getElementById('radio-access-user-title').innerText = `Usuario: ${uname}`;
+                
+                try {
+                    const res = await fetch(`/api/radios/user-access/${id}`);
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const tbody = document.getElementById('tbody-radio-user-access-properties');
+                    if (tbody && data.properties) {
+                        tbody.innerHTML = data.properties.map(p => `
+                            <tr>
+                                <td><strong>${escapeHtml(p.hotel_name)}</strong> (${escapeHtml(p.hotel_sigla)})</td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="chk-radio-perm-view" data-hotel-id="${p.hotel_id}" ${p.can_view ? 'checked' : ''}>
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="chk-radio-perm-manage" data-hotel-id="${p.hotel_id}" ${p.can_manage ? 'checked' : ''}>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                    document.getElementById('modal-radio-user-access')?.classList.add('active');
+                } catch(e) {
+                    console.error('Error cargando accesos:', e);
+                }
+            });
         });
 
         listBody.querySelectorAll('.btn-delete-user').forEach(btn => {
@@ -5518,6 +5755,41 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    document.getElementById('form-radio-user-access')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const userId = document.getElementById('radio-access-user-id').value;
+        const rows = document.querySelectorAll('#tbody-radio-user-access-properties tr');
+        const payload = [];
+        rows.forEach(r => {
+            const chkView = r.querySelector('.chk-radio-perm-view');
+            const chkManage = r.querySelector('.chk-radio-perm-manage');
+            if (chkView && chkManage) {
+                payload.push({
+                    hotel_id: parseInt(chkView.getAttribute('data-hotel-id')),
+                    can_view: chkView.checked,
+                    can_manage: chkManage.checked
+                });
+            }
+        });
+
+        try {
+            const res = await fetch(`/api/radios/user-access/${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Accesos de propiedades guardados correctamente', 'success');
+                document.getElementById('modal-radio-user-access')?.classList.remove('active');
+            } else {
+                const err = await res.json();
+                showToast(err.error || 'Error al guardar accesos', 'error');
+            }
+        } catch(e) {
+            showToast('Error de conexión', 'error');
+        }
+    });
 
     document.getElementById('btn-close-admin-reset-modal')?.addEventListener('click', () => {
         document.getElementById('admin-reset-password-modal')?.classList.remove('active');
