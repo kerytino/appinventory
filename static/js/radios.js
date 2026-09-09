@@ -182,7 +182,7 @@ async function loadDashboard() {
         const danados = data.danado || 0;
         const perdidos = data.perdido || 0;
         const fuera = data.fuera_servicio || 0;
-        const disponibles = data.disponible || Math.max(0, total - operativos - revision - reparacion - danados - perdidos - fuera);
+        const disponibles = (data.disponible !== undefined) ? data.disponible : (data.unassigned !== undefined ? data.unassigned : 0);
 
         function calcPct(val) {
             if (total <= 0) return '0%';

@@ -5185,8 +5185,8 @@ def get_radio_dashboard():
             'danado': sum(1 for r in radios if r.status == 'danado'),
             'perdido': sum(1 for r in radios if r.status == 'perdido'),
             'fuera_servicio': sum(1 for r in radios if r.status == 'fuera_servicio'),
-            'disponible': sum(1 for r in radios if r.status == 'disponible'),
-            'en_almacen': sum(1 for r in radios if r.status == 'en_almacen'),
+            'disponible': sum(1 for r in radios if r.status == 'disponible' or r.status == 'en_almacen' or not (r.assigned_person_name or r.assigned_employee_id)),
+            'en_almacen': sum(1 for r in radios if r.status == 'en_almacen' or not (r.assigned_person_name or r.assigned_employee_id)),
             'assigned': sum(1 for r in radios if r.assigned_person_name or r.assigned_employee_id),
             'unassigned': sum(1 for r in radios if not (r.assigned_person_name or r.assigned_employee_id))
         }
