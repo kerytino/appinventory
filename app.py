@@ -717,6 +717,9 @@ class RadioFormalInventoryItem(db.Model):
     radio = db.relationship('RadioItem')
 
     def to_dict(self):
+        dept_name = self.radio.department.name if (self.radio and self.radio.department) else ''
+        subdept_name = self.radio.subdepartment.name if (self.radio and self.radio.subdepartment) else ''
+        full_loc = f"{dept_name} > {subdept_name}" if (dept_name and subdept_name) else (dept_name or subdept_name or 'Sin Asignar')
         return {
             'id': self.id,
             'inventory_id': self.inventory_id,
@@ -724,13 +727,23 @@ class RadioFormalInventoryItem(db.Model):
             'radio_code': self.radio.radio_code if self.radio else str(self.radio_id),
             'radio_brand': self.radio.brand if self.radio else '',
             'radio_model': self.radio.model if self.radio else '',
+            'department_id': self.radio.department_id if self.radio else None,
+            'department_name': dept_name,
+            'subdepartment_id': self.radio.subdepartment_id if self.radio else None,
+            'subdepartment_name': subdept_name,
+            'full_location': full_loc,
             'serialNumber': self.serial_number,
             'verifiedStatus': self.verified_status,
             'previousStatus': self.previous_status,
             'notes': self.notes or '',
             'confirmed': self.confirmed,
             'verifiedAt': self.verified_at.strftime('%Y-%m-%d %H:%M:%S') if self.verified_at else None,
-            'verifiedBy': self.verified_by or ''
+            'verifiedBy': self.verified_by or '',
+            'assignedPerson': {
+                'name': self.radio.assigned_person_name or '',
+                'employeeId': self.radio.assigned_employee_id or '',
+                'position': self.radio.assigned_position or ''
+            } if self.radio else None
         }
 
 def ensure_radio_tables():
@@ -5547,6 +5560,60 @@ def assign_radio(radio_id):
         db.session.commit()
         log_activity(user.username, 'Módulo Radios', f"Asignó radio #{radio.id} a {name}")
         return jsonify(radio.to_dict())
+
+@app.route('/api/radios/<int:radio_id>/transfer', methods=['POST'])
+def transfer_radio(radio_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
+    radio = RadioItem.query.get_or_404(radio_id)
+    if not can_user_access_radio_hotel(user, radio.hotel_id, need_manage=True):
+        return jsonify({'error': 'Sin permiso para transferir este equipo'}), 403
+        
+    data = request.json or {}
+    new_dept_id = data.get('department_id')
+    new_subdept_id = data.get('subdepartment_id')
+    notes = (data.get('notes') or '').strip()
+    
+    old_dept_name = radio.department.name if radio.department else 'Sin Dpto'
+    old_subdept_name = radio.subdepartment.name if radio.subdepartment else ''
+    old_loc = f"{old_dept_name} > {old_subdept_name}" if old_subdept_name else old_dept_name
+    
+    if new_dept_id:
+        radio.department_id = int(new_dept_id)
+    if new_subdept_id:
+        radio.subdepartment_id = int(new_subdept_id)
+    elif 'subdepartment_id' in data and data['subdepartment_id'] is None:
+        radio.subdepartment_id = None
+        
+    if notes:
+        radio.notes = notes
+
+    db.session.flush()
+
+    new_dept_name = radio.department.name if radio.department else 'Sin Dpto'
+    new_subdept_name = radio.subdepartment.name if radio.subdepartment else ''
+    new_loc = f"{new_dept_name} > {new_subdept_name}" if new_subdept_name else new_dept_name
+
+    history_entry = RadioHistory(
+        radio_id=radio.id,
+        hotel_id=radio.hotel_id,
+        event_type='transferencia',
+        detail=f"Transferido de {old_loc} a {new_loc}. Nota: {notes}" if notes else f"Transferido de {old_loc} a {new_loc}",
+        previous_info=old_loc,
+        new_info=new_loc,
+        user_id=user.id,
+        user_name=user.username
+    )
+    db.session.add(history_entry)
+    db.session.commit()
+
+    log_activity(user.username, 'Módulo Radios', f"Transferió radio #{radio.radio_code} ({radio.serial_number}) a {new_loc}")
+    return jsonify({
+        'message': f"Radio #{radio.radio_code} transferido a {new_loc} exitosamente.",
+        'radio': radio.to_dict()
+    })
 
 # API: Inventarios Formales
 @app.route('/api/radios/inventories', methods=['GET'])

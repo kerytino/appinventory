@@ -379,12 +379,15 @@
                     <table class="radios-table-compact">
                         <thead>
                             <tr>
-                                <th>Verificado</th>
-                                <th>ID</th>
-                                <th>Serial</th>
+                                <th style="width: 40px; text-align: center;">Verificado</th>
+                                <th style="width: 70px;">ID</th>
+                                <th style="width: 110px;">Serial</th>
+                                <th style="width: 130px;">Equipo (Marca/Mod)</th>
+                                <th style="width: 160px;">Ubicación / Dpto Actual</th>
                                 <th>Custodio / Ficha</th>
-                                <th>Estado Actual</th>
-                                <th>Estado en Inventario</th>
+                                <th style="width: 110px;">Estado Actual</th>
+                                <th style="width: 140px;">Estado Inventario</th>
+                                <th style="width: 110px; text-align: center;">Acciones</th>
                                 <th>Observaciones</th>
                             </tr>
                         </thead>
@@ -746,6 +749,49 @@
                 <button type="submit" class="btn btn-primary" style="padding: 9px 24px; font-weight: 700;"><i class="fa-solid fa-save me-1"></i> Guardar Rango</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- MODAL DE TRANSFERENCIA DE RADIO EN INVENTARIO -->
+<div id="modal-radio-transfer-inv" class="radios-modal-overlay">
+    <div class="radios-modal-box" style="max-width: 520px;">
+        <div class="radios-modal-header">
+            <h3 class="radios-modal-title"><i class="fa-solid fa-right-left text-primary me-2"></i> Transferir Radio de Ubicación</h3>
+            <button class="radios-modal-close" type="button" onclick="closeModal('modal-radio-transfer-inv')">&times;</button>
+        </div>
+        <div class="radios-modal-body">
+            <input type="hidden" id="trans-radio-id">
+            <input type="hidden" id="trans-item-id">
+            
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                <div style="font-size: 0.82rem; color: #64748b; font-weight: 600;">Radio Seleccionado</div>
+                <div style="font-weight: 800; font-size: 1.1rem; color: #0f172a;" id="trans-radio-title">#---- · Serial: ----</div>
+                <div style="font-size: 0.85rem; color: #475569; margin-top: 4px;" id="trans-radio-current-loc">Ubicación Actual: ----</div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label" style="font-weight: 700;">Nuevo Departamento Destino <span class="text-danger">*</span></label>
+                <select id="trans-dept-select" class="form-control" style="height: 42px;" required></select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label" style="font-weight: 700;">Nuevo Subdepartamento Destino</label>
+                <select id="trans-subdept-select" class="form-control" style="height: 42px;">
+                    <option value="">Aplica al Departamento Principal Directamente</option>
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label" style="font-weight: 700;">Observación / Motivo del Traslado</label>
+                <input id="trans-notes-input" class="form-control" style="height: 40px;" placeholder="Ej: Traslado verificado durante inventario formal">
+            </div>
+
+            <div id="trans-status-msg" style="display:none; margin-top: 10px;" class="alert alert-danger"></div>
+        </div>
+        <div class="radios-modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-radio-transfer-inv')">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-submit-transfer-radio"><i class="fa-solid fa-check me-1"></i> Confirmar Transferencia</button>
+        </div>
     </div>
 </div>
 

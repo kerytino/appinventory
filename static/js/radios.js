@@ -723,21 +723,163 @@ function openFormalInventory(inventory) {
 function renderFormalInventoryItems() {
     if (!activeFormalInventory) return;
     const term = (document.getElementById('rad-formal-search')?.value || '').toLowerCase().trim();
-    const items = activeFormalInventory.items.filter(i => [i.radio_code, i.serialNumber, i.assignedPerson?.name, i.assignedPerson?.employeeId].join(' ').toLowerCase().includes(term));
+    const items = activeFormalInventory.items.filter(i => [
+        i.radio_code, 
+        i.serialNumber, 
+        i.radio_brand,
+        i.radio_model,
+        i.full_location,
+        i.department_name,
+        i.subdepartment_name,
+        i.assignedPerson?.name, 
+        i.assignedPerson?.employeeId
+    ].join(' ').toLowerCase().includes(term));
+
     const tbody = document.getElementById('rad-formal-inv-table-tbody');
     const confirmed = activeFormalInventory.items.filter(i => i.confirmed).length;
     document.getElementById('rad-formal-progress').textContent = `${confirmed} verificados · ${activeFormalInventory.items.length - confirmed} pendientes`;
+    
     tbody.innerHTML = items.map(i => {
         const person = i.assignedPerson || {};
-        return `<tr data-item-id="${i.id}">
-          <td><input type="checkbox" class="chk-formal-item" ${i.confirmed ? 'checked' : ''}></td>
-          <td><strong>#${escapeHtml(i.radio_code)}</strong></td><td><code>${escapeHtml(i.serialNumber)}</code></td>
-          <td><input class="form-control form-control-sm inv-person" value="${escapeHtml(person.name || '')}" placeholder="Custodio"><input class="form-control form-control-sm inv-employee" value="${escapeHtml(person.employeeId || '')}" placeholder="Ficha" style="margin-top:4px;"></td>
+        const brandModel = `${escapeHtml(i.radio_brand || 'Motorola')} ${escapeHtml(i.radio_model || '')}`.trim();
+        const locBadge = escapeHtml(i.full_location || 'Sin Asignar');
+
+        return `<tr data-item-id="${i.id}" data-radio-id="${i.radioId}">
+          <td style="text-align: center;"><input type="checkbox" class="chk-formal-item" ${i.confirmed ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;"></td>
+          <td><strong style="color:#2563eb;">#${escapeHtml(i.radio_code)}</strong></td>
+          <td><code style="font-size: 0.85rem; font-weight: 700;">${escapeHtml(i.serialNumber)}</code></td>
+          <td><span style="font-size: 0.83rem; font-weight: 600; color: #334155;">${brandModel}</span></td>
+          <td><span class="badge bg-light text-dark border" style="font-size: 0.78rem; font-weight: 600;" id="loc-badge-${i.id}"><i class="fa-solid fa-building me-1 text-primary"></i> ${locBadge}</span></td>
+          <td>
+            <input class="form-control form-control-sm inv-person mb-1" value="${escapeHtml(person.name || '')}" placeholder="Custodio" style="font-weight: 600;">
+            <div style="display: flex; gap: 4px;">
+                <input class="form-control form-control-sm inv-employee" value="${escapeHtml(person.employeeId || '')}" placeholder="Ficha" style="font-size: 0.78rem; width: 45%;">
+                <input class="form-control form-control-sm inv-position" value="${escapeHtml(person.position || '')}" placeholder="Cargo" style="font-size: 0.78rem; width: 55%;">
+            </div>
+          </td>
           <td>${renderStatusBadge(i.previousStatus)}</td>
           <td><select class="form-control form-control-sm rad-inv-status-sel">${['operativo','requiere_revision','en_reparacion','danado','perdido','fuera_servicio','disponible','en_almacen'].map(s => `<option value="${s}" ${i.verifiedStatus === s ? 'selected' : ''}>${STATUS_MAP[s].label}</option>`).join('')}</select></td>
+          <td style="text-align: center;">
+            <button type="button" class="btn btn-sm btn-outline-primary btn-transfer-item" onclick="openTransferRadioModal('${i.id}', '${i.radioId}')" title="Transferir a otro departamento">
+                <i class="fa-solid fa-right-left me-1"></i> Transferir
+            </button>
+          </td>
           <td><input class="form-control form-control-sm rad-inv-notes-inp" value="${escapeHtml(i.notes || '')}" placeholder="Condición, ubicación u observación"></td>
         </tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-center p-4 text-secondary">No hay coincidencias.</td></tr>';
+    }).join('') || '<tr><td colspan="10" class="text-center p-4 text-secondary">No hay coincidencias.</td></tr>';
+}
+
+window.openTransferRadioModal = async function(itemId, radioId) {
+    if (!activeFormalInventory) return;
+    const item = activeFormalInventory.items.find(i => String(i.id) === String(itemId));
+    if (!item) return;
+
+    document.getElementById('trans-item-id').value = itemId;
+    document.getElementById('trans-radio-id').value = radioId;
+    document.getElementById('trans-radio-title').textContent = `#${item.radio_code} · Serial: ${item.serialNumber}`;
+    document.getElementById('trans-radio-current-loc').textContent = `Ubicación Actual: ${item.full_location || 'Sin Asignar'}`;
+    document.getElementById('trans-notes-input').value = '';
+    document.getElementById('trans-status-msg').style.display = 'none';
+
+    const hotelId = activeFormalInventory.hotel_id;
+    const deptSel = document.getElementById('trans-dept-select');
+    const subdeptSel = document.getElementById('trans-subdept-select');
+
+    try {
+        const res = await fetch(`/api/radios/departments?hotel_id=${hotelId}`);
+        if (res.ok) {
+            const depts = await res.json();
+            const mainDepts = depts.filter(d => !d.parent_department_id);
+            deptSel.innerHTML = mainDepts.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+
+            deptSel.onchange = function() {
+                const selectedDeptId = this.value;
+                const subDepts = depts.filter(d => d.parent_department_id == selectedDeptId);
+                subdeptSel.innerHTML = '<option value="">Aplica al Departamento Principal Directamente</option>';
+                if (subDepts.length > 0) {
+                    subdeptSel.innerHTML += subDepts.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+                }
+            };
+
+            if (item.department_id) {
+                deptSel.value = item.department_id;
+                deptSel.dispatchEvent(new Event('change'));
+                if (item.subdepartment_id) subdeptSel.value = item.subdepartment_id;
+            } else {
+                deptSel.dispatchEvent(new Event('change'));
+            }
+        }
+    } catch(err) {
+        console.error('Error al cargar departamentos para transferencia:', err);
+    }
+
+    openModal('modal-radio-transfer-inv');
+};
+
+function initTransferRadioModalListener() {
+    const btnSubmit = document.getElementById('btn-submit-transfer-radio');
+    if (!btnSubmit) return;
+
+    btnSubmit.onclick = async function() {
+        const radioId = document.getElementById('trans-radio-id').value;
+        const itemId = document.getElementById('trans-item-id').value;
+        const deptId = document.getElementById('trans-dept-select').value;
+        const subdeptId = document.getElementById('trans-subdept-select').value;
+        const notes = document.getElementById('trans-notes-input').value.trim();
+        const statusMsg = document.getElementById('trans-status-msg');
+
+        if (!deptId) {
+            statusMsg.style.display = 'block';
+            statusMsg.textContent = 'Selecciona un departamento destino.';
+            return;
+        }
+
+        const origHtml = btnSubmit.innerHTML;
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...';
+
+        try {
+            const res = await fetch(`/api/radios/${radioId}/transfer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    department_id: parseInt(deptId),
+                    subdepartment_id: subdeptId ? parseInt(subdeptId) : null,
+                    notes: notes
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message || 'Radio transferido con éxito.');
+                closeModal('modal-radio-transfer-inv');
+
+                if (activeFormalInventory) {
+                    const item = activeFormalInventory.items.find(i => String(i.id) === String(itemId));
+                    if (item) {
+                        item.department_id = data.radio.department_id;
+                        item.department_name = data.radio.department_name;
+                        item.subdepartment_id = data.radio.subdepartment_id;
+                        item.subdepartment_name = data.radio.subdepartment_name;
+                        const dN = data.radio.department_name || '';
+                        const sN = data.radio.subdepartment_name || '';
+                        item.full_location = (dN && sN) ? `${dN} > ${sN}` : (dN || sN || 'Sin Asignar');
+                    }
+                    renderFormalInventoryItems();
+                }
+            } else {
+                statusMsg.style.display = 'block';
+                statusMsg.textContent = data.error || 'No se pudo realizar la transferencia.';
+            }
+        } catch(err) {
+            console.error('Error al transferir radio:', err);
+            statusMsg.style.display = 'block';
+            statusMsg.textContent = 'Error de conexión con el servidor.';
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = origHtml;
+        }
+    };
 }
 
 async function finishFormalInventory() {
@@ -748,17 +890,24 @@ async function finishFormalInventory() {
         item.confirmed = row.querySelector('.chk-formal-item').checked;
         item.verifiedStatus = row.querySelector('.rad-inv-status-sel').value;
         item.notes = row.querySelector('.rad-inv-notes-inp').value;
-        item.assignedPerson = { name: row.querySelector('.inv-person').value, employeeId: row.querySelector('.inv-employee').value, position: item.assignedPerson?.position || '' };
+        item.assignedPerson = { 
+            name: row.querySelector('.inv-person').value, 
+            employeeId: row.querySelector('.inv-employee').value, 
+            position: row.querySelector('.inv-position')?.value || '' 
+        };
     });
     const pending = activeFormalInventory.items.filter(i => !i.confirmed).length;
     if (!confirm(`Finalizar inventario: ${pending} radio(s) quedarán pendientes por inventariar. Podrás continuarlo después.`)) return;
     const res = await fetch(`/api/radios/inventories/${activeFormalInventory.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'completado', items:activeFormalInventory.items})});
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'No se pudo finalizar el inventario.');
-    activeFormalInventory = data;
-    const pendingSerials = activeFormalInventory.items.filter(i => !i.confirmed).map(i => i.serialNumber).join(', ');
-    alert(`Inventario finalizado. Quedaron ${data.pendingCount} radios pendientes.${pendingSerials ? `\n\nSeriales pendientes: ${pendingSerials}` : ''}`);
-    loadDashboard(); renderFormalInventoryItems();
+    activeFormalInventory = null;
+    alert(`Inventario finalizado con éxito.`);
+    document.getElementById('rad-formal-start').style.display = 'block';
+    document.getElementById('rad-formal-workspace').style.display = 'none';
+    document.getElementById('btn-start-formal-inv').style.display = 'inline-block';
+    document.getElementById('btn-finish-formal-inv').style.display = 'none';
+    loadDashboard();
 }
 
 // -------------------------------------------------------------------------
@@ -1980,6 +2129,11 @@ function initRadiosModule() {
         const pVal = document.getElementById('rad-stat-perdidos')?.innerText || '0';
         alert(`🔔 Panel de Alertas TEC-RADIOS:\n\n• Radios Requieren Revisión: ${rVal}\n• Radios Dañados / En Reparación: ${dVal}\n• Radios No Localizados: ${pVal}\n\nRevisa el panel de alertas en la pestaña Inicio.`);
     });
+
+    // Inicializar listener del modal de transferencia en inventario
+    if (typeof initTransferRadioModalListener === 'function') {
+        initTransferRadioModalListener();
+    }
 
     // Cargas iniciales
     loadCurrentUser();
