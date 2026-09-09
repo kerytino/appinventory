@@ -345,70 +345,52 @@
             <div class="radios-card-header" style="margin-bottom: 14px;">
                 <div>
                     <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">Inventario de Radios</h3>
-                    <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Selecciona el área para iniciar un nuevo inventario formal.</p>
+                    <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Verifica todos los radios de una propiedad, incluyendo los dañados y disponibles.</p>
                 </div>
-                <button class="btn btn-primary" id="btn-finish-formal-inv"><i class="fa-solid fa-check me-1"></i> Finalizar Inventario</button>
+                <button class="btn btn-primary" id="btn-start-formal-inv"><i class="fa-solid fa-clipboard-check me-1"></i> Iniciar inventario</button>
+                <button class="btn btn-primary" id="btn-finish-formal-inv" style="display:none;"><i class="fa-solid fa-check me-1"></i> Finalizar Inventario</button>
             </div>
 
-            <!-- PASOS ESCALONADOS -->
-            <div class="radio-inv-steps">
-                <div class="radio-inv-step">
-                    <span class="radio-step-num">1</span>
-                    <select id="rad-finv-prop-step" class="radio-step-select">
-                        <option value="">Propiedad (XPC)</option>
-                    </select>
-                </div>
-                <i class="fa-solid fa-chevron-right radio-step-arrow"></i>
-                <div class="radio-inv-step">
-                    <span class="radio-step-num">2</span>
-                    <select id="rad-finv-dept-step" class="radio-step-select">
-                        <option value="">Departamento (División Cuartos)</option>
-                    </select>
-                </div>
-                <i class="fa-solid fa-chevron-right radio-step-arrow"></i>
-                <div class="radio-inv-step">
-                    <span class="radio-step-num">3</span>
-                    <select id="rad-finv-area-step" class="radio-step-select">
-                        <option value="">Área / Subdepartamento (Ama de Llaves)</option>
-                    </select>
+            <div id="rad-formal-start" class="radios-card-box" style="text-align:center; padding:42px 20px;">
+                <i class="fa-solid fa-clipboard-list" style="font-size:2.5rem; color:#4361ee;"></i>
+                <h4 style="margin:14px 0 6px; font-weight:800;">Comienza un inventario por propiedad</h4>
+                <p class="text-secondary" style="margin:0 0 14px;">Elige una de tus propiedades autorizadas. Se incluirán todos sus radios.</p>
+                <select id="rad-formal-property" class="form-control" style="max-width:420px; margin:auto;"></select>
+                <div style="margin-top: 18px;">
+                    <button class="btn btn-primary btn-lg" id="btn-start-formal-inv-main" style="padding: 10px 24px; font-weight: 700; border-radius: 8px;">
+                        <i class="fa-solid fa-play me-2"></i> Iniciar Inventario de la Propiedad
+                    </button>
                 </div>
             </div>
 
-            <!-- TABLA FORMAL -->
-            <div class="radios-card-box">
+            <div id="rad-formal-workspace" style="display:none;">
+                <div class="radios-card-box" style="padding:14px; margin-bottom:14px;">
+                    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                        <strong id="rad-formal-title">Inventario</strong>
+                        <span class="badge badge-outline" id="rad-formal-progress">0 verificados</span>
+                        <div style="margin-left:auto; position:relative; min-width:260px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:11px; color:#94a3b8;"></i>
+                            <input id="rad-formal-search" class="form-control" style="padding-left:34px;" placeholder="Buscar por serial, ID, ficha o empleado">
+                        </div>
+                    </div>
+                </div>
+                <div class="radios-card-box">
                 <div class="table-responsive">
                     <table class="radios-table-compact">
                         <thead>
                             <tr>
-                                <th style="width: 40px;"><input type="checkbox" id="chk-rad-inv-all"></th>
+                                <th>Verificado</th>
                                 <th>ID</th>
                                 <th>Serial</th>
-                                <th>Asignado a</th>
+                                <th>Custodio / Ficha</th>
                                 <th>Estado Actual</th>
                                 <th>Estado en Inventario</th>
                                 <th>Observaciones</th>
-                                <th>Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="rad-formal-inv-table-tbody">
-                            <tr>
-                                <td><input type="checkbox"></td>
-                                <td>1201</td>
-                                <td>TCM6X39380</td>
-                                <td>Ana Gómez</td>
-                                <td><span class="badge badge-success">Operativo</span></td>
-                                <td>
-                                    <select class="form-control form-control-sm">
-                                        <option selected>Operativo</option>
-                                        <option>Requiere revisión</option>
-                                        <option>Dañado</option>
-                                    </select>
-                                </td>
-                                <td><input type="text" class="form-control form-control-sm" placeholder="-"></td>
-                                <td><button class="btn btn-sm btn-icon"><i class="fa-solid fa-comment"></i></button></td>
-                            </tr>
-                        </tbody>
+                        <tbody id="rad-formal-inv-table-tbody"></tbody>
                     </table>
+                </div>
                 </div>
             </div>
         </div>
@@ -417,13 +399,13 @@
         <div id="tab-my-inv" class="radio-tab-content" style="display: none;">
             <div class="radios-card-box">
                 <div class="radios-card-header">
-                    <span class="radios-card-title">Mi Inventario Asignado</span>
+                    <span class="radios-card-title">Mis Inventarios Realizados</span>
                 </div>
-                <p class="text-secondary">Radios bajo custodia directa de tu usuario o departamento.</p>
+                <p class="text-secondary">Consulta, continúa o elimina inventarios históricos autorizados.</p>
                 <div class="table-responsive">
                     <table class="radios-table-compact">
                         <thead>
-                            <tr><th>ID</th><th>Serial</th><th>Modelo</th><th>Fecha Asignación</th><th>Estado</th></tr>
+                            <tr><th>Inventario</th><th>Propiedad</th><th>Fecha</th><th>Avance</th><th>Estado</th><th>Acciones</th></tr>
                         </thead>
                         <tbody id="rad-my-inv-tbody">
                         </tbody>

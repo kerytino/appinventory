@@ -7,6 +7,7 @@ let userProperties = [];
 let currentPropertyId = 'all';
 let currentRadiosList = [];
 let statusChartInstance = null;
+let activeFormalInventory = null;
 
 const STATUS_MAP = {
     operativo: { label: 'Operativo', class: 'badge-success', icon: 'fa-circle-check' },
@@ -646,102 +647,118 @@ async function loadRadiosList() {
 // 4. TAB INVENTARIO FORMAL PASO A PASO
 // -------------------------------------------------------------------------
 async function loadFormalInventories() {
-    try {
-        const res = await fetch(`/api/radios?hotel_id=${currentPropertyId}`);
-        if (!res.ok) return;
-        const radios = await res.json();
-        const tbody = document.getElementById('rad-formal-inv-table-tbody');
-        if (!tbody) return;
+    const propSelect = document.getElementById('rad-formal-property');
+    if (propSelect) {
+        if (!userProperties || userProperties.length === 0) {
+            try {
+                const res = await fetch('/api/radios/properties');
+                if (res.ok) userProperties = await res.json();
+            } catch (e) {
+                console.error('Error cargando propiedades autorizadas:', e);
+            }
+        }
+        if (userProperties && userProperties.length) {
+            propSelect.innerHTML = userProperties.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.sigla)})</option>`).join('');
+            if (currentPropertyId !== 'all') propSelect.value = currentPropertyId;
+        }
+    }
+    
+    const btnTop = document.getElementById('btn-start-formal-inv');
+    const btnMain = document.getElementById('btn-start-formal-inv-main');
+    if (btnTop) btnTop.onclick = startFormalInventory;
+    if (btnMain) btnMain.onclick = startFormalInventory;
 
-        if (radios.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-secondary">No hay radios disponibles para auditar en esta selección.</td></tr>';
+    const btnFinish = document.getElementById('btn-finish-formal-inv');
+    if (btnFinish) btnFinish.onclick = finishFormalInventory;
+
+    const searchInp = document.getElementById('rad-formal-search');
+    if (searchInp) searchInp.oninput = renderFormalInventoryItems;
+
+    if (activeFormalInventory) renderFormalInventoryItems();
+}
+
+async function startFormalInventory() {
+    const propertyId = document.getElementById('rad-formal-property')?.value;
+    if (!propertyId) return alert('Por favor, selecciona una propiedad autorizada.');
+
+    const btnTop = document.getElementById('btn-start-formal-inv');
+    const btnMain = document.getElementById('btn-start-formal-inv-main');
+    const origTop = btnTop ? btnTop.innerHTML : '';
+    const origMain = btnMain ? btnMain.innerHTML : '';
+
+    try {
+        if (btnTop) { btnTop.disabled = true; btnTop.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Iniciando...'; }
+        if (btnMain) { btnMain.disabled = true; btnMain.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Iniciando...'; }
+
+        const res = await fetch('/api/radios/inventories', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({hotel_id: parseInt(propertyId), title: 'Inventario de radios'})
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert(data.error || 'No se pudo iniciar el inventario.');
             return;
         }
-
-        tbody.innerHTML = radios.map(r => `
-            <tr data-radio-id="${r.id}">
-                <td><input type="checkbox" class="chk-formal-item" value="${r.id}" checked></td>
-                <td><strong>#${escapeHtml(r.radio_code || r.id)}</strong></td>
-                <td><code>${escapeHtml(r.serial_number)}</code></td>
-                <td>${r.assigned_person ? escapeHtml(r.assigned_person.name) : '<span class="text-secondary">Sin Asignar</span>'}</td>
-                <td>${renderStatusBadge(r.status)}</td>
-                <td>
-                    <select class="form-control form-control-sm rad-inv-status-sel" style="height: 32px; font-weight: 600;">
-                        <option value="operativo" ${r.status === 'operativo' ? 'selected' : ''}>🟢 Operativo</option>
-                        <option value="requiere_revision" ${r.status === 'requiere_revision' ? 'selected' : ''}>🟡 Requiere revisión</option>
-                        <option value="en_reparacion" ${r.status === 'en_reparacion' ? 'selected' : ''}>🟠 En reparación</option>
-                        <option value="danado" ${r.status === 'danado' ? 'selected' : ''}>🔴 Dañado</option>
-                        <option value="perdido" ${r.status === 'perdido' ? 'selected' : ''}>⚫ No localizado</option>
-                    </select>
-                </td>
-                <td><input type="text" class="form-control form-control-sm rad-inv-notes-inp" placeholder="Observaciones de auditoría..." value="${escapeHtml(r.notes || '')}" style="height: 32px;"></td>
-                <td>
-                    <button class="btn btn-sm btn-icon text-primary" onclick="showRadioHistoryModal(${r.id})" title="Ver Bitácora"><i class="fa-solid fa-history"></i></button>
-                </td>
-            </tr>
-        `).join('');
-
-        // Manejador del Checkbox 'Seleccionar Todos'
-        const chkAll = document.getElementById('chk-rad-inv-all');
-        if (chkAll) {
-            chkAll.checked = true;
-            chkAll.onchange = function () {
-                document.querySelectorAll('.chk-formal-item').forEach(c => c.checked = chkAll.checked);
-            };
-        }
-
-        // BOTÓN: Finalizar Inventario
-        const finishBtn = document.getElementById('btn-finish-formal-inv');
-        if (finishBtn) {
-            finishBtn.onclick = async function () {
-                const checkedRows = Array.from(document.querySelectorAll('#rad-formal-inv-table-tbody tr')).filter(tr => {
-                    const chk = tr.querySelector('.chk-formal-item');
-                    return chk && chk.checked;
-                });
-
-                if (checkedRows.length === 0) {
-                    alert('Debes seleccionar al menos un radio verificado en la lista para finalizar el inventario.');
-                    return;
-                }
-
-                if (!confirm(`¿Deseas finalizar el inventario formal de ${checkedRows.length} radios auditados?`)) return;
-
-                finishBtn.disabled = true;
-                finishBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando Auditoría...';
-
-                try {
-                    let updatedCount = 0;
-                    for (const tr of checkedRows) {
-                        const rId = tr.getAttribute('data-radio-id');
-                        const newStatus = tr.querySelector('.rad-inv-status-sel')?.value;
-                        const newNotes = tr.querySelector('.rad-inv-notes-inp')?.value;
-
-                        if (rId && newStatus) {
-                            await fetch(`/api/radios/${rId}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ status: newStatus, notes: newNotes })
-                            });
-                            updatedCount++;
-                        }
-                    }
-
-                    alert(`¡Inventario Formal Completado con Éxito!\nSe verificaron y actualizaron ${updatedCount} radios.`);
-                    loadDashboard();
-                    loadRadiosList();
-                    loadFormalInventories();
-                } catch(e) {
-                    alert('Error al guardar el inventario formal.');
-                } finally {
-                    finishBtn.disabled = false;
-                    finishBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Finalizar Inventario';
-                }
-            };
-        }
-
-    } catch(e) { 
-        console.error('Error en loadFormalInventories:', e); 
+        openFormalInventory(data);
+    } catch (err) {
+        console.error('Error iniciando inventario:', err);
+        alert('Error de conexión con el servidor al iniciar el inventario.');
+    } finally {
+        if (btnTop) { btnTop.disabled = false; btnTop.innerHTML = origTop; }
+        if (btnMain) { btnMain.disabled = false; btnMain.innerHTML = origMain; }
     }
+}
+
+function openFormalInventory(inventory) {
+    activeFormalInventory = inventory;
+    document.getElementById('rad-formal-start').style.display = 'none';
+    document.getElementById('rad-formal-workspace').style.display = 'block';
+    document.getElementById('btn-start-formal-inv').style.display = 'none';
+    document.getElementById('btn-finish-formal-inv').style.display = 'inline-block';
+    document.getElementById('rad-formal-title').textContent = `${inventory.inventory_code} · ${inventory.property_name}`;
+    renderFormalInventoryItems();
+}
+
+function renderFormalInventoryItems() {
+    if (!activeFormalInventory) return;
+    const term = (document.getElementById('rad-formal-search')?.value || '').toLowerCase().trim();
+    const items = activeFormalInventory.items.filter(i => [i.radio_code, i.serialNumber, i.assignedPerson?.name, i.assignedPerson?.employeeId].join(' ').toLowerCase().includes(term));
+    const tbody = document.getElementById('rad-formal-inv-table-tbody');
+    const confirmed = activeFormalInventory.items.filter(i => i.confirmed).length;
+    document.getElementById('rad-formal-progress').textContent = `${confirmed} verificados · ${activeFormalInventory.items.length - confirmed} pendientes`;
+    tbody.innerHTML = items.map(i => {
+        const person = i.assignedPerson || {};
+        return `<tr data-item-id="${i.id}">
+          <td><input type="checkbox" class="chk-formal-item" ${i.confirmed ? 'checked' : ''}></td>
+          <td><strong>#${escapeHtml(i.radio_code)}</strong></td><td><code>${escapeHtml(i.serialNumber)}</code></td>
+          <td><input class="form-control form-control-sm inv-person" value="${escapeHtml(person.name || '')}" placeholder="Custodio"><input class="form-control form-control-sm inv-employee" value="${escapeHtml(person.employeeId || '')}" placeholder="Ficha" style="margin-top:4px;"></td>
+          <td>${renderStatusBadge(i.previousStatus)}</td>
+          <td><select class="form-control form-control-sm rad-inv-status-sel">${['operativo','requiere_revision','en_reparacion','danado','perdido','fuera_servicio','disponible','en_almacen'].map(s => `<option value="${s}" ${i.verifiedStatus === s ? 'selected' : ''}>${STATUS_MAP[s].label}</option>`).join('')}</select></td>
+          <td><input class="form-control form-control-sm rad-inv-notes-inp" value="${escapeHtml(i.notes || '')}" placeholder="Condición, ubicación u observación"></td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" class="text-center p-4 text-secondary">No hay coincidencias.</td></tr>';
+}
+
+async function finishFormalInventory() {
+    if (!activeFormalInventory) return;
+    const rows = [...document.querySelectorAll('#rad-formal-inv-table-tbody tr[data-item-id]')];
+    rows.forEach(row => {
+        const item = activeFormalInventory.items.find(i => String(i.id) === row.dataset.itemId);
+        item.confirmed = row.querySelector('.chk-formal-item').checked;
+        item.verifiedStatus = row.querySelector('.rad-inv-status-sel').value;
+        item.notes = row.querySelector('.rad-inv-notes-inp').value;
+        item.assignedPerson = { name: row.querySelector('.inv-person').value, employeeId: row.querySelector('.inv-employee').value, position: item.assignedPerson?.position || '' };
+    });
+    const pending = activeFormalInventory.items.filter(i => !i.confirmed).length;
+    if (!confirm(`Finalizar inventario: ${pending} radio(s) quedarán pendientes por inventariar. Podrás continuarlo después.`)) return;
+    const res = await fetch(`/api/radios/inventories/${activeFormalInventory.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'completado', items:activeFormalInventory.items})});
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'No se pudo finalizar el inventario.');
+    activeFormalInventory = data;
+    const pendingSerials = activeFormalInventory.items.filter(i => !i.confirmed).map(i => i.serialNumber).join(', ');
+    alert(`Inventario finalizado. Quedaron ${data.pendingCount} radios pendientes.${pendingSerials ? `\n\nSeriales pendientes: ${pendingSerials}` : ''}`);
+    loadDashboard(); renderFormalInventoryItems();
 }
 
 // -------------------------------------------------------------------------
@@ -749,27 +766,40 @@ async function loadFormalInventories() {
 // -------------------------------------------------------------------------
 async function loadMyInventory() {
     try {
-        const res = await fetch(`/api/radios?hotel_id=${currentPropertyId}`);
+        const suffix = currentPropertyId !== 'all' ? `?hotel_id=${currentPropertyId}` : '';
+        const res = await fetch(`/api/radios/inventories${suffix}`);
         if (!res.ok) return;
-        const radios = await res.json();
+        const inventories = await res.json();
         const tbody = document.getElementById('rad-my-inv-tbody');
         if (!tbody) return;
 
-        const assigned = radios.filter(r => r.assigned_person && r.assigned_person.name);
-        if (assigned.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-secondary">No tienes radios asignados directamente.</td></tr>';
+        if (inventories.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-secondary">Aún no hay inventarios realizados.</td></tr>';
             return;
         }
-
-        tbody.innerHTML = assigned.map(r => `
+        const now = Date.now();
+        tbody.innerHTML = inventories.map(inv => {
+            const old = inv.createdAt && (now - new Date(inv.createdAt).getTime()) >= 240 * 86400000;
+            return `
             <tr>
-                <td><strong>#${escapeHtml(r.radio_code || r.id)}</strong></td>
-                <td><code>${escapeHtml(r.serial_number)}</code></td>
-                <td>${escapeHtml(r.brand)} ${escapeHtml(r.model)}</td>
-                <td>${escapeHtml(r.assigned_person.assignedDate || 'Reciente')}</td>
-                <td>${renderStatusBadge(r.status)}</td>
-            </tr>
-        `).join('');
+                <td><strong>${escapeHtml(inv.inventory_code)}</strong></td><td>${escapeHtml(inv.property_name)}</td>
+                <td>${escapeHtml(inv.createdAt)}</td><td>${inv.confirmedCount || 0} / ${inv.totalExpected}</td>
+                <td>${escapeHtml(inv.status || '')}</td>
+                <td><button class="btn btn-sm btn-outline btn-open-formal" data-id="${inv.id}">Ver / completar</button>
+                ${old ? `<button class="btn btn-sm btn-danger-soft btn-delete-formal" data-id="${inv.id}">Eliminar</button>` : ''}</td>
+            </tr>`;
+        }).join('');
+        tbody.querySelectorAll('.btn-open-formal').forEach(btn => btn.onclick = async () => {
+            const detail = await fetch(`/api/radios/inventories/${btn.dataset.id}`).then(r => r.json());
+            openFormalInventory(detail); window.switchRadioTab('tab-formal-inv');
+        });
+        tbody.querySelectorAll('.btn-delete-formal').forEach(btn => btn.onclick = async () => {
+            if (!confirm('¿Eliminar este inventario histórico? Esta acción no se puede deshacer.')) return;
+            const res = await fetch(`/api/radios/inventories/${btn.dataset.id}`, {method:'DELETE'});
+            const data = await res.json();
+            if (!res.ok) return alert(data.error || 'No se pudo eliminar.');
+            loadMyInventory();
+        });
     } catch(e) {
         console.error('Error en loadMyInventory:', e);
     }
