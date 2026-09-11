@@ -1,28 +1,86 @@
 /* ======================================================
-   REDISEÑO VISUAL TEC-RADIOS (Basado en la 3ª Referencia)
+   REDISEÑO VISUAL TEC-RADIOS (Paleta Cálida Corporativa)
+   Colores Principales:
+   - Base Marfil: #F0F0E1
+   - Arena Beige: #D7C3A5
+   - Terracota Arcilla: #C89B87
    ====================================================== */
 
+:root {
+    --radio-bg-main: #F0F0E1;
+    --radio-sand: #D7C3A5;
+    --radio-sand-light: #F7F5EE;
+    --radio-sand-dark: #C5B091;
+    
+    --radio-clay: #C89B87;
+    --radio-clay-hover: #B78975;
+    --radio-clay-dark: #A47763;
+    --radio-clay-light: #F6EDE8;
+    
+    --radio-text-main: #2A2421;
+    --radio-text-muted: #6B625B;
+    --radio-border: #D7C3A5;
+    --radio-border-light: rgba(215, 195, 165, 0.4);
+    
+    --radio-card-bg: #FFFFFF;
+    --radio-sidebar-bg-1: #1E1917;
+    --radio-sidebar-bg-2: #28211E;
+    --radio-sidebar-bg-3: #342A26;
+}
+
 .radios-app-wrapper {
-    background-color: #f4f6f9;
+    background-color: var(--radio-bg-main);
     min-height: 100vh;
-    color: #1e293b;
+    color: var(--radio-text-main);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ------------------------------------------------------
-   Sidebar Oscuro Exclusivo TEC-RADIOS
+   BARRA SUPERIOR GLOBAL MULTI-APP (.global-app-bar)
+   ------------------------------------------------------ */
+.global-app-bar {
+    background-color: #FFFFFF !important;
+    color: var(--radio-text-main) !important;
+    border-bottom: 1.5px solid var(--radio-sand) !important;
+    box-shadow: 0 2px 10px rgba(200, 155, 135, 0.08) !important;
+}
+
+.global-app-platform-title {
+    color: var(--radio-text-muted) !important;
+    font-weight: 800 !important;
+}
+
+.global-app-tab {
+    color: var(--radio-text-muted) !important;
+    font-weight: 700 !important;
+}
+
+.global-app-tab:hover {
+    color: var(--radio-text-main) !important;
+    background-color: var(--radio-bg-main) !important;
+}
+
+.global-app-tab.active {
+    color: #FFFFFF !important;
+    background-color: var(--radio-clay) !important;
+    box-shadow: 0 3px 10px rgba(200, 155, 135, 0.35) !important;
+}
+
+/* ------------------------------------------------------
+   Sidebar Claro Cálido Exclusivo TEC-RADIOS
    ------------------------------------------------------ */
 .sidebar-radios-dark {
-    background: linear-gradient(180deg, #0b1329 0%, #0f172a 40%, #1e293b 100%) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: #FFFFFF !important;
+    border-right: 1.5px solid var(--radio-sand) !important;
     width: 250px;
     display: flex;
     flex-direction: column;
+    box-shadow: 2px 0 10px rgba(200, 155, 135, 0.05);
 }
 
 .sidebar-radios-header {
     padding: 20px 18px 16px 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1.5px solid var(--radio-sand);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -38,13 +96,13 @@
     width: 38px;
     height: 38px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, var(--radio-clay) 0%, var(--radio-clay-hover) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
     font-size: 1.15rem;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 4px 12px rgba(200, 155, 135, 0.35);
 }
 
 .sidebar-radios-titles {
@@ -55,14 +113,15 @@
 .sidebar-radios-title {
     font-weight: 800;
     font-size: 1.05rem;
-    color: #ffffff;
+    color: var(--radio-text-main);
     letter-spacing: 0.5px;
     line-height: 1.2;
 }
 
 .sidebar-radios-subtitle {
     font-size: 0.68rem;
-    color: #94a3b8;
+    color: var(--radio-text-muted);
+    font-weight: 600;
     line-height: 1.2;
     margin-top: 2px;
 }
@@ -81,8 +140,8 @@
     gap: 12px;
     padding: 10px 14px;
     border-radius: 8px;
-    color: #94a3b8;
-    font-weight: 500;
+    color: #524943;
+    font-weight: 600;
     font-size: 0.88rem;
     background: transparent;
     border: none;
@@ -96,38 +155,38 @@
     font-size: 1.05rem;
     width: 20px;
     text-align: center;
-    color: #64748b;
+    color: #8C7F75;
     transition: color 0.2s ease;
 }
 
 .sidebar-radios-nav .radio-sidebar-nav-item:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.06);
+    color: var(--radio-text-main);
+    background: var(--radio-bg-main);
 }
 
 .sidebar-radios-nav .radio-sidebar-nav-item:hover i {
-    color: #38bdf8;
+    color: var(--radio-clay);
 }
 
 .sidebar-radios-nav .radio-sidebar-nav-item.active {
-    color: #ffffff;
-    background: #2563eb;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    color: #ffffff !important;
+    background: var(--radio-clay) !important;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(200, 155, 135, 0.35);
 }
 
 .sidebar-radios-nav .radio-sidebar-nav-item.active i {
-    color: #ffffff;
+    color: #ffffff !important;
 }
 
 .sidebar-radios-footer {
     padding: 16px 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1.5px solid var(--radio-sand);
 }
 
 .sidebar-radios-divider {
     height: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--radio-sand);
     margin: 8px 0;
 }
 
@@ -135,14 +194,14 @@
    Encabezado Interno Superior TEC-RADIOS
    ------------------------------------------------------ */
 .radios-header-bar {
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--radio-card-bg);
+    border-bottom: 1px solid var(--radio-sand);
     padding: 10px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 2px 8px rgba(200, 155, 135, 0.08);
 }
 
 .radios-header-property {
@@ -153,20 +212,26 @@
 
 .radios-header-property-label {
     font-size: 0.85rem;
-    font-weight: 600;
-    color: #475569;
+    font-weight: 700;
+    color: var(--radio-text-muted);
 }
 
 .radios-header-property-select {
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 6px 12px;
+    background: var(--radio-sand-light);
+    border: 1.5px solid var(--radio-sand);
+    border-radius: 8px;
+    padding: 6px 14px;
     font-size: 0.88rem;
-    font-weight: 600;
-    color: #0f172a;
+    font-weight: 700;
+    color: var(--radio-text-main);
     outline: none;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.radios-header-property-select:focus {
+    border-color: var(--radio-clay);
+    box-shadow: 0 0 0 3px rgba(200, 155, 135, 0.2);
 }
 
 .radios-header-right {
@@ -179,20 +244,20 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background: var(--radio-sand-light);
+    border: 1px solid var(--radio-sand);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: var(--radio-clay-dark);
     cursor: pointer;
     position: relative;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .radios-header-icon-btn:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: var(--radio-sand);
+    color: #ffffff;
 }
 
 .radios-header-user {
@@ -203,17 +268,17 @@
 }
 
 .radios-header-avatar {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    background: #1d4ed8;
+    background: var(--radio-clay);
     color: #ffffff;
-    font-weight: 700;
-    font-size: 0.85rem;
+    font-weight: 800;
+    font-size: 0.88rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(29, 78, 216, 0.3);
+    box-shadow: 0 3px 8px rgba(200, 155, 135, 0.35);
 }
 
 .radios-header-user-info {
@@ -223,19 +288,19 @@
 
 .radios-header-user-name {
     font-size: 0.88rem;
-    font-weight: 700;
-    color: #0f172a;
+    font-weight: 800;
+    color: var(--radio-text-main);
     line-height: 1.2;
 }
 
 .radios-header-user-role {
     font-size: 0.72rem;
-    color: #64748b;
+    color: var(--radio-text-muted);
     line-height: 1.2;
 }
 
 /* ------------------------------------------------------
-   Grid de KPIs Dashboard (Estilo 3ª Referencia)
+   Grid de KPIs Dashboard
    ------------------------------------------------------ */
 .radios-kpi-grid {
     display: grid;
@@ -257,20 +322,21 @@
 }
 
 .radios-kpi-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 14px 16px;
+    background: var(--radio-card-bg);
+    border: 1px solid var(--radio-sand);
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 3px 10px rgba(200, 155, 135, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .radios-kpi-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 6px 16px rgba(200, 155, 135, 0.15);
+    border-color: var(--radio-clay);
 }
 
 .radios-kpi-left {
@@ -280,8 +346,8 @@
 
 .radios-kpi-title {
     font-size: 0.78rem;
-    font-weight: 600;
-    color: #64748b;
+    font-weight: 700;
+    color: var(--radio-text-muted);
     margin-bottom: 4px;
 }
 
@@ -292,54 +358,54 @@
 }
 
 .radios-kpi-value {
-    font-size: 1.5rem;
+    font-size: 1.55rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--radio-text-main);
     line-height: 1;
 }
 
 .radios-kpi-badge {
     font-size: 0.7rem;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
 }
 
 .radios-kpi-icon {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
 }
 
-/* Colores Semánticos de KPIs */
-.kpi-blue .radios-kpi-icon { background: #eff6ff; color: #2563eb; }
-.kpi-green .radios-kpi-icon { background: #f0fdf4; color: #16a34a; }
-.kpi-green .radios-kpi-badge { background: #dcfce7; color: #15803d; }
+/* Colores Semánticos Adaptados */
+.kpi-blue .radios-kpi-icon { background: var(--radio-clay-light); color: var(--radio-clay); }
+.kpi-green .radios-kpi-icon { background: #E8F5E9; color: #2E7D32; }
+.kpi-green .radios-kpi-badge { background: #C8E6C9; color: #1B5E20; }
 
-.kpi-yellow .radios-kpi-icon { background: #fefce8; color: #ca8a04; }
-.kpi-yellow .radios-kpi-badge { background: #fef9c3; color: #a16207; }
+.kpi-yellow .radios-kpi-icon { background: #FFF8E1; color: #B78103; }
+.kpi-yellow .radios-kpi-badge { background: #FFECB3; color: #8C6202; }
 
-.kpi-orange .radios-kpi-icon { background: #fff7ed; color: #ea580c; }
-.kpi-orange .radios-kpi-badge { background: #ffedd5; color: #c2410c; }
+.kpi-orange .radios-kpi-icon { background: #FBE9E7; color: #D84315; }
+.kpi-orange .radios-kpi-badge { background: #FFCCBC; color: #BF360C; }
 
-.kpi-red .radios-kpi-icon { background: #fef2f2; color: #dc2626; }
-.kpi-red .radios-kpi-badge { background: #fee2e2; color: #b91c1c; }
+.kpi-red .radios-kpi-icon { background: #FFEBEE; color: #C62828; }
+.kpi-red .radios-kpi-badge { background: #FFCDD2; color: #B71C1C; }
 
-.kpi-dark .radios-kpi-icon { background: #f1f5f9; color: #334155; }
-.kpi-dark .radios-kpi-badge { background: #e2e8f0; color: #1e293b; }
+.kpi-dark .radios-kpi-icon { background: var(--radio-sand-light); color: var(--radio-clay-dark); }
+.kpi-dark .radios-kpi-badge { background: var(--radio-sand); color: var(--radio-text-main); }
 
-.kpi-cyan .radios-kpi-icon { background: #ecfeff; color: #0891b2; }
-.kpi-cyan .radios-kpi-badge { background: #cffafe; color: #0e7490; }
+.kpi-cyan .radios-kpi-icon { background: var(--radio-sand-light); color: var(--radio-clay); }
+.kpi-cyan .radios-kpi-badge { background: var(--radio-sand); color: var(--radio-text-main); }
 
-.kpi-gray .radios-kpi-icon { background: #f8fafc; color: #64748b; }
-.kpi-gray .radios-kpi-badge { background: #f1f5f9; color: #475569; }
+.kpi-gray .radios-kpi-icon { background: var(--radio-sand-light); color: var(--radio-text-muted); }
+.kpi-gray .radios-kpi-badge { background: var(--radio-sand); color: var(--radio-text-main); }
 
 /* ------------------------------------------------------
-   Sección 3 Bloques Centrales Dashboard
+   Bloques Centrales y Tarjetas General
    ------------------------------------------------------ */
 .radios-dashboard-middle {
     display: grid;
@@ -355,11 +421,11 @@
 }
 
 .radios-card-box {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    background: var(--radio-card-bg);
+    border: 1px solid var(--radio-sand);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 4px 14px rgba(200, 155, 135, 0.06);
 }
 
 .radios-card-header {
@@ -370,9 +436,9 @@
 }
 
 .radios-card-title {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--radio-text-main);
 }
 
 /* Bars list por departamento */
@@ -392,20 +458,22 @@
     display: flex;
     justify-content: space-between;
     font-size: 0.78rem;
-    font-weight: 600;
-    color: #334155;
+    font-weight: 700;
+    color: var(--radio-text-main);
 }
 
 .radios-dept-bar-track {
     height: 8px;
-    background: #f1f5f9;
+    background: var(--radio-sand-light);
     border-radius: 4px;
     overflow: hidden;
+    border: 1px solid rgba(215, 195, 165, 0.3);
 }
 
 .radios-dept-bar-fill {
     height: 100%;
     border-radius: 4px;
+    background: linear-gradient(90deg, var(--radio-sand) 0%, var(--radio-clay) 100%);
     transition: width 0.4s ease;
 }
 
@@ -423,44 +491,45 @@
 }
 
 .radios-alert-card {
-    background: #ffffff;
-    border-radius: 8px;
+    background: var(--radio-card-bg);
+    border-radius: 10px;
     padding: 12px 14px;
     display: flex;
     align-items: center;
     gap: 12px;
-    border-left: 4px solid #cbd5e1;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    border-left: 4px solid var(--radio-sand);
+    border: 1px solid var(--radio-sand);
+    box-shadow: 0 2px 6px rgba(200, 155, 135, 0.05);
 }
 
-.radios-alert-card.alert-yellow { border-left-color: #eab308; background: #fffbeb; }
-.radios-alert-card.alert-red { border-left-color: #ef4444; background: #fef2f2; }
-.radios-alert-card.alert-dark { border-left-color: #475569; background: #f8fafc; }
-.radios-alert-card.alert-orange { border-left-color: #f97316; background: #fff7ed; }
+.radios-alert-card.alert-yellow { border-left: 4px solid #ca8a04; background: #FFFDF5; }
+.radios-alert-card.alert-red { border-left: 4px solid #dc2626; background: #FFF8F8; }
+.radios-alert-card.alert-dark { border-left: 4px solid var(--radio-clay-dark); background: var(--radio-sand-light); }
+.radios-alert-card.alert-orange { border-left: 4px solid #ea580c; background: #FFF9F5; }
 
 .radios-alert-val {
     font-size: 1.25rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--radio-text-main);
 }
 
 .radios-alert-txt {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: #475569;
+    font-weight: 700;
+    color: var(--radio-text-muted);
     line-height: 1.2;
 }
 
 /* ------------------------------------------------------
-   Pantalla CONSULTAR RADIO (Ficha Motorola R7)
+   Pantalla CONSULTAR RADIO
    ------------------------------------------------------ */
 .radio-search-banner {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    background: var(--radio-card-bg);
+    border: 1px solid var(--radio-sand);
+    border-radius: 14px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 14px rgba(200, 155, 135, 0.06);
 }
 
 .radio-search-input-group {
@@ -473,27 +542,30 @@
     flex: 1;
     height: 44px;
     padding: 0 16px 0 42px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    border: 1.5px solid var(--radio-sand);
+    border-radius: 10px;
     font-size: 0.95rem;
+    background: var(--radio-sand-light);
+    color: var(--radio-text-main);
     outline: none;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .radio-search-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    border-color: var(--radio-clay);
+    box-shadow: 0 0 0 3px rgba(200, 155, 135, 0.2);
+    background: #ffffff;
 }
 
 .radio-card-detail-layout {
     display: grid;
     grid-template-columns: 240px 1fr 220px;
     gap: 20px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    background: var(--radio-card-bg);
+    border: 1px solid var(--radio-sand);
+    border-radius: 14px;
     padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 16px rgba(200, 155, 135, 0.08);
 }
 
 @media (max-width: 960px) {
@@ -506,16 +578,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8fafc;
-    border-radius: 10px;
+    background: var(--radio-sand-light);
+    border-radius: 12px;
     padding: 16px;
-    border: 1px solid #f1f5f9;
+    border: 1px solid var(--radio-sand);
 }
 
 .radio-img-box img {
     max-height: 260px;
     object-fit: contain;
-    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15));
+    filter: drop-shadow(0 8px 12px rgba(200, 155, 135, 0.2));
 }
 
 .radio-detail-grid {
@@ -532,16 +604,16 @@
 
 .radio-detail-label {
     font-size: 0.72rem;
-    font-weight: 600;
-    color: #64748b;
+    font-weight: 700;
+    color: var(--radio-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.4px;
 }
 
 .radio-detail-value {
     font-size: 0.88rem;
-    font-weight: 700;
-    color: #0f172a;
+    font-weight: 800;
+    color: var(--radio-text-main);
 }
 
 .radio-detail-actions {
@@ -554,25 +626,25 @@
 .radio-detail-actions .btn {
     width: 100%;
     justify-content: center;
-    height: 38px;
+    height: 40px;
     font-size: 0.85rem;
-    font-weight: 600;
-    border-radius: 6px;
+    font-weight: 700;
+    border-radius: 8px;
 }
 
 /* ------------------------------------------------------
-   Pantalla INVENTARIO FORMAL (Pasos Escalonados)
+   Pantalla INVENTARIO FORMAL Y TABLAS
    ------------------------------------------------------ */
 .radio-inv-steps {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    background: var(--radio-card-bg);
+    border: 1px solid var(--radio-sand);
+    border-radius: 12px;
     padding: 14px 18px;
     margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 12px rgba(200, 155, 135, 0.05);
 }
 
 @media (max-width: 768px) {
@@ -593,10 +665,10 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: #2563eb;
+    background: var(--radio-clay);
     color: #ffffff;
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -604,17 +676,18 @@
 
 .radio-step-select {
     flex: 1;
-    height: 38px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    height: 40px;
+    border: 1.5px solid var(--radio-sand);
+    border-radius: 8px;
     padding: 0 10px;
     font-size: 0.85rem;
-    font-weight: 600;
-    color: #0f172a;
+    font-weight: 700;
+    color: var(--radio-text-main);
+    background: var(--radio-sand-light);
 }
 
 .radio-step-arrow {
-    color: #cbd5e1;
+    color: var(--radio-sand-dark);
     font-size: 0.9rem;
 }
 
@@ -627,25 +700,56 @@
 }
 
 .radios-table-compact th {
-    background: #f8fafc;
-    color: #475569;
+    background: var(--radio-sand-light);
+    color: var(--radio-text-muted);
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 10px 12px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 11px 12px;
+    border-bottom: 2px solid var(--radio-sand);
 }
 
 .radios-table-compact td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #f1f5f9;
-    color: #1e293b;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--radio-border-light);
+    color: var(--radio-text-main);
     vertical-align: middle;
 }
 
 .radios-table-compact tr:hover td {
-    background: #f8fafc;
+    background: var(--radio-sand-light);
+}
+
+/* ------------------------------------------------------
+   Botones Generales Módulo Radios
+   ------------------------------------------------------ */
+.btn-primary, .btn-primary-custom, #btn-rad-view-history, .btn-search-trigger {
+    background: var(--radio-clay) !important;
+    border-color: var(--radio-clay) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover, .btn-primary-custom:hover, #btn-rad-view-history:hover, .btn-search-trigger:hover {
+    background: var(--radio-clay-hover) !important;
+    border-color: var(--radio-clay-hover) !important;
+    box-shadow: 0 4px 12px rgba(200, 155, 135, 0.35);
+}
+
+.btn-outline, .btn-secondary {
+    border: 1.5px solid var(--radio-sand) !important;
+    color: var(--radio-text-main) !important;
+    background: var(--radio-sand-light) !important;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.btn-outline:hover, .btn-secondary:hover {
+    border-color: var(--radio-clay) !important;
+    background: var(--radio-sand) !important;
+    color: #ffffff !important;
 }
 
 /* Modales y Formularios TEC-RADIOS */
@@ -653,14 +757,15 @@
     display: flex !important;
     align-items: center;
     justify-content: center;
-    background: rgba(15, 23, 42, 0.7) !important;
+    background: rgba(42, 34, 30, 0.7) !important;
     backdrop-filter: blur(4px);
     z-index: 9999;
 }
 
 .modal-content {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0;
+    background: var(--radio-card-bg) !important;
+    border: 1.5px solid var(--radio-sand);
+    box-shadow: 0 20px 40px rgba(42, 34, 30, 0.25);
     animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -671,14 +776,217 @@
 
 .form-control {
     border-radius: 8px;
-    border: 1.5px solid #cbd5e1;
-    color: #0f172a;
+    border: 1.5px solid var(--radio-sand);
+    color: var(--radio-text-main);
+    background: #ffffff;
     transition: all 0.2s ease;
 }
 
 .form-control:focus {
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+    border-color: var(--radio-clay) !important;
+    box-shadow: 0 0 0 3px rgba(200, 155, 135, 0.2) !important;
     outline: none;
 }
+
+.badge-outline {
+    border: 1px solid var(--radio-sand);
+    background: var(--radio-sand-light);
+    color: var(--radio-text-muted);
+}
+
+/* ------------------------------------------------------
+   ESTILOS DASHBOARD DE CONSULTA (ENCARGADOS / VIEWERS)
+   ------------------------------------------------------ */
+.query-bar-fill {
+    height: 8px;
+    background: #3b82f6;
+    border-radius: 6px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.query-bar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+    flex: 1;
+}
+
+.query-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+}
+
+.query-bar-label {
+    min-width: 140px;
+    font-weight: 700;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.query-bar-val {
+    font-weight: 800;
+    color: #0f172a;
+    min-width: 28px;
+    text-align: right;
+    font-size: 13px;
+}
+
+.query-prop-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+    font-weight: 600;
+    font-size: 12.5px;
+    transition: all 0.15s ease;
+}
+
+.query-prop-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateX(2px);
+}
+
+.query-badge-operativo {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.query-badge-reparacion {
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fde68a;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.query-badge-fuera {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ------------------------------------------------------
+   ACORDEÓN JERÁRQUICO HORIZONTAL DE PERMISOS
+   ------------------------------------------------------ */
+.perm-matrix-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.perm-hotel-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: border-color 0.2s ease;
+}
+
+.perm-hotel-card.selected {
+    border-color: #93c5fd;
+}
+
+.perm-hotel-header {
+    background: #f8fafc;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.perm-hotel-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.perm-dept-item {
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    background: #fafafa;
+    padding: 8px 12px;
+}
+
+.perm-subdept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px;
+    margin-top: 6px;
+    padding-left: 20px;
+}
+
+.perm-subdept-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+}
+
+.perm-subdept-badge:hover {
+    background: #f1f5f9;
+}
+
+/* Campana de Notificaciones */
+.rad-notif-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.15s ease;
+}
+
+.rad-notif-item.unread {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.rad-notif-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
 

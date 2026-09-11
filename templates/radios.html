@@ -3,6 +3,10 @@
 {% block title %}TEC-RADIOS | Gestión e Inventario de Radios{% endblock %}
 
 {% block content %}
+<script>
+    window.IS_RADIO_QUERY_USER = {{ 'true' if is_query_user else 'false' }};
+    window.RADIO_ROLE = "{{ radio_role or 'admin' }}";
+</script>
 <div id="view-radios" class="radios-app-wrapper">
 
     <!-- CONTENIDO PRINCIPAL DE TEC-RADIOS -->
@@ -10,183 +14,413 @@
 
         <!-- 1. TAB INICIO / DASHBOARD -->
         <div id="tab-dashboard" class="radio-tab-content active">
-            <!-- Header Dashboard -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-                <div>
-                    <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Bienvenido, <span id="rad-dash-welcome-name">Usuario</span></h2>
-                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Aquí tienes un resumen del estado de los radios de tu propiedad.</p>
+
+            <!-- ======================================================== -->
+            <!-- A. VISTA DE CONSULTA (ENCARGADO DE DEPARTAMENTO / CONSULTA) -->
+            <!-- ======================================================== -->
+            <div id="rad-dash-query-container" style="display: {{ 'block' if is_query_user else 'none' }};">
+                <!-- Header Vista Consulta -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Inicio - Vista de Consulta</h2>
+                        <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Hola, <span id="rad-qdash-welcome-user" style="font-weight: 700;">{{ current_user.username if current_user else 'Usuario' }}</span> 👋 Aquí puedes consultar el estado de los radios de tu departamento.</p>
+                    </div>
                 </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: block;">Hoy</span>
-                    <span style="font-size: 0.9rem; font-weight: 700; color: #0f172a;" id="rad-dash-current-date">5 de septiembre de 2026</span>
+
+                <!-- BARRA DE FILTROS DEPENDIENTES -->
+                <div class="radios-card-box query-filter-bar" style="padding: 16px 20px; margin-bottom: 22px; background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;">
+                    <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                        <!-- Filtro Propiedad -->
+                        <div style="flex: 1; min-width: 220px;">
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px;">Propiedad</label>
+                            <div style="position: relative;">
+                                <i class="fa-solid fa-hotel" style="position: absolute; left: 12px; top: 12px; color: #64748b; font-size: 13px;"></i>
+                                <select id="rad-qfilter-prop" class="form-control" style="height: 38px; padding-left: 34px; font-size: 13px; font-weight: 600; border-radius: 8px;">
+                                    <option value="all">Todas mis propiedades</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Filtro Departamento -->
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px;">Departamento</label>
+                            <select id="rad-qfilter-dept" class="form-control" style="height: 38px; font-size: 13px; font-weight: 600; border-radius: 8px;">
+                                <option value="all">Todos los departamentos</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtro Subdepartamento -->
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px;">Subdepartamento</label>
+                            <select id="rad-qfilter-subdept" class="form-control" style="height: 38px; font-size: 13px; font-weight: 600; border-radius: 8px;">
+                                <option value="all">Todos los subdepartamentos</option>
+                            </select>
+                        </div>
+
+                        <!-- Botón Limpiar Filtros -->
+                        <div style="margin-left: auto;">
+                            <button type="button" class="btn btn-outline" id="btn-rad-qfilter-clear" style="height: 38px; font-size: 12.5px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 6px; padding: 0 16px;">
+                                <i class="fa-solid fa-rotate-left"></i> Limpiar filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 CARDS INDICADORES DE CONSULTA (CLICABLES) -->
+                <div class="radios-kpi-grid query-kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 22px;">
+                    <!-- Card 1: Total Asignados -->
+                    <div class="radios-kpi-card query-interactive-card" onclick="filterRadiosByDashboardStatus('all')" title="Ver todos los radios asignados" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s ease;">
+                        <div>
+                            <span style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px;">Total de Radios Asignados</span>
+                            <div style="display: flex; align-items: baseline; gap: 8px;">
+                                <span style="font-size: 2rem; font-weight: 900; color: #0f172a;" id="rad-qstat-total">0</span>
+                                <span style="font-size: 11.5px; color: #64748b; font-weight: 600;" id="rad-qstat-sub-props">en 0 propiedades</span>
+                            </div>
+                        </div>
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(241, 245, 249, 0.9); color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                            <i class="fa-solid fa-walkie-talkie"></i>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Operativos -->
+                    <div class="radios-kpi-card query-interactive-card" onclick="filterRadiosByDashboardStatus('operativo')" title="Filtrar radios Operativos" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s ease;">
+                        <div>
+                            <span style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px;">Operativos</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 2rem; font-weight: 900; color: #0f172a;" id="rad-qstat-operativos">0</span>
+                                <span class="badge" style="background: #dcfce7; color: #166534; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px;" id="rad-qstat-operativos-pct">0%</span>
+                            </div>
+                        </div>
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: En Reparación -->
+                    <div class="radios-kpi-card query-interactive-card" onclick="filterRadiosByDashboardStatus('en_reparacion')" title="Filtrar radios En Reparación" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s ease;">
+                        <div>
+                            <span style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px;">En Reparación</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 2rem; font-weight: 900; color: #0f172a;" id="rad-qstat-reparacion">0</span>
+                                <span class="badge" style="background: #fef3c7; color: #92400e; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px;" id="rad-qstat-reparacion-pct">0%</span>
+                            </div>
+                        </div>
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: #fffbeb; color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                            <i class="fa-solid fa-wrench"></i>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Fuera de Servicio -->
+                    <div class="radios-kpi-card query-interactive-card" onclick="filterRadiosByDashboardStatus('fuera_servicio')" title="Filtrar radios Fuera de Servicio" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s ease;">
+                        <div>
+                            <span style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px;">Fuera de Servicio</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 2rem; font-weight: 900; color: #0f172a;" id="rad-qstat-fuera">0</span>
+                                <span class="badge" style="background: #fee2e2; color: #991b1b; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px;" id="rad-qstat-fuera-pct">0%</span>
+                            </div>
+                        </div>
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: #fef2f2; color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                            <i class="fa-solid fa-ban"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3 SECCIONES GRÁFICAS -->
+                <div style="display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 18px; margin-bottom: 22px;">
+                    <!-- Bloque 1: Radios por Propiedad -->
+                    <div class="radios-card-box" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <span style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Radios por Propiedad</span>
+                            <span style="font-size: 11px; font-weight: 600; color: #64748b;">Cantidad</span>
+                        </div>
+                        <div id="rad-qprop-bars-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 220px; overflow-y: auto;">
+                            <div style="text-align: center; color: #94a3b8; font-size: 12px; padding: 20px;">Cargando propiedades...</div>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 2: Estado de los Radios (Donut Central) -->
+                    <div class="radios-card-box" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="margin-bottom: 12px;">
+                            <span style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Estado de los Radios</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                            <!-- Canvas con Total Centrado -->
+                            <div style="position: relative; width: 170px; height: 170px; flex-shrink: 0;">
+                                <canvas id="rad-qstatus-donut-chart"></canvas>
+                                <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+                                    <span style="font-size: 1.5rem; font-weight: 900; color: #0f172a; line-height: 1;" id="rad-qdonut-center-total">0</span>
+                                    <span style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Total</span>
+                                </div>
+                            </div>
+                            <!-- Leyendas -->
+                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; flex: 1;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="display: flex; align-items: center; gap: 6px; color: #475569; font-weight: 600;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Operativo</span>
+                                    <strong style="color: #0f172a;" id="rad-qleg-op">0%</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="display: flex; align-items: center; gap: 6px; color: #475569; font-weight: 600;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> En Reparación</span>
+                                    <strong style="color: #0f172a;" id="rad-qleg-rep">0%</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="display: flex; align-items: center; gap: 6px; color: #475569; font-weight: 600;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span> Fuera de Servicio</span>
+                                    <strong style="color: #0f172a;" id="rad-qleg-fuera">0%</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 3: Top Subdepartamentos -->
+                    <div class="radios-card-box" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <span style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Top Subdepartamentos</span>
+                            <span style="font-size: 11px; font-weight: 600; color: #64748b;">Radios</span>
+                        </div>
+                        <div id="rad-qsubdepts-bars-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 220px; overflow-y: auto;">
+                            <div style="text-align: center; color: #94a3b8; font-size: 12px; padding: 20px;">Cargando subdepartamentos...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILA INFERIOR (MIS RADIOS ASIGNADOS + ACCIONES RÁPIDAS) -->
+                <div style="display: grid; grid-template-columns: 1fr 340px; gap: 18px;">
+                    <!-- Tabla Mis Radios Asignados -->
+                    <div class="radios-card-box" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0;">Mis Radios Asignados</h3>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="switchRadioTab('tab-inventory')" style="font-size: 11.5px; font-weight: 700; border-radius: 6px;">Ver todos</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="radios-table-compact" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>CÓDIGO</th>
+                                        <th>SERIE</th>
+                                        <th>MODELO</th>
+                                        <th>PROPIEDAD</th>
+                                        <th>USUARIO ACTUAL</th>
+                                        <th>ESTADO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rad-qtable-assigned-tbody">
+                                    <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 20px;">Cargando radios asignados...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Columna Lateral: Tarjeta Reporte + Mis Propiedades -->
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <!-- Tarjeta Reportar Incidencia -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; text-align: left;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <div style="width: 28px; height: 28px; border-radius: 6px; background: #fff7ed; color: #ea580c; display: flex; align-items: center; justify-content: center; font-size: 14px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <span style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Reportar Incidencia</span>
+                            </div>
+                            <p style="font-size: 12px; color: #64748b; margin: 0 0 14px 0; line-height: 1.4;">¿Tienes un problema con algún radio? Repórtalo al equipo de administración.</p>
+                            <button type="button" class="btn btn-primary" id="btn-qdash-report-now" style="width: 100%; padding: 10px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Reportar ahora
+                            </button>
+                        </div>
+
+                        <!-- Tarjeta Mis Propiedades Asignadas -->
+                        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="font-size: 13px; font-weight: 800; color: #0f172a;">Mis Propiedades Asignadas</span>
+                                <button type="button" class="btn btn-link btn-sm p-0" id="btn-qdash-all-props" style="font-size: 11px; font-weight: 700; color: var(--color-primary); text-decoration: none;">Ver todas</button>
+                            </div>
+                            <div id="rad-qdash-assigned-props-list" style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                                <div style="color: #94a3b8; font-size: 11.5px;">Cargando propiedades...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- GRID 8 KPIS COMPACTAS -->
-            <div class="radios-kpi-grid">
-                <!-- 1. Total Radios -->
-                <div class="radios-kpi-card kpi-blue">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Total de Radios</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-total">0</span>
-                        </div>
+            <!-- ======================================================== -->
+            <!-- B. VISTA ADMINISTRATIVA (ADMINISTRADOR TEC-RADIOS)       -->
+            <!-- ======================================================== -->
+            <div id="rad-dash-admin-container" style="display: {{ 'none' if is_query_user else 'block' }};">
+                <!-- Header Dashboard -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Bienvenido, <span id="rad-dash-welcome-name">Usuario</span></h2>
+                        <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Aquí tienes un resumen del estado de los radios de tu propiedad. Haz clic en cualquier tarjeta para filtrar el inventario.</p>
                     </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-walkie-talkie"></i></div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: block;">Hoy</span>
+                        <span style="font-size: 0.9rem; font-weight: 700; color: #0f172a;" id="rad-dash-current-date">5 de septiembre de 2026</span>
+                    </div>
                 </div>
 
-                <!-- 2. Operativos -->
-                <div class="radios-kpi-card kpi-green">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Operativos</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-operativos">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-operativos-pct">0%</span>
+                <!-- GRID 8 KPIS COMPACTAS (CLICABLES) -->
+                <div class="radios-kpi-grid">
+                    <!-- 1. Total Radios -->
+                    <div class="radios-kpi-card kpi-blue interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('all')" title="Ver todos los radios" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Total de Radios</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-total">0</span>
+                            </div>
                         </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-walkie-talkie"></i></div>
                     </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+
+                    <!-- 2. Operativos -->
+                    <div class="radios-kpi-card kpi-green interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('operativo')" title="Filtrar radios Operativos" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Operativos</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-operativos">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-operativos-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+
+                    <!-- 3. Requieren Revisión -->
+                    <div class="radios-kpi-card kpi-yellow interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('requiere_revision')" title="Filtrar radios que Requieren Revisión" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Requiere Revisión</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-revision">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-revision-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+
+                    <!-- 4. En Reparación -->
+                    <div class="radios-kpi-card kpi-orange interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('en_reparacion')" title="Filtrar radios En Reparación" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">En Reparación</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-reparacion">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-reparacion-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-wrench"></i></div>
+                    </div>
+
+                    <!-- 5. Dañados -->
+                    <div class="radios-kpi-card kpi-red interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('danado')" title="Filtrar radios Dañados" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Dañados</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-danados">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-danados-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-circle-xmark"></i></div>
+                    </div>
+
+                    <!-- 6. Perdidos -->
+                    <div class="radios-kpi-card kpi-dark interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('perdido')" title="Filtrar radios Perdidos / No Localizados" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Perdidos</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-perdidos">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-perdidos-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-circle-question"></i></div>
+                    </div>
+
+                    <!-- 7. Fuera de Servicio -->
+                    <div class="radios-kpi-card kpi-cyan interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('fuera_servicio')" title="Filtrar radios Fuera de Servicio" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Fuera de Servicio</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-fuera">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-fuera-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-ban"></i></div>
+                    </div>
+
+                    <!-- 8. Disponibles -->
+                    <div class="radios-kpi-card kpi-gray interactive-kpi-btn" onclick="filterRadiosByDashboardStatus('disponible')" title="Filtrar radios Disponibles / En Almacén" style="cursor: pointer; transition: all 0.2s ease;">
+                        <div class="radios-kpi-left">
+                            <span class="radios-kpi-title">Disponibles</span>
+                            <div class="radios-kpi-value-group">
+                                <span class="radios-kpi-value" id="rad-stat-disponibles">0</span>
+                                <span class="radios-kpi-badge" id="rad-stat-disponibles-pct">0%</span>
+                            </div>
+                        </div>
+                        <div class="radios-kpi-icon"><i class="fa-solid fa-warehouse"></i></div>
+                    </div>
                 </div>
 
-                <!-- 3. Requieren Revisión -->
-                <div class="radios-kpi-card kpi-yellow">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Requiere Revisión</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-revision">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-revision-pct">0%</span>
+                <!-- SECCIÓN 3 BLOQUES CENTRALES -->
+                <div class="radios-dashboard-middle">
+                    <!-- Bloque 1: Radios por Departamento -->
+                    <div class="radios-card-box">
+                        <div class="radios-card-header">
+                            <span class="radios-card-title">Radios por Departamento</span>
+                        </div>
+                        <div class="radios-dept-bar-list" id="rad-dept-bar-list">
+                            <div style="text-align: center; color: var(--color-text-muted); padding: 16px; font-size: 13px;">Cargando datos por departamento...</div>
                         </div>
                     </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                </div>
 
-                <!-- 4. En Reparación -->
-                <div class="radios-kpi-card kpi-orange">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">En Reparación</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-reparacion">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-reparacion-pct">0%</span>
+                    <!-- Bloque 2: Estado de los Radios (Dona Chart.js) -->
+                    <div class="radios-card-box">
+                        <div class="radios-card-header">
+                            <span class="radios-card-title">Estado de los Radios</span>
+                        </div>
+                        <div style="position: relative; height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="rad-status-chart" style="max-height: 190px;"></canvas>
                         </div>
                     </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-wrench"></i></div>
-                </div>
 
-                <!-- 5. Dañados -->
-                <div class="radios-kpi-card kpi-red">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Dañados</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-danados">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-danados-pct">0%</span>
+                    <!-- Bloque 3: Últimos Inventarios -->
+                    <div class="radios-card-box">
+                        <div class="radios-card-header">
+                            <span class="radios-card-title">Últimos Inventarios</span>
+                            <button class="btn btn-link btn-sm text-primary p-0 radio-tab-btn" data-tab="tab-formal-inv" style="font-weight: 600; text-decoration: none;">Ver todos</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="radios-table-compact">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Departamento</th>
+                                        <th>Radios</th>
+                                        <th>Responsable</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rad-last-inventories-tbody">
+                                    <tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 16px;">Sin inventarios recientes.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-circle-xmark"></i></div>
                 </div>
 
-                <!-- 6. Perdidos -->
-                <div class="radios-kpi-card kpi-dark">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Perdidos</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-perdidos">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-perdidos-pct">0%</span>
-                        </div>
-                    </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-circle-question"></i></div>
-                </div>
-
-                <!-- 7. Fuera de Servicio -->
-                <div class="radios-kpi-card kpi-cyan">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Fuera de Servicio</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-fuera">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-fuera-pct">0%</span>
-                        </div>
-                    </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-ban"></i></div>
-                </div>
-
-                <!-- 8. Disponibles -->
-                <div class="radios-kpi-card kpi-gray">
-                    <div class="radios-kpi-left">
-                        <span class="radios-kpi-title">Disponibles</span>
-                        <div class="radios-kpi-value-group">
-                            <span class="radios-kpi-value" id="rad-stat-disponibles">0</span>
-                            <span class="radios-kpi-badge" id="rad-stat-disponibles-pct">0%</span>
-                        </div>
-                    </div>
-                    <div class="radios-kpi-icon"><i class="fa-solid fa-warehouse"></i></div>
-                </div>
-            </div>
-
-            <!-- SECCIÓN 3 BLOQUES CENTRALES -->
-            <div class="radios-dashboard-middle">
-                <!-- Bloque 1: Radios por Departamento -->
-                <div class="radios-card-box">
+                <!-- SECCIÓN INFERIOR: ALERTAS -->
+                <div class="radios-card-box mb-4">
                     <div class="radios-card-header">
-                        <span class="radios-card-title">Radios por Departamento</span>
+                        <span class="radios-card-title"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i> Alertas Atendibles</span>
                     </div>
-                    <div class="radios-dept-bar-list" id="rad-dept-bar-list">
-                        <div style="text-align: center; color: var(--color-text-muted); padding: 16px; font-size: 13px;">Cargando datos por departamento...</div>
-                    </div>
-                </div>
-
-                <!-- Bloque 2: Estado de los Radios (Dona Chart.js) -->
-                <div class="radios-card-box">
-                    <div class="radios-card-header">
-                        <span class="radios-card-title">Estado de los Radios</span>
-                    </div>
-                    <div style="position: relative; height: 200px; display: flex; align-items: center; justify-content: center;">
-                        <canvas id="rad-status-chart" style="max-height: 190px;"></canvas>
-                    </div>
-                </div>
-
-                <!-- Bloque 3: Últimos Inventarios -->
-                <div class="radios-card-box">
-                    <div class="radios-card-header">
-                        <span class="radios-card-title">Últimos Inventarios</span>
-                        <button class="btn btn-link btn-sm text-primary p-0 radio-tab-btn" data-tab="tab-formal-inv" style="font-weight: 600; text-decoration: none;">Ver todos</button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="radios-table-compact">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Departamento</th>
-                                    <th>Radios</th>
-                                    <th>Responsable</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rad-last-inventories-tbody">
-                                <tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 16px;">Sin inventarios recientes.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SECCIÓN INFERIOR: ALERTAS -->
-            <div class="radios-card-box mb-4">
-                <div class="radios-card-header">
-                    <span class="radios-card-title"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i> Alertas Atendibles</span>
-                </div>
-                <div class="radios-alerts-grid">
-                    <div class="radios-alert-card alert-yellow">
-                        <span class="radios-alert-val" id="rad-alert-noinv-val">0</span>
-                        <span class="radios-alert-txt">Radios sin inventario (&gt; 90 días)</span>
-                    </div>
-                    <div class="radios-alert-card alert-red">
-                        <span class="radios-alert-val" id="rad-alert-danados-val">0</span>
-                        <span class="radios-alert-txt">Radios dañados o fuera de servicio</span>
-                    </div>
-                    <div class="radios-alert-card alert-dark">
-                        <span class="radios-alert-val" id="rad-alert-perdidos-val">0</span>
-                        <span class="radios-alert-txt">Radios no localizados</span>
-                    </div>
-                    <div class="radios-alert-card alert-orange">
-                        <span class="radios-alert-val" id="rad-alert-revision-val">0</span>
-                        <span class="radios-alert-txt">Radios requieren revisión</span>
+                    <div class="radios-alerts-grid">
+                        <div class="radios-alert-card alert-yellow">
+                            <span class="radios-alert-val" id="rad-alert-noinv-val">0</span>
+                            <span class="radios-alert-txt">Radios sin inventario (&gt; 90 días)</span>
+                        </div>
+                        <div class="radios-alert-card alert-red">
+                            <span class="radios-alert-val" id="rad-alert-danados-val">0</span>
+                            <span class="radios-alert-txt">Radios dañados o fuera de servicio</span>
+                        </div>
+                        <div class="radios-alert-card alert-dark">
+                            <span class="radios-alert-val" id="rad-alert-perdidos-val">0</span>
+                            <span class="radios-alert-txt">Radios no localizados</span>
+                        </div>
+                        <div class="radios-alert-card alert-orange">
+                            <span class="radios-alert-val" id="rad-alert-revision-val">0</span>
+                            <span class="radios-alert-txt">Radios requieren revisión</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -286,9 +520,41 @@
         <!-- 3. TAB INVENTARIOS / RADIOS -->
         <div id="tab-inventory" class="radio-tab-content" style="display: none;">
             <div class="radios-card-box mb-4">
-                <div class="radios-card-header">
-                    <span class="radios-card-title">Inventario General de Radios</span>
-                    <button class="btn btn-primary btn-sm" id="btn-add-radio-inventory-tab"><i class="fa-solid fa-plus me-1"></i> Nuevo Radio</button>
+                <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <span class="radios-card-title" id="rad-inventory-tab-title">{{ 'Mis Radios Asignados' if is_query_user else 'Inventario General de Radios' }}</span>
+                        <p style="font-size: 0.82rem; color: #64748b; margin: 2px 0 0 0;">{{ 'Listado de equipos asignados a tu departamento.' if is_query_user else 'Control global de equipos por estado y ubicación.' }}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        {% if not is_query_user %}
+                        <button class="btn btn-primary btn-sm" id="btn-add-radio-inventory-tab"><i class="fa-solid fa-plus me-1"></i> Nuevo Radio</button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Barra de Búsqueda y Filtros de Estado -->
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; background: #f8fafc; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <span style="font-size: 12px; font-weight: 700; color: #475569;"><i class="fa-solid fa-filter me-1"></i> Estado:</span>
+                        <select id="rad-filter-status-select" class="form-control" style="height: 34px; font-size: 12.5px; font-weight: 600; width: 180px; padding: 0 10px;">
+                            <option value="all">Todos los estados</option>
+                            <option value="operativo">🟢 Operativos</option>
+                            <option value="requiere_revision">⚠️ Requiere Revisión</option>
+                            <option value="en_reparacion">🔧 En Reparación</option>
+                            <option value="danado">❌ Dañados</option>
+                            <option value="perdido">❓ Perdidos</option>
+                            <option value="fuera_servicio">🚫 Fuera de Servicio</option>
+                            <option value="disponible">📦 Disponibles / Almacén</option>
+                        </select>
+                        <div id="rad-active-filter-badge" style="display: none; align-items: center; gap: 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">
+                            <span id="rad-active-filter-label">Filtro</span>
+                            <button type="button" id="btn-clear-status-filter" style="background: none; border: none; color: #1d4ed8; cursor: pointer; padding: 0; font-size: 12px; line-height: 1;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                    <div style="position: relative; width: 240px;">
+                        <input type="text" id="rad-inventory-search-input" class="form-control" placeholder="Buscar por serie, ID o custodio..." style="height: 34px; font-size: 12px; padding-left: 30px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 10px; color: #94a3b8; font-size: 12px;"></i>
+                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -302,7 +568,7 @@
                                 <th>Departamento</th>
                                 <th>Asignado a</th>
                                 <th>Estado</th>
-                                <th>Acciones</th>
+                                <th style="text-align: right;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="rad-inventory-tbody">
@@ -636,6 +902,166 @@
                 </form>
             </div>
         </div>
+
+        <!-- 10. TAB REPORTAR / REGISTRO DE INCIDENCIAS -->
+        <div id="tab-incidents" class="radio-tab-content" style="display: none;">
+            <div class="radios-card-box mb-4">
+                <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <span class="radios-card-title"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i> Incidencias y Reportes de Problemas</span>
+                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Monitorea y reporta averías, pérdidas o problemas técnicos de tus radios autorizados.</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="btn-open-modal-incident" style="font-weight: 700;">
+                        <i class="fa-solid fa-plus me-1"></i> Reportar Problema
+                    </button>
+                </div>
+                <div class="table-responsive" style="margin-top: 16px;">
+                    <table class="radios-table-compact">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Radio / Serial</th>
+                                <th>Propiedad</th>
+                                <th>Departamento</th>
+                                <th>Tipo de Problema</th>
+                                <th>Prioridad</th>
+                                <th>Reportado Por</th>
+                                <th>Estado</th>
+                                <th style="text-align: right;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rad-incidents-tbody">
+                            <tr><td colspan="9" style="text-align: center; color: var(--color-text-muted); padding: 20px;">Cargando incidencias...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL REPORTAR INCIDENCIA / PROBLEMA -->
+<div class="modal-overlay" id="modal-radio-incident">
+    <div class="modal-content" style="max-width: 620px; width: 95vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: #fff7ed; color: #ea580c; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a;">REPORTAR PROBLEMA</h3>
+                    <p class="text-secondary" style="margin: 2px 0 0; font-size: 0.82rem;">Notifica al equipo de soporte y administración sobre un problema con el radio.</p>
+                </div>
+            </div>
+            <button class="btn-close" type="button" onclick="closeModal('modal-radio-incident')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="form-radio-incident" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- Buscador de Radio por ID o Serial -->
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 12.5px; color: #334155; margin-bottom: 4px;">Buscar Radio por ID o Serial: <span class="text-danger">*</span></label>
+                <div style="display: flex; gap: 8px;">
+                    <div style="position: relative; flex: 1;">
+                        <input type="text" id="inc-radio-search-input" class="form-control" placeholder="Ingresa el ID (ej: 1035) o número de Serie..." style="height: 42px; font-size: 13.5px; font-weight: 600; padding-left: 36px;" autocomplete="off">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 13px; color: #94a3b8; font-size: 14px;"></i>
+                    </div>
+                    <button type="button" id="btn-inc-radio-search" class="btn btn-primary" style="height: 42px; padding: 0 20px; font-weight: 700; font-size: 13.5px; display: flex; align-items: center; gap: 6px; border-radius: 8px;">
+                        <i class="fa-solid fa-check"></i> OK
+                    </button>
+                </div>
+                <input type="hidden" id="inc-radio-id" name="radio_id" required>
+                <div id="inc-radio-search-feedback" style="font-size: 12px; margin-top: 4px; display: none;"></div>
+            </div>
+
+            <!-- Resumen Informativo del Radio Seleccionado -->
+            <div id="inc-radio-preview" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                <div><span style="color: #64748b;">ID Radio:</span> <strong id="inc-preview-id" style="color: #0f172a;">-</strong></div>
+                <div><span style="color: #64748b;">Serie:</span> <strong id="inc-preview-serial" style="color: #0f172a;">-</strong></div>
+                <div><span style="color: #64748b;">Equipo:</span> <strong id="inc-preview-model" style="color: #0f172a;">-</strong></div>
+                <div><span style="color: #64748b;">Propiedad:</span> <strong id="inc-preview-prop" style="color: #0f172a;">-</strong></div>
+                <div><span style="color: #64748b;">Departamento:</span> <strong id="inc-preview-dept" style="color: #0f172a;">-</strong></div>
+                <div><span style="color: #64748b;">Subdepartamento:</span> <strong id="inc-preview-subdept" style="color: #0f172a;">-</strong></div>
+                <div style="grid-column: span 2;"><span style="color: #64748b;">Usuario / Custodio:</span> <strong id="inc-preview-user" style="color: #0f172a;">-</strong></div>
+            </div>
+
+            <!-- Tipo de Problema -->
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 12.5px; color: #334155; margin-bottom: 4px;">Tipo de problema: <span class="text-danger">*</span></label>
+                <select id="inc-issue-type" class="form-control" required style="height: 40px; font-size: 13.5px;">
+                    <option value="">Seleccionar problema...</option>
+                    <option value="Radio no enciende">Radio no enciende</option>
+                    <option value="Problema de batería">Problema de batería</option>
+                    <option value="Problema de audio">Problema de audio</option>
+                    <option value="Problema de transmisión">Problema de transmisión</option>
+                    <option value="Problema de recepción">Problema de recepción</option>
+                    <option value="Daño físico">Daño físico</option>
+                    <option value="Pérdida">Pérdida</option>
+                    <option value="Accesorio dañado">Accesorio dañado</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
+            <!-- Descripción -->
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 12.5px; color: #334155; margin-bottom: 4px;">Descripción detallada: <span class="text-danger">*</span></label>
+                <textarea id="inc-description" class="form-control" rows="3" placeholder="Describe qué ocurre con el radio, en qué circunstancias falla o qué accesorio está dañado..." required style="font-size: 13px; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Prioridad -->
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 12.5px; color: #334155; margin-bottom: 6px; display: block;">Prioridad:</label>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #475569;">
+                        <input type="radio" name="inc_priority" value="Baja" style="cursor: pointer;"> Baja
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #475569;">
+                        <input type="radio" name="inc_priority" value="Media" checked style="cursor: pointer;"> Media
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #ea580c;">
+                        <input type="radio" name="inc_priority" value="Alta" style="cursor: pointer;"> Alta
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; cursor: pointer; color: #dc2626;">
+                        <input type="radio" name="inc_priority" value="Crítica" style="cursor: pointer;"> Crítica
+                    </label>
+                </div>
+            </div>
+
+            <div id="inc-status-msg" style="display: none; font-size: 12.5px; padding: 10px 14px; border-radius: 8px;"></div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--color-border);">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-radio-incident')" style="padding: 9px 20px; font-weight: 600; border-radius: 8px;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-incident" style="padding: 9px 24px; font-weight: 700; border-radius: 8px; background: #b45309; border-color: #b45309;">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Enviar reporte
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL NOTIFICACIONES / ALERTAS DE TEC-RADIOS -->
+<div class="modal-overlay" id="modal-radio-notifications">
+    <div class="modal-content" style="max-width: 580px; width: 95vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a;">Alertas y Notificaciones TEC-RADIOS</h3>
+                    <p class="text-secondary" style="margin: 2px 0 0; font-size: 0.82rem;">Historial de reportes y eventos exclusivos del sistema de radios.</p>
+                </div>
+            </div>
+            <button class="btn-close" type="button" onclick="closeModal('modal-radio-notifications')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+            <button type="button" class="btn btn-link btn-sm p-0" id="btn-rad-notif-mark-all-read" style="font-size: 12px; font-weight: 700; text-decoration: none; color: var(--color-primary);">
+                <i class="fa-solid fa-check-double me-1"></i> Marcar todas como leídas
+            </button>
+        </div>
+        <div id="rad-notifications-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto;">
+            <div style="text-align: center; color: #94a3b8; padding: 30px; font-size: 13px;">Sin notificaciones pendientes.</div>
+        </div>
+    </div>
 </div>
 
 <!-- MODAL CREAR DEPARTAMENTO / SUBDEPARTAMENTO -->
@@ -727,12 +1153,12 @@
     </div>
 </div>
 
-<!-- MODAL DE TRANSFERENCIA DE RADIO EN INVENTARIO -->
+<!-- MODAL DE TRANSFERENCIA Y REASIGNACIÓN DE RADIO -->
 <div id="modal-radio-transfer-inv" class="modal-overlay">
-    <div class="modal-content" style="max-width: 520px; width: 92vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;">
+    <div class="modal-content" style="max-width: 540px; width: 92vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
             <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-right-left text-primary"></i> Transferir Radio de Ubicación
+                <i class="fa-solid fa-right-left text-primary"></i> Transferir / Reasignar Radio
             </h3>
             <button class="btn-close" type="button" onclick="closeModal('modal-radio-transfer-inv')"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -740,37 +1166,64 @@
             <input type="hidden" id="trans-radio-id">
             <input type="hidden" id="trans-item-id">
             
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
-                <div style="font-size: 0.78rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Radio Seleccionado</div>
-                <div style="font-weight: 800; font-size: 1.1rem; color: #0f172a; margin-top: 2px;" id="trans-radio-title">#---- · Serial: ----</div>
-                <div style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin-top: 4px;" id="trans-radio-current-loc">Ubicación Actual: ----</div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+                <div style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Radio Seleccionado</div>
+                <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a; margin-top: 2px;" id="trans-radio-title">#---- · Serial: ----</div>
+                <div style="font-size: 0.82rem; color: #3b82f6; font-weight: 600; margin-top: 2px;" id="trans-radio-current-loc">Ubicación Actual: ----</div>
+                <div style="font-size: 0.82rem; color: #475569; font-weight: 600; margin-top: 2px;" id="trans-radio-current-person">Custodio Actual: Sin Asignar</div>
+            </div>
+
+            <!-- SECCIÓN PRIMORDIAL: REASIGNACIÓN DE PERSONA -->
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
+                <div style="font-size: 11.5px; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-user-pen"></i> 1. Nuevo Responsable / Custodio
+                </div>
+                <div class="form-group mb-2">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block;">Nuevo Empleado / Responsable</label>
+                    <input type="text" id="trans-person-name" class="form-control" style="height: 38px; font-size: 13px;" placeholder="Nombre completo del nuevo usuario">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block;">Nº Ficha / Empleado</label>
+                        <input type="text" id="trans-person-emp-id" class="form-control" style="height: 38px; font-size: 12.5px;" placeholder="Ej: 525">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block;">Cargo / Puesto</label>
+                        <input type="text" id="trans-person-position" class="form-control" style="height: 38px; font-size: 12.5px;" placeholder="Ej: Agente">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 2: UBICACIÓN DEPARTAMENTAL -->
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;">
+                <div style="font-size: 11.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-sitemap"></i> 2. Ubicación Organizativa Destino
+                </div>
+                <div class="form-group mb-2">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Departamento Destino</label>
+                    <select id="trans-dept-select" class="form-control" style="height: 38px; font-size: 13px; font-weight: 600;"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Subdepartamento Destino</label>
+                    <select id="trans-subdept-select" class="form-control" style="height: 38px; font-size: 13px;">
+                        <option value="">Aplica al Departamento Principal Directamente</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Nuevo Departamento Destino <span class="text-danger">*</span></label>
-                <select id="trans-dept-select" class="form-control" style="height: 42px; font-size: 13.5px; font-weight: 600;" required></select>
-            </div>
-
-            <div class="form-group mb-3">
-                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Nuevo Subdepartamento Destino</label>
-                <select id="trans-subdept-select" class="form-control" style="height: 42px; font-size: 13.5px;">
-                    <option value="">Aplica al Departamento Principal Directamente</option>
-                </select>
-            </div>
-
-            <div class="form-group mb-3">
-                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Observación / Motivo del Traslado</label>
-                <input id="trans-notes-input" class="form-control" style="height: 42px; font-size: 13px;" placeholder="Ej: Traslado verificado durante inventario formal">
+                <label class="form-label" style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Observación / Motivo del Traslado</label>
+                <input id="trans-notes-input" class="form-control" style="height: 38px; font-size: 12.5px;" placeholder="Ej: Reasignación de equipo por cambio de puesto">
             </div>
 
             <div id="trans-status-msg" style="display:none; margin-top: 10px;" class="alert alert-danger"></div>
         </div>
-        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
             <button type="button" class="btn btn-secondary" onclick="closeModal('modal-radio-transfer-inv')" style="padding: 9px 20px; font-weight: 600; border-radius: 8px;">Cancelar</button>
             <button type="button" class="btn btn-primary" id="btn-submit-transfer-radio" style="padding: 9px 22px; font-weight: 700; border-radius: 8px;"><i class="fa-solid fa-check me-1"></i> Confirmar Transferencia</button>
         </div>
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/radios.js') }}?v=30.0.0"></script>
+<script src="{{ url_for('static', filename='js/radios.js') }}?v=31.0.0"></script>
 {% endblock %}

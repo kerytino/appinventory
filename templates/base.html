@@ -34,7 +34,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}?v=12.0.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=12.0.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}?v=12.0.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/radios_redesign.css') }}?v=12.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/radios_redesign.css') }}?v=14.0.0">
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -62,7 +62,7 @@
             <span class="global-app-platform-title">THE EXCELLENCE COLLECTION</span>
         </div>
         <div class="global-app-tabs">
-            <a href="{{ url_for('dashboard') }}" class="global-app-tab {% if request.endpoint != 'radios_view' and request.endpoint != 'tec_radios_view' %}active{% endif %}" id="app-tab-inventory">
+            <a href="{{ url_for('dashboard') }}" class="global-app-tab {% if request.endpoint != 'radios_view' and request.endpoint != 'tec_radios_view' %}active{% endif %}" data-module="tec-inventory" id="app-tab-inventory">
                 <i class="fa-solid fa-boxes-stacked"></i> <span>TEC-INVENTORY</span>
             </a>
             <a href="{{ url_for('radios_view') }}" class="global-app-tab {% if request.endpoint == 'radios_view' or request.endpoint == 'tec_radios_view' %}active{% endif %}" data-module="tec-radios" id="app-tab-radios">
@@ -206,11 +206,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=15.0.0"></script>
-    <script src="{{ url_for('static', filename='js/components.js') }}?v=15.0.0"></script>
-    <script src="{{ url_for('static', filename='js/tables.js') }}?v=15.0.0"></script>
-    <script src="{{ url_for('static', filename='js/modals.js') }}?v=15.0.0"></script>
-    <script src="{{ url_for('static', filename='js/scanner.js') }}?v=15.0.0"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=17.0.0"></script>
+    <script src="{{ url_for('static', filename='js/components.js') }}?v=17.0.0"></script>
+    <script src="{{ url_for('static', filename='js/tables.js') }}?v=17.0.0"></script>
+    <script src="{{ url_for('static', filename='js/modals.js') }}?v=17.0.0"></script>
+    <script src="{{ url_for('static', filename='js/scanner.js') }}?v=17.0.0"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

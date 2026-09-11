@@ -553,6 +553,16 @@ class RadioArea(db.Model):
             'name': self.name
         }
 
+def resolve_radio_image_url(model, image_url=None):
+    if image_url and str(image_url).strip() and str(image_url).strip() != '/static/img/default_radio.svg':
+        return str(image_url).strip()
+    m = str(model or '').strip().upper().replace(' ', '').replace('-', '')
+    if 'DEP450' in m or '450' in m:
+        return '/static/img/dep450.jpg'
+    elif 'DEP250' in m or '250' in m:
+        return '/static/img/dep250.jpg'
+    return '/static/img/default_radio.svg'
+
 class RadioItem(db.Model):
     __tablename__ = 'radio_item'
     id = db.Column(db.Integer, primary_key=True)
@@ -594,6 +604,7 @@ class RadioItem(db.Model):
                 'assignedDate': self.assigned_date or '',
                 'assignedBy': self.assigned_by or ''
             }
+        final_img = resolve_radio_image_url(self.model, self.image_url)
         return {
             'id': str(self.id),
             'radio_code': self.radio_code or str(self.id),
@@ -622,8 +633,8 @@ class RadioItem(db.Model):
             'decommission_date': self.decommission_date or '',
             'decommission_user': self.decommission_user or '',
             'notes': self.notes or '',
-            'image_url': self.image_url or '',
-            'imageUrl': self.image_url or '',
+            'image_url': final_img,
+            'imageUrl': final_img,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }
 
@@ -747,6 +758,86 @@ class RadioFormalInventoryItem(db.Model):
                 'employeeId': self.radio.assigned_employee_id or '',
                 'position': self.radio.assigned_position or ''
             } if self.radio else None
+        }
+
+class RadioIncident(db.Model):
+    __tablename__ = 'radio_incident'
+    id = db.Column(db.Integer, primary_key=True)
+    incident_code = db.Column(db.String(50), nullable=True) # Ej: "INC-2026-001"
+    radio_id = db.Column(db.Integer, db.ForeignKey('radio_item.id', ondelete='CASCADE'), nullable=False, index=True)
+    hotel_id = db.Column(db.Integer, db.ForeignKey('hotel.id'), nullable=False, index=True)
+    department_id = db.Column(db.Integer, db.ForeignKey('radio_department.id'), nullable=True)
+    subdepartment_id = db.Column(db.Integer, db.ForeignKey('radio_department.id'), nullable=True)
+    reported_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    reported_by_name = db.Column(db.String(100), nullable=False)
+    issue_type = db.Column(db.String(100), nullable=False) # Radio no enciende, Problema de batería, etc.
+    description = db.Column(db.Text, nullable=False)
+    priority = db.Column(db.String(50), nullable=False, default='media') # baja, media, alta, critica
+    status = db.Column(db.String(50), nullable=False, default='abierta') # abierta, en_proceso, resuelta, rechazada
+    admin_notes = db.Column(db.Text, nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    resolved_by = db.Column(db.String(100), nullable=True, default='')
+
+    radio = db.relationship('RadioItem', backref=db.backref('incidents', cascade='all, delete-orphan', order_by='RadioIncident.created_at.desc()'))
+    hotel = db.relationship('Hotel')
+    department = db.relationship('RadioDepartment', foreign_keys=[department_id])
+    subdepartment = db.relationship('RadioDepartment', foreign_keys=[subdepartment_id])
+    reported_by_user = db.relationship('User', foreign_keys=[reported_by_user_id])
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'incident_code': self.incident_code or f"INC-{self.id}",
+            'radio_id': str(self.radio_id),
+            'radio_code': self.radio.radio_code if self.radio else str(self.radio_id),
+            'radio_serial': self.radio.serial_number if self.radio else '',
+            'radio_model': self.radio.model if self.radio else '',
+            'hotel_id': self.hotel_id,
+            'property_id': str(self.hotel_id),
+            'property_name': self.hotel.name if self.hotel else '',
+            'property_sigla': self.hotel.sigla if self.hotel else '',
+            'department_id': self.department_id,
+            'department_name': self.department.name if self.department else '',
+            'subdepartment_id': self.subdepartment_id,
+            'subdepartment_name': self.subdepartment.name if self.subdepartment else '',
+            'reported_by_user_id': self.reported_by_user_id,
+            'reported_by_name': self.reported_by_name,
+            'issue_type': self.issue_type,
+            'description': self.description,
+            'priority': self.priority,
+            'status': self.status,
+            'admin_notes': self.admin_notes or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'resolved_at': self.resolved_at.strftime('%Y-%m-%d %H:%M:%S') if self.resolved_at else None,
+            'resolved_by': self.resolved_by or ''
+        }
+
+class RadioNotification(db.Model):
+    __tablename__ = 'radio_notification'
+    id = db.Column(db.Integer, primary_key=True)
+    hotel_id = db.Column(db.Integer, db.ForeignKey('hotel.id'), nullable=False, index=True)
+    incident_id = db.Column(db.Integer, db.ForeignKey('radio_incident.id', ondelete='CASCADE'), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(50), nullable=False, default='info') # info, warning, danger
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    hotel = db.relationship('Hotel')
+    incident = db.relationship('RadioIncident')
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'hotel_id': self.hotel_id,
+            'property_name': self.hotel.name if self.hotel else '',
+            'incident_id': str(self.incident_id) if self.incident_id else None,
+            'title': self.title,
+            'message': self.message,
+            'severity': self.severity,
+            'is_read': self.is_read,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }
 
 def ensure_radio_tables():
@@ -1590,48 +1681,105 @@ def serve_sw():
     response.headers['Service-Worker-Allowed'] = '/'
     return response
 
+def check_user_inventory_permission(module_name=None):
+    if 'user_id' not in session:
+        return None
+    user = get_current_user()
+    if not user:
+        return None
+    
+    role = (user.role or '').strip().lower()
+    if role == 'admin':
+        return None
+        
+    perms = user.get_permissions()
+    inventory_modules = ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion']
+    has_any_inventory = any(p in perms for p in inventory_modules)
+    
+    # Si el usuario solo tiene acceso a radios y NO a inventario, redirigir a TEC-RADIOS
+    if not has_any_inventory and ('tec-radios' in perms or 'radios' in perms):
+        return redirect(url_for('radios_view'))
+        
+    if module_name and module_name not in perms and not has_any_inventory:
+        return redirect(url_for('radios_view'))
+        
+    return None
+
 @app.route('/')
 def index():
+    check_res = check_user_inventory_permission()
+    if check_res:
+        return check_res
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard')
 def dashboard():
+    check_res = check_user_inventory_permission('dashboard')
+    if check_res:
+        return check_res
     return render_template('dashboard.html')
 
 @app.route('/inventario')
 def inventario():
+    check_res = check_user_inventory_permission('inventario')
+    if check_res:
+        return check_res
     return render_template('inventario.html')
 
 @app.route('/decomiso')
 def decomiso():
+    check_res = check_user_inventory_permission('decomiso')
+    if check_res:
+        return check_res
     return render_template('decomiso.html')
 
 @app.route('/despacho')
 def despacho():
+    check_res = check_user_inventory_permission('despacho')
+    if check_res:
+        return check_res
     return render_template('despacho.html')
 
 @app.route('/pendientes')
 def pendientes():
+    check_res = check_user_inventory_permission('pendientes')
+    if check_res:
+        return check_res
     return render_template('pendientes.html')
 
 @app.route('/reparaciones')
 def reparaciones():
+    check_res = check_user_inventory_permission('reparaciones')
+    if check_res:
+        return check_res
     return render_template('reparaciones.html')
 
 @app.route('/prestamos')
 def prestamos():
+    check_res = check_user_inventory_permission('prestamos')
+    if check_res:
+        return check_res
     return render_template('prestamos.html')
 
 @app.route('/herramientas')
 def herramientas():
+    check_res = check_user_inventory_permission('herramientas')
+    if check_res:
+        return check_res
     return render_template('herramientas.html')
 
 @app.route('/pedidos')
 def pedidos():
+    check_res = check_user_inventory_permission('pedidos')
+    if check_res:
+        return check_res
     return render_template('pedidos.html')
 
 @app.route('/configuracion')
 def configuracion():
+    check_res = check_user_inventory_permission('configuracion')
+    if check_res:
+        return check_res
     return render_template('configuracion.html')
 
 # ==============================================================================
@@ -5000,7 +5148,13 @@ def get_user_radio_allowed_hotel_ids(user):
         return [h.id for h in Hotel.query.all()]
     
     accesses = RadioUserPropertyAccess.query.filter_by(user_id=user.id).all()
-    return [a.hotel_id for a in accesses if a.can_view or a.can_manage]
+    hotel_ids = {a.hotel_id for a in accesses if a.can_view or a.can_manage}
+    
+    dept_accesses = RadioUserDepartmentAccess.query.filter_by(user_id=user.id).all()
+    for d in dept_accesses:
+        hotel_ids.add(d.hotel_id)
+        
+    return list(hotel_ids)
 
 def can_user_access_radio_hotel(user, hotel_id, need_manage=False):
     if not user:
@@ -5008,26 +5162,138 @@ def can_user_access_radio_hotel(user, hotel_id, need_manage=False):
     if (user.role or '').strip().lower() == 'admin':
         return True
     
-    access = RadioUserPropertyAccess.query.filter_by(user_id=user.id, hotel_id=hotel_id).first()
-    if not access:
-        return False
     if need_manage:
-        return bool(access.can_manage)
+        access = RadioUserPropertyAccess.query.filter_by(user_id=user.id, hotel_id=hotel_id).first()
+        return bool(access and access.can_manage)
+    else:
+        allowed_ids = get_user_radio_allowed_hotel_ids(user)
+        return hotel_id in allowed_ids
+
+def filter_radios_for_user(query, user, selected_hotel_id=None, selected_dept_id=None, selected_subdept_id=None):
+    if not user:
+        return query.filter(RadioItem.id == -1)
+        
+    is_admin = (user.role or '').strip().lower() == 'admin'
+    perms = user.get_permissions()
+    radio_role = 'viewer'
+    for p in perms:
+        if p.startswith('tec-radios:role:'):
+            radio_role = p.split(':', 2)[2]
+            break
+
+    if is_admin or radio_role == 'admin':
+        if selected_hotel_id and str(selected_hotel_id).strip() != 'all':
+            try:
+                query = query.filter(RadioItem.hotel_id == int(selected_hotel_id))
+            except ValueError:
+                pass
+        if selected_dept_id and str(selected_dept_id).strip() not in ['', 'all', 'None']:
+            try:
+                query = query.filter(RadioItem.department_id == int(selected_dept_id))
+            except ValueError:
+                pass
+        if selected_subdept_id and str(selected_subdept_id).strip() not in ['', 'all', 'None']:
+            try:
+                query = query.filter(RadioItem.subdepartment_id == int(selected_subdept_id))
+            except ValueError:
+                pass
+        return query
+
+    # Para usuarios con rol de consulta o encargado de departamento
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if not allowed_ids:
+        return query.filter(RadioItem.id == -1)
+
+    # Filtrado por hotel
+    if selected_hotel_id and str(selected_hotel_id).strip() != 'all':
+        try:
+            h_id = int(selected_hotel_id)
+            if h_id not in allowed_ids:
+                return query.filter(RadioItem.id == -1)
+            query = query.filter(RadioItem.hotel_id == h_id)
+        except ValueError:
+            query = query.filter(RadioItem.hotel_id.in_(allowed_ids))
+    else:
+        query = query.filter(RadioItem.hotel_id.in_(allowed_ids))
+
+    dept_accesses = RadioUserDepartmentAccess.query.filter_by(user_id=user.id).all()
+    if not dept_accesses:
+        return query.filter(RadioItem.id == -1)
+
+    # Si se especificó un departamento puntual
+    if selected_dept_id and str(selected_dept_id).strip() not in ['', 'all', 'None']:
+        try:
+            req_d_id = int(selected_dept_id)
+            # Validar que el usuario tenga acceso a ese departamento
+            matching_depts = [da for da in dept_accesses if da.department_id == req_d_id]
+            if not matching_depts:
+                return query.filter(RadioItem.id == -1)
+            
+            if selected_subdept_id and str(selected_subdept_id).strip() not in ['', 'all', 'None']:
+                req_sd_id = int(selected_subdept_id)
+                # Validar acceso a subdepto o depto padre
+                matching_subs = [da for da in matching_depts if da.subdepartment_id == req_sd_id or da.subdepartment_id is None]
+                if not matching_subs:
+                    return query.filter(RadioItem.id == -1)
+                return query.filter(RadioItem.department_id == req_d_id, RadioItem.subdepartment_id == req_sd_id)
+            else:
+                sub_clauses = []
+                for da in matching_depts:
+                    if da.subdepartment_id:
+                        sub_clauses.append(RadioItem.subdepartment_id == da.subdepartment_id)
+                    else:
+                        # Acceso total al departamento
+                        return query.filter(RadioItem.department_id == req_d_id)
+                if sub_clauses:
+                    return query.filter(RadioItem.department_id == req_d_id, db.or_(*sub_clauses))
+                return query.filter(RadioItem.department_id == req_d_id)
+        except ValueError:
+            pass
+
+    # Cláusulas generales de acceso por permisos asignados
+    clauses = []
+    for da in dept_accesses:
+        if da.subdepartment_id:
+            clauses.append(db.and_(RadioItem.hotel_id == da.hotel_id, RadioItem.department_id == da.department_id, RadioItem.subdepartment_id == da.subdepartment_id))
+        else:
+            clauses.append(db.and_(RadioItem.hotel_id == da.hotel_id, RadioItem.department_id == da.department_id))
+
+    if clauses:
+        query = query.filter(db.or_(*clauses))
+    else:
+        query = query.filter(RadioItem.id == -1)
+
+    return query
 
 @app.route('/tec-radios')
 @app.route('/radios')
 def radios_view():
     if 'user_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     
     perms = user.get_permissions()
-    if (user.role or '').strip().lower() != 'admin' and ('radios' not in perms and 'tec-radios' not in perms):
+    is_admin = (user.role or '').strip().lower() == 'admin'
+    if not is_admin and ('radios' not in perms and 'tec-radios' not in perms):
         return jsonify({'error': 'No autorizado'}), 403
     
-    res = make_response(render_template('radios.html'))
+    radio_role = 'admin' if is_admin else 'viewer'
+    for p in perms:
+        if p.startswith('tec-radios:role:'):
+            radio_role = p.split(':', 2)[2]
+            break
+    is_query_user = (radio_role in ['viewer', 'dept_manager']) and not is_admin
+    can_config = is_admin or ('tec-radios:config' in perms)
+    
+    res = make_response(render_template('radios.html', 
+        user=user, 
+        current_user=user, 
+        is_query_user=is_query_user, 
+        radio_role=radio_role, 
+        can_access_config=can_config
+    ))
     res.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     res.headers['Pragma'] = 'no-cache'
     res.headers['Expires'] = '0'
@@ -5089,7 +5355,6 @@ def get_user_radio_department_access(user_id):
     dept_accesses = RadioUserDepartmentAccess.query.filter_by(user_id=user_id).all()
     prop_accesses = RadioUserPropertyAccess.query.filter_by(user_id=user_id).all()
     
-    # Determinar radio_role si está en permisos o derivarlo
     radio_role = 'viewer'
     perms = target_user.get_permissions()
     for p in perms:
@@ -5097,10 +5362,13 @@ def get_user_radio_department_access(user_id):
             radio_role = p.split(':', 2)[2]
             break
             
+    has_radio_config_access = ('tec-radios:config' in perms) or (target_user.role == 'Admin')
+
     return jsonify({
         'user_id': target_user.id,
         'username': target_user.username,
         'radio_role': radio_role,
+        'has_radio_config_access': has_radio_config_access,
         'properties': [a.to_dict() for a in prop_accesses],
         'accesses': [a.to_dict() for a in dept_accesses]
     })
@@ -5115,30 +5383,33 @@ def save_user_radio_department_access(user_id):
     data = request.json or {}
     
     radio_role = data.get('radio_role', 'viewer')
+    has_config_access = bool(data.get('has_radio_config_access', False))
     properties_data = data.get('properties', [])
     dept_accesses_data = data.get('accesses', [])
     
     try:
         # 1. Actualizar permisos de rol de TEC-RADIOS en el usuario
-        current_perms = [p for p in target_user.get_permissions() if not p.startswith('tec-radios:role:')]
+        current_perms = [p for p in target_user.get_permissions() if not p.startswith('tec-radios:role:') and p != 'tec-radios:config']
         current_perms.append(f'tec-radios:role:{radio_role}')
+        if has_config_access:
+            current_perms.append('tec-radios:config')
         target_user.permissions = json.dumps(current_perms)
         
-        # 2. Reemplazar accesos de propiedades
+        # 2. Reemplazar accesos de propiedades (incluyendo hoteles con departamentos seleccionados)
+        hotel_ids_from_depts = {int(d['hotel_id']) for d in dept_accesses_data if d.get('hotel_id')}
+        existing_prop_hotel_ids = {int(p['hotel_id']) for p in properties_data if p.get('hotel_id')}
+        all_target_hotel_ids = existing_prop_hotel_ids.union(hotel_ids_from_depts)
+        
         RadioUserPropertyAccess.query.filter_by(user_id=user_id).delete()
-        for p in properties_data:
-            h_id = p.get('hotel_id')
-            if not h_id:
-                continue
-            can_v = bool(p.get('can_view', True))
-            can_m = bool(p.get('can_manage', radio_role == 'admin'))
-            if can_v or can_m:
-                db.session.add(RadioUserPropertyAccess(
-                    user_id=target_user.id,
-                    hotel_id=int(h_id),
-                    can_view=can_v,
-                    can_manage=can_m
-                ))
+        for h_id in all_target_hotel_ids:
+            can_v = True
+            can_m = (radio_role == 'admin')
+            db.session.add(RadioUserPropertyAccess(
+                user_id=target_user.id,
+                hotel_id=int(h_id),
+                can_view=can_v,
+                can_manage=can_m
+            ))
                 
         # 3. Reemplazar accesos departamentales
         RadioUserDepartmentAccess.query.filter_by(user_id=user_id).delete()
@@ -5162,7 +5433,7 @@ def save_user_radio_department_access(user_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# API: Dashboard Metrics
+# API: Dashboard Metrics (Soporta vistas de Admin y de Consulta)
 @app.route('/api/radios/dashboard', methods=['GET'])
 def get_radio_dashboard():
     try:
@@ -5170,30 +5441,38 @@ def get_radio_dashboard():
         if not user:
             return jsonify({'error': 'No autenticado'}), 401
             
+        is_admin = (user.role or '').strip().lower() == 'admin'
+        perms = user.get_permissions()
+        radio_role = 'admin' if is_admin else 'viewer'
+        for p in perms:
+            if p.startswith('tec-radios:role:'):
+                radio_role = p.split(':', 2)[2]
+                break
+
         allowed_ids = get_user_radio_allowed_hotel_ids(user)
         if not allowed_ids:
             return jsonify({
+                'radio_role': radio_role, 'is_admin': is_admin, 'user_name': user.username,
                 'total': 0, 'operativo': 0, 'requiere_revision': 0, 'en_reparacion': 0,
                 'danado': 0, 'perdido': 0, 'fuera_servicio': 0, 'disponible': 0, 'en_almacen': 0,
                 'assigned': 0, 'unassigned': 0, 'recent_history': [], 'alerts': [],
+                'by_property': [], 'by_department': [], 'by_subdepartment': [],
+                'assigned_properties': [], 'recent_radios': [], 'pending_incidents_count': 0,
                 'alert_noinv_90': 0, 'alert_danados_fuera': 0, 'alert_perdidos': 0, 'alert_revision': 0
             })
             
         hotel_id = request.args.get('hotel_id')
-        if hotel_id and hotel_id != 'all':
-            try:
-                h_id = int(hotel_id)
-                if h_id not in allowed_ids:
-                    return jsonify({'error': 'No autorizado para esta propiedad'}), 403
-                query_ids = [h_id]
-            except ValueError:
-                query_ids = allowed_ids
-        else:
-            query_ids = allowed_ids
+        dept_id = request.args.get('department_id')
+        subdept_id = request.args.get('subdepartment_id')
 
-        radios = RadioItem.query.filter(RadioItem.hotel_id.in_(query_ids)).all()
+        radios_query = filter_radios_for_user(RadioItem.query, user, selected_hotel_id=hotel_id, selected_dept_id=dept_id, selected_subdept_id=subdept_id)
+        radios = radios_query.all()
+        query_ids = list({r.hotel_id for r in radios}) if radios else allowed_ids
         
         counts = {
+            'radio_role': radio_role,
+            'is_admin': is_admin,
+            'user_name': user.username,
             'total': len(radios),
             'operativo': sum(1 for r in radios if r.status == 'operativo'),
             'requiere_revision': sum(1 for r in radios if r.status == 'requiere_revision'),
@@ -5201,16 +5480,124 @@ def get_radio_dashboard():
             'danado': sum(1 for r in radios if r.status == 'danado'),
             'perdido': sum(1 for r in radios if r.status == 'perdido'),
             'fuera_servicio': sum(1 for r in radios if r.status == 'fuera_servicio'),
-            'disponible': sum(1 for r in radios if r.status == 'disponible' or r.status == 'en_almacen' or not (r.assigned_person_name or r.assigned_employee_id)),
+            'disponible': sum(1 for r in radios if r.status in ['disponible', 'en_almacen'] or not (r.assigned_person_name or r.assigned_employee_id)),
             'en_almacen': sum(1 for r in radios if r.status == 'en_almacen' or not (r.assigned_person_name or r.assigned_employee_id)),
-            'assigned': sum(1 for r in radios if r.assigned_person_name or r.assigned_employee_id),
+            'assigned': sum(1 for r in radios if bool(r.assigned_person_name or r.assigned_employee_id)),
             'unassigned': sum(1 for r in radios if not (r.assigned_person_name or r.assigned_employee_id))
         }
 
-        # Calculo de Alertas Atendibles Dinámicas
+        # 1. Radios por Propiedad y Lista de Propiedades Asignadas
+        all_user_radios = filter_radios_for_user(RadioItem.query, user).all()
+        allowed_hotels = Hotel.query.filter(Hotel.id.in_(allowed_ids)).order_by(Hotel.name).all()
+        prop_counts = []
+        for h in allowed_hotels:
+            cnt = sum(1 for r in all_user_radios if r.hotel_id == h.id)
+            prop_counts.append({
+                'id': h.id,
+                'name': h.name,
+                'sigla': h.sigla or '',
+                'count': cnt
+            })
+        counts['by_property'] = sorted(prop_counts, key=lambda x: x['count'], reverse=True)
+        counts['assigned_properties'] = [{'id': h.id, 'name': h.name, 'sigla': h.sigla or ''} for h in allowed_hotels]
+
+        # 2. Departamentos Autorizados (Filtrado dependiente)
+        target_hotel_ids = [int(hotel_id)] if (hotel_id and str(hotel_id) != 'all' and int(hotel_id) in allowed_ids) else allowed_ids
+        dept_map = {}
+        if is_admin or radio_role == 'admin':
+            depts_query = RadioDepartment.query.filter(
+                RadioDepartment.hotel_id.in_(target_hotel_ids),
+                RadioDepartment.parent_department_id.is_(None)
+            ).order_by(RadioDepartment.name).all()
+            for d in depts_query:
+                if d.name not in dept_map:
+                    c = sum(1 for r in radios if (r.department and (r.department.name == d.name or (r.department.parent and r.department.parent.name == d.name))))
+                    val_id = str(d.id) if len(target_hotel_ids) == 1 else d.name
+                    dept_map[d.name] = {'id': val_id, 'name': d.name, 'count': c}
+        else:
+            user_accesses = RadioUserDepartmentAccess.query.filter(
+                RadioUserDepartmentAccess.user_id == user.id,
+                RadioUserDepartmentAccess.hotel_id.in_(target_hotel_ids)
+            ).all()
+            dept_ids = list({a.department_id for a in user_accesses if a.department_id})
+            depts_query = RadioDepartment.query.filter(RadioDepartment.id.in_(dept_ids)).order_by(RadioDepartment.name).all()
+            for d in depts_query:
+                if d.name not in dept_map:
+                    c = sum(1 for r in radios if (r.department and (r.department.name == d.name or (r.department.parent and r.department.parent.name == d.name))))
+                    val_id = str(d.id) if len(target_hotel_ids) == 1 else d.name
+                    dept_map[d.name] = {'id': val_id, 'name': d.name, 'count': c}
+
+        counts['by_department'] = list(dept_map.values())
+
+        # 3. Subdepartamentos Autorizados (Filtrado dependiente)
+        subdept_map = {}
+        if is_admin or radio_role == 'admin':
+            subs_query = RadioDepartment.query.filter(
+                RadioDepartment.hotel_id.in_(target_hotel_ids),
+                RadioDepartment.parent_department_id.isnot(None)
+            ).order_by(RadioDepartment.name).all()
+            if dept_id and str(dept_id) not in ['', 'all', 'None']:
+                if str(dept_id).isdigit():
+                    subs_query = [s for s in subs_query if s.parent_department_id == int(dept_id)]
+                else:
+                    subs_query = [s for s in subs_query if s.parent and s.parent.name.lower() == str(dept_id).strip().lower()]
+            for s in subs_query:
+                if s.name not in subdept_map:
+                    c = sum(1 for r in radios if (r.subdepartment and r.subdepartment.name == s.name) or (r.department and r.department.name == s.name))
+                    val_id = str(s.id) if len(target_hotel_ids) == 1 else s.name
+                    subdept_map[s.name] = {'id': val_id, 'name': s.name, 'count': c}
+        else:
+            user_accesses = RadioUserDepartmentAccess.query.filter(
+                RadioUserDepartmentAccess.user_id == user.id,
+                RadioUserDepartmentAccess.hotel_id.in_(target_hotel_ids)
+            ).all()
+            sub_ids = list({a.subdepartment_id for a in user_accesses if a.subdepartment_id})
+            if sub_ids:
+                subs_query = RadioDepartment.query.filter(RadioDepartment.id.in_(sub_ids)).order_by(RadioDepartment.name).all()
+            else:
+                p_ids = list({a.department_id for a in user_accesses if a.department_id})
+                subs_query = RadioDepartment.query.filter(RadioDepartment.parent_department_id.in_(p_ids)).order_by(RadioDepartment.name).all()
+                
+            if dept_id and str(dept_id) not in ['', 'all', 'None']:
+                if str(dept_id).isdigit():
+                    subs_query = [s for s in subs_query if s.parent_department_id == int(dept_id) or s.id == int(dept_id)]
+                else:
+                    subs_query = [s for s in subs_query if (s.parent and s.parent.name.lower() == str(dept_id).strip().lower()) or s.name.lower() == str(dept_id).strip().lower()]
+                    
+            for s in subs_query:
+                if s.name not in subdept_map:
+                    c = sum(1 for r in radios if (r.subdepartment and r.subdepartment.name == s.name) or (r.department and r.department.name == s.name))
+                    val_id = str(s.id) if len(target_hotel_ids) == 1 else s.name
+                    subdept_map[s.name] = {'id': val_id, 'name': s.name, 'count': c}
+
+        counts['by_subdepartment'] = sorted(list(subdept_map.values()), key=lambda x: x['count'], reverse=True)
+
+        # 4. Radios Recientes / Asignados para la tabla del Dashboard de Consulta
+        recent_items = []
+        for r in radios:
+            recent_items.append({
+                'id': str(r.id),
+                'radio_code': r.radio_code or str(r.id),
+                'serial_number': r.serial_number or '-',
+                'model': f"{r.brand} {r.model}".strip() if (r.brand or r.model) else 'Radio Motorola',
+                'property_name': r.hotel.sigla if (r.hotel and r.hotel.sigla) else (r.hotel.name if r.hotel else ''),
+                'department_name': r.department.name if r.department else '',
+                'subdepartment_name': r.subdepartment.name if r.subdepartment else '',
+                'assigned_person_name': r.assigned_person_name or 'Sin Asignar',
+                'status': r.status
+            })
+        counts['recent_radios'] = recent_items
+
+        # 5. Conteo de Incidencias Pendientes
+        try:
+            inc_q = RadioIncident.query.filter(RadioIncident.hotel_id.in_(allowed_ids), RadioIncident.status.in_(['abierta', 'en_proceso']))
+            counts['pending_incidents_count'] = inc_q.count()
+        except Exception:
+            counts['pending_incidents_count'] = 0
+
+        # Alertas Atendibles
         from datetime import datetime, timedelta
         cutoff_date = datetime.now() - timedelta(days=90)
-        
         inv_radio_ids = set()
         try:
             recent_inv_items = RadioFormalInventoryItem.query.join(RadioFormalInventory).filter(
@@ -5219,10 +5606,9 @@ def get_radio_dashboard():
             ).all()
             inv_radio_ids = set(item.radio_id for item in recent_inv_items)
         except Exception as e_inv:
-            print("[DASHBOARD WARNING] Error consultando inventarios antiguos:", e_inv)
+            pass
 
         no_inv_90 = sum(1 for r in radios if r.id not in inv_radio_ids and (r.created_at or datetime.now()) <= cutoff_date)
-        
         counts['alert_noinv_90'] = no_inv_90
         counts['alert_danados_fuera'] = counts['danado'] + counts['fuera_servicio']
         counts['alert_perdidos'] = counts['perdido']
@@ -5250,26 +5636,6 @@ def get_radio_dashboard():
                 })
         counts['alerts'] = alerts[:20]
 
-        # Agrupar radios reales por departamento de forma 100% segura
-        dept_counts = {}
-        main_depts = RadioDepartment.query.filter(RadioDepartment.hotel_id.in_(query_ids), RadioDepartment.parent_department_id.is_(None)).all()
-        for d in main_depts:
-            dept_counts[d.name] = 0
-
-        for r in radios:
-            dept_name = 'General'
-            if r.department_id:
-                dept_obj = RadioDepartment.query.get(r.department_id)
-                if dept_obj:
-                    if dept_obj.parent_department_id:
-                        parent_obj = RadioDepartment.query.get(dept_obj.parent_department_id)
-                        dept_name = parent_obj.name if parent_obj else dept_obj.name
-                    else:
-                        dept_name = dept_obj.name
-            dept_counts[dept_name] = dept_counts.get(dept_name, 0) + 1
-
-        counts['by_department'] = [{'name': k, 'count': v} for k, v in dept_counts.items()]
-
         try:
             invs = RadioFormalInventory.query.filter(RadioFormalInventory.hotel_id.in_(query_ids)).order_by(RadioFormalInventory.created_at.desc()).limit(10).all()
             counts['recent_inventories'] = [i.to_dict() for i in invs]
@@ -5283,9 +5649,12 @@ def get_radio_dashboard():
         traceback.print_exc()
         return jsonify({'error': str(err_dash)}), 500
 
-# API: Listar / Crear Radios
-@app.route('/api/radios', methods=['GET'])
-def get_radios_list():
+# ==========================================
+# API: INCIDENCIAS Y NOTIFICACIONES TEC-RADIOS
+# ==========================================
+
+@app.route('/api/radios/incidents', methods=['GET'])
+def get_radio_incidents():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'No autenticado'}), 401
@@ -5294,26 +5663,207 @@ def get_radios_list():
     if not allowed_ids:
         return jsonify([])
         
+    query = RadioIncident.query.filter(RadioIncident.hotel_id.in_(allowed_ids))
+    hotel_id = request.args.get('hotel_id')
+    status = request.args.get('status')
+    
+    if hotel_id and hotel_id != 'all':
+        try:
+            h_id = int(hotel_id)
+            if h_id in allowed_ids:
+                query = query.filter(RadioIncident.hotel_id == h_id)
+        except ValueError:
+            pass
+            
+    if status:
+        query = query.filter(RadioIncident.status == status)
+        
+    incidents = query.order_by(RadioIncident.created_at.desc()).all()
+    return jsonify([i.to_dict() for i in incidents])
+
+@app.route('/api/radios/incidents', methods=['POST'])
+def create_radio_incident():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
+    data = request.json or {}
+    radio_id = data.get('radio_id') or data.get('radioId')
+    issue_type = (data.get('issue_type') or data.get('issueType') or 'Otro').strip()
+    description = (data.get('description') or '').strip()
+    priority = (data.get('priority') or 'media').strip().lower().replace('í', 'i')
+    
+    if not radio_id:
+        return jsonify({'error': 'El ID del radio es obligatorio'}), 400
+    if not description:
+        return jsonify({'error': 'La descripción del problema es obligatoria'}), 400
+        
+    radio = RadioItem.query.get_or_404(int(radio_id))
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if radio.hotel_id not in allowed_ids:
+        return jsonify({'error': 'No tienes autorización sobre este equipo'}), 403
+        
+    # Generar código correlativo de incidencia
+    today_str = datetime.utcnow().strftime('%Y%m%d')
+    count_today = RadioIncident.query.filter(RadioIncident.created_at >= datetime.utcnow().date()).count() + 1
+    code = f"INC-{today_str}-{count_today:03d}"
+    
+    incident = RadioIncident(
+        incident_code=code,
+        radio_id=radio.id,
+        hotel_id=radio.hotel_id,
+        department_id=radio.department_id,
+        subdepartment_id=radio.subdepartment_id,
+        reported_by_user_id=user.id,
+        reported_by_name=user.username,
+        issue_type=issue_type,
+        description=description,
+        priority=priority if priority in ['baja', 'media', 'alta', 'critica'] else 'media',
+        status='abierta'
+    )
+    db.session.add(incident)
+    db.session.flush()
+    
+    # Cambiar estado del radio automáticamente a 'requiere_revision'
+    prev_status = radio.status
+    if radio.status != 'requiere_revision':
+        radio.status = 'requiere_revision'
+        h_ev_status = RadioHistory(
+            radio_id=radio.id,
+            hotel_id=radio.hotel_id,
+            event_type='cambio_estado',
+            detail=f"Estado actualizado automáticamente a 'Requiere Revisión' por reporte de incidencia ({code})",
+            previous_info=prev_status,
+            new_info='requiere_revision',
+            user_id=user.id,
+            user_name=user.username
+        )
+        db.session.add(h_ev_status)
+
+    # Crear notificación aislada para administradores de TEC-RADIOS
+    notif_severity = 'danger' if priority in ['alta', 'critica'] else ('warning' if priority == 'media' else 'info')
+    hotel_name = radio.hotel.name if radio.hotel else 'Propiedad'
+    dept_name = radio.department.name if radio.department else 'General'
+    
+    notif = RadioNotification(
+        hotel_id=radio.hotel_id,
+        incident_id=incident.id,
+        title=f"🔴 NUEVA INCIDENCIA - Radio #{radio.radio_code or radio.serial_number}",
+        message=f"{user.username} ha reportado '{issue_type}' en {hotel_name} ({dept_name}): {description}",
+        severity=notif_severity,
+        is_read=False
+    )
+    db.session.add(notif)
+    
+    # Registrar en el historial del radio
+    h_ev = RadioHistory(
+        radio_id=radio.id,
+        hotel_id=radio.hotel_id,
+        event_type='incidencia',
+        detail=f"Incidencia reportada ({code}) por {user.username}: {issue_type} - {description} (Prioridad: {priority.capitalize()})",
+        user_id=user.id,
+        user_name=user.username
+    )
+    db.session.add(h_ev)
+    db.session.commit()
+    
+    log_activity(user.username, 'Módulo Radios', f"Reportó incidencia {code} para el radio #{radio.radio_code or radio.serial_number}")
+    return jsonify(incident.to_dict()), 201
+
+@app.route('/api/radios/incidents/<int:incident_id>', methods=['PUT'])
+def update_radio_incident(incident_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
+    incident = RadioIncident.query.get_or_404(incident_id)
+    if not can_user_access_radio_hotel(user, incident.hotel_id, need_manage=True):
+        return jsonify({'error': 'Sin permisos administrativos para gestionar esta incidencia'}), 403
+        
+    data = request.json or {}
+    new_status = data.get('status')
+    admin_notes = data.get('admin_notes')
+    
+    if new_status and new_status in ['abierta', 'en_proceso', 'resuelta', 'rechazada']:
+        incident.status = new_status
+        if new_status in ['resuelta', 'rechazada']:
+            incident.resolved_at = datetime.utcnow()
+            incident.resolved_by = user.username
+            
+    if admin_notes is not None:
+        incident.admin_notes = str(admin_notes).strip()
+        
+    db.session.commit()
+    log_activity(user.username, 'Módulo Radios', f"Actualizó incidencia {incident.incident_code} a estado {incident.status}")
+    return jsonify(incident.to_dict())
+
+@app.route('/api/radios/notifications', methods=['GET'])
+def get_radio_notifications():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if not allowed_ids:
+        return jsonify({'unread_count': 0, 'notifications': []})
+        
+    notifications = RadioNotification.query.filter(
+        RadioNotification.hotel_id.in_(allowed_ids)
+    ).order_by(RadioNotification.created_at.desc()).limit(30).all()
+    
+    unread_count = sum(1 for n in notifications if not n.is_read)
+    return jsonify({
+        'unread_count': unread_count,
+        'notifications': [n.to_dict() for n in notifications]
+    })
+
+@app.route('/api/radios/notifications/<int:notif_id>/read', methods=['POST'])
+def mark_radio_notification_read(notif_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
+    notif = RadioNotification.query.get_or_404(notif_id)
+    notif.is_read = True
+    db.session.commit()
+    return jsonify({'message': 'Notificación marcada como leída'})
+
+@app.route('/api/radios/notifications/read-all', methods=['POST'])
+def mark_all_radio_notifications_read():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if allowed_ids:
+        RadioNotification.query.filter(
+            RadioNotification.hotel_id.in_(allowed_ids),
+            RadioNotification.is_read == False
+        ).update({'is_read': True}, synchronize_session=False)
+        db.session.commit()
+    return jsonify({'message': 'Todas las notificaciones marcadas como leídas'})
+
+# API: Listar / Crear Radios
+@app.route('/api/radios', methods=['GET'])
+def get_radios_list():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+        
     hotel_id = request.args.get('hotel_id')
     department_id = request.args.get('department_id')
+    subdepartment_id = request.args.get('subdepartment_id')
     area_id = request.args.get('area_id')
     status = request.args.get('status')
     search = request.args.get('search')
     
-    query = RadioItem.query
-    if hotel_id and hotel_id != 'all':
-        try:
-            h_id = int(hotel_id)
-            if h_id not in allowed_ids:
-                return jsonify({'error': 'No autorizado para esta propiedad'}), 403
-            query = query.filter(RadioItem.hotel_id == h_id)
-        except ValueError:
-            query = query.filter(RadioItem.hotel_id.in_(allowed_ids))
-    else:
-        query = query.filter(RadioItem.hotel_id.in_(allowed_ids))
+    query = filter_radios_for_user(
+        RadioItem.query, user, 
+        selected_hotel_id=hotel_id, 
+        selected_dept_id=department_id, 
+        selected_subdept_id=subdepartment_id
+    )
         
-    if department_id:
-        query = query.filter(RadioItem.department_id == int(department_id))
     if area_id:
         query = query.filter(RadioItem.area_id == int(area_id))
     if status:
@@ -5466,6 +6016,18 @@ def update_radio(radio_id):
             user_name=user.username
         )
         db.session.add(h_ev)
+    if 'assigned_person_name' in data or 'assignedPerson' in data or 'assigned_person' in data:
+        p_name = data.get('assigned_person_name') if 'assigned_person_name' in data else (data.get('assigned_person', {}).get('name') if isinstance(data.get('assigned_person'), dict) else data.get('assignedPerson', {}).get('name', ''))
+        p_emp = data.get('assigned_employee_id') if 'assigned_employee_id' in data else (data.get('assigned_person', {}).get('employeeId') if isinstance(data.get('assigned_person'), dict) else data.get('assignedPerson', {}).get('employeeId', ''))
+        p_pos = data.get('assigned_position') if 'assigned_position' in data else (data.get('assigned_person', {}).get('position') if isinstance(data.get('assigned_person'), dict) else data.get('assignedPerson', {}).get('position', ''))
+        
+        radio.assigned_person_name = (p_name or '').strip()
+        radio.assigned_employee_id = (p_emp or '').strip()
+        radio.assigned_position = (p_pos or '').strip()
+        if p_name:
+            radio.assigned_date = datetime.utcnow().strftime('%Y-%m-%d')
+            radio.assigned_by = user.username
+
     if 'notes' in data:
         radio.notes = data['notes']
         if data['notes'] != old_notes and 'status' not in data:
@@ -5582,10 +6144,28 @@ def transfer_radio(radio_id):
     new_subdept_id = data.get('subdepartment_id')
     notes = (data.get('notes') or '').strip()
     
+    new_person_name = (data.get('assigned_person_name') or data.get('name') or '').strip()
+    new_emp_id = (data.get('assigned_employee_id') or data.get('employee_id') or '').strip()
+    new_position = (data.get('assigned_position') or data.get('position') or '').strip()
+    
     old_dept_name = radio.department.name if radio.department else 'Sin Dpto'
     old_subdept_name = radio.subdepartment.name if radio.subdepartment else ''
     old_loc = f"{old_dept_name} > {old_subdept_name}" if old_subdept_name else old_dept_name
-    
+    old_person = radio.assigned_person_name or 'Sin Asignar'
+
+    person_changed = False
+    if 'assigned_person_name' in data or 'name' in data:
+        radio.assigned_person_name = new_person_name
+        radio.assigned_employee_id = new_emp_id
+        radio.assigned_position = new_position
+        if new_person_name:
+            radio.assigned_date = datetime.utcnow().strftime('%Y-%m-%d')
+            radio.assigned_by = user.username
+        else:
+            radio.assigned_date = ''
+            radio.assigned_by = ''
+        person_changed = True
+
     if new_dept_id:
         radio.department_id = int(new_dept_id)
     if new_subdept_id:
@@ -5602,22 +6182,33 @@ def transfer_radio(radio_id):
     new_subdept_name = radio.subdepartment.name if radio.subdepartment else ''
     new_loc = f"{new_dept_name} > {new_subdept_name}" if new_subdept_name else new_dept_name
 
+    new_person_str = f"{new_person_name} ({new_emp_id})" if new_person_name else 'Sin Asignar'
+    details = []
+    if old_loc != new_loc:
+        details.append(f"Ubicación: {old_loc} ➔ {new_loc}")
+    if person_changed and old_person != new_person_name:
+        details.append(f"Custodio: {old_person} ➔ {new_person_str}")
+    if notes:
+        details.append(f"Nota: {notes}")
+    
+    event_detail = ". ".join(details) if details else f"Transferencia/Reasignación efectuada en {new_loc}"
+
     history_entry = RadioHistory(
         radio_id=radio.id,
         hotel_id=radio.hotel_id,
         event_type='transferencia',
-        detail=f"Transferido de {old_loc} a {new_loc}. Nota: {notes}" if notes else f"Transferido de {old_loc} a {new_loc}",
-        previous_info=old_loc,
-        new_info=new_loc,
+        detail=event_detail,
+        previous_info=f"Ubicación: {old_loc} | Custodio: {old_person}",
+        new_info=f"Ubicación: {new_loc} | Custodio: {new_person_str}",
         user_id=user.id,
         user_name=user.username
     )
     db.session.add(history_entry)
     db.session.commit()
 
-    log_activity(user.username, 'Módulo Radios', f"Transferió radio #{radio.radio_code} ({radio.serial_number}) a {new_loc}")
+    log_activity(user.username, 'Módulo Radios', f"Transferió/Reasignó radio #{radio.radio_code} ({radio.serial_number})")
     return jsonify({
-        'message': f"Radio #{radio.radio_code} transferido a {new_loc} exitosamente.",
+        'message': f"Radio #{radio.radio_code} transferido/reasignado exitosamente.",
         'radio': radio.to_dict()
     })
 

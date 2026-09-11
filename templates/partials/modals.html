@@ -460,6 +460,13 @@
                                     </select>
                                 </div>
 
+                                <div style="margin-bottom: 8px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 700; color: #1e40af;">
+                                        <input type="checkbox" id="chk-new-user-radio-config" checked>
+                                        <span><i class="fa-solid fa-gear" style="color: #2563eb;"></i> Permitir acceso a Módulo de Configuración TEC-RADIOS</span>
+                                    </label>
+                                </div>
+
                                 <div id="new-user-radio-role-explanation" style="font-size: 11.5px; padding: 6px 10px; background: #ffffff; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); margin-bottom: 10px; color: #1e3a8a; line-height: 1.4;">
                                     <i class="fa-solid fa-circle-info"></i> Consulta TEC-RADIOS: Solo consulta los radios de las propiedades y departamentos explícitamente autorizados.
                                 </div>
@@ -634,6 +641,13 @@
                                         <option value="dept_manager">Encargado de Departamento</option>
                                         <option value="viewer" selected>Consulta TEC-RADIOS (Solo Lectura)</option>
                                     </select>
+                                </div>
+
+                                <div style="margin-bottom: 8px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 700; color: #1e40af;">
+                                        <input type="checkbox" id="chk-edit-user-radio-config" checked>
+                                        <span><i class="fa-solid fa-gear" style="color: #2563eb;"></i> Permitir acceso a Módulo de Configuración TEC-RADIOS</span>
+                                    </label>
                                 </div>
 
                                 <div id="edit-user-radio-role-explanation" style="font-size: 11.5px; padding: 6px 10px; background: #ffffff; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); margin-bottom: 10px; color: #1e3a8a; line-height: 1.4;">
@@ -1140,7 +1154,36 @@
                             </div>
                         </div>
 
-                        <!-- 2. TARJETA DESTACADA: ASIGNACIÓN AUTOMÁTICA DE ID -->
+                        <!-- 2. CUSTODIO / PERSONA ASIGNADA -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
+                            <div style="font-size: 11.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-user-tag text-primary"></i> 2. Custodio / Persona Asignada
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div>
+                                    <label class="form-label" style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">
+                                        Empleado Responsable
+                                    </label>
+                                    <input type="text" id="rad-form-assigned-name" class="form-control" placeholder="Nombre del custodio o sin asignar" style="height: 38px; font-size: 13px;">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                    <div>
+                                        <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">
+                                            Nº Ficha / Empleado
+                                        </label>
+                                        <input type="text" id="rad-form-assigned-emp-id" class="form-control" placeholder="Ej: 525" style="height: 38px; font-size: 12.5px;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">
+                                            Cargo / Puesto
+                                        </label>
+                                        <input type="text" id="rad-form-assigned-position" class="form-control" placeholder="Ej: Agente" style="height: 38px; font-size: 12.5px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. TARJETA DESTACADA: ASIGNACIÓN AUTOMÁTICA DE ID -->
                         <div style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 2px solid #bfdbfe; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
                             <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                                 <div style="width: 44px; height: 44px; border-radius: 10px; background: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);">

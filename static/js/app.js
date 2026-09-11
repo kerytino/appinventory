@@ -24,6 +24,46 @@ document.addEventListener('DOMContentLoaded', () => {
         currentWarehouseFilter = urlWh;
     }
 
+    window.applyRolePermissions = function() {
+        if (!currentUser) return;
+
+        const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+        const isAdmin = currentUser.role === 'Admin' || perms.includes('all');
+
+        // Módulos estándar de TEC-INVENTORY
+        const INVENTORY_MODULES = ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion', 'pedidos'];
+        const hasInventoryAccess = isAdmin || INVENTORY_MODULES.some(m => perms.includes(m));
+
+        // Visibilidad de la pestaña TEC-INVENTORY en el header superior
+        const invTab = document.getElementById('app-tab-inventory');
+        if (invTab) {
+            invTab.style.display = hasInventoryAccess ? 'inline-flex' : 'none';
+        }
+
+        // Visibilidad de la pestaña TEC-RADIOS en el header superior
+        const radiosTab = document.getElementById('app-tab-radios');
+        if (radiosTab) {
+            const hasRadiosAccess = isAdmin || perms.includes('tec-radios') || perms.includes('radios');
+            radiosTab.style.display = hasRadiosAccess ? 'inline-flex' : 'none';
+        }
+
+        // Ocultar/mostrar ítems del sidebar de inventario por data-module
+        document.querySelectorAll('#sidebar [data-module]').forEach(el => {
+            const mod = el.getAttribute('data-module');
+            if (!mod) return;
+            if (isAdmin) {
+                el.style.display = '';
+            } else {
+                el.style.display = perms.includes(mod) ? '' : 'none';
+            }
+        });
+
+        // Redirigir a /radios si no tiene permisos de inventario y está en una ruta de inventario
+        if (!hasInventoryAccess && window.location.pathname !== '/radios' && window.location.pathname !== '/tec-radios') {
+            window.location.href = '/radios';
+        }
+    };
+
     async function checkAuth() {
         try {
             const res = await fetch('/api/me');
@@ -67,10 +107,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value;
+        e.stopPropagation();
+        
+        const usernameEl = document.getElementById('login-username');
+        const passwordEl = document.getElementById('login-password');
         const errEl = document.getElementById('login-error');
+        
+        const username = usernameEl ? usernameEl.value.trim() : '';
+        const password = passwordEl ? passwordEl.value : '';
+        
         if (errEl) errEl.style.display = 'none';
+
+        if (!username || !password) {
+            if (errEl) {
+                errEl.innerText = 'Por favor ingrese usuario y contraseña';
+                errEl.style.display = 'block';
+            }
+            return;
+        }
 
         try {
             const res = await fetch('/api/login', {
@@ -81,25 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 currentUser = data.user;
-                const overlay = document.getElementById('login-overlay');
-                const mainApp = document.getElementById('main-app');
-                if (overlay) overlay.style.display = 'none';
-                if (mainApp) mainApp.style.display = 'flex';
-                
-                const loggedUserEl = document.getElementById('logged-username');
-                if (loggedUserEl && currentUser) {
-                    loggedUserEl.innerText = currentUser.username + ' (' + currentUser.role + ')';
-                }
-                
-                try { applyRolePermissions(); } catch(e){}
-                try { await fetchStockLimits(); } catch(e){}
-                try { await fetchInactivitySettings(); } catch(e){}
-                try { await populateSidebarWarehouses(); } catch(e){}
-                try { await fetchDevices(); } catch(e){}
-                try { await fetchDecommissions(); } catch(e){}
-                try { loadOperationalTasks(); } catch(e){}
-                try { resetInactivityTimer(); } catch(e){}
                 if (window.showToast) showToast('Bienvenido, ' + currentUser.username, 'success');
+                window.location.href = window.location.pathname;
             } else {
                 if (errEl) {
                     errEl.innerText = data.error || 'Credenciales inválidas';
@@ -107,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (err) {
+            console.error('Error en submit login:', err);
             if (errEl) {
                 errEl.innerText = 'Error de conexión con el servidor';
                 errEl.style.display = 'block';
@@ -114,102 +152,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function handleLogout() {
+    async function performLogout() {
+        try {
+            clearTimeout(inactivityTimer);
+            clearInterval(countdownTimer);
+        } catch(e) {}
         try {
             await fetch('/api/logout', { method: 'POST' });
         } catch(e) {}
-        currentUser = null;
-        const overlay = document.getElementById('login-overlay');
-        const mainApp = document.getElementById('main-app');
-        if (overlay) overlay.style.display = 'flex';
-        if (mainApp) mainApp.style.display = 'none';
-        closeMobileSidebar?.();
+        window.location.href = '/dashboard';
     }
 
-    document.getElementById('btn-logout')?.addEventListener('click', handleLogout);
-    document.getElementById('btn-sidebar-logout')?.addEventListener('click', handleLogout);
-    
-    function applyRolePermissions() {
-        if (!currentUser) return;
-        const role = currentUser.role || 'Viewer';
-        const userPerms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-        const isAdmin = role === 'Admin';
-
-        const hasModuleAccess = (mod) => {
-            if (isAdmin) return true;
-            if (mod === 'tec-radios' || mod === 'radios') {
-                return userPerms.includes('tec-radios') || userPerms.includes('radios');
-            }
-            return userPerms.includes(mod);
-        };
-
-        // Control dinámico de navegación en Sidebar, Pestañas Globales y Menú Móvil
-        document.querySelectorAll('[data-module]').forEach(el => {
-            const modName = el.getAttribute('data-module');
-            if (modName) {
-                if (hasModuleAccess(modName)) {
-                    if (el.classList.contains('global-app-tab')) {
-                        el.style.display = 'flex';
-                    } else {
-                        el.style.display = '';
-                    }
-                } else {
-                    el.style.display = 'none';
-                }
-            }
-        });
-
-        // Botones de acción globales (Nuevo Equipo)
-        const btnNewDevice = document.getElementById('btn-new-device');
-        const btnMobileNewDevice = document.getElementById('btn-mobile-new-device');
-        const canCreateDevices = isAdmin || (role === 'Tecnico' && hasModuleAccess('inventario'));
-        
-        if (btnNewDevice) btnNewDevice.style.display = canCreateDevices ? 'flex' : 'none';
-        if (btnMobileNewDevice) btnMobileNewDevice.style.display = canCreateDevices ? 'flex' : 'none';
-
-        // Si es Viewer, ocultar botones de mutación general
-        if (role === 'Viewer') {
-            document.querySelectorAll('.action-btn, .btn-admin-only').forEach(btn => {
-                if (btn.id !== 'btn-logout' && btn.id !== 'btn-sidebar-logout') {
-                    btn.style.display = 'none';
-                }
-            });
-        }
-    }
-
-    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const u = document.getElementById('login-username').value;
-        const p = document.getElementById('login-password').value;
-        const err = document.getElementById('login-error');
-        err.style.display = 'none';
-        
-        try {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: u, password: p })
-            });
-            if (res.ok) {
-                document.getElementById('login-form').reset();
-                checkAuth();
-            } else {
-                const d = await res.json();
-                err.innerText = d.error || 'Error al iniciar sesión';
-                err.style.display = 'block';
-            }
-        } catch (e) {
-            err.innerText = 'Error de conexión';
-            err.style.display = 'block';
-        }
-    });
-
-    document.getElementById('btn-logout')?.addEventListener('click', async () => {
-        clearTimeout(inactivityTimer);
-        clearInterval(countdownTimer);
-        await fetch('/api/logout', { method: 'POST' });
-        location.reload();
-    });
+    document.getElementById('btn-logout')?.addEventListener('click', performLogout);
+    document.getElementById('btn-sidebar-logout')?.addEventListener('click', performLogout);
 
     // --- Change Password ---
     const passwordModal = document.getElementById('password-modal');
@@ -2634,59 +2589,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.allProviders = await resP.json();
             } catch(e) { console.error('Error proveedores:', e); }
 
-            
             // Fetch users only if Admin
             if (currentUser && currentUser.role === 'Admin') {
-                try {
-                    const resU = await fetch('/api/settings/users');
-                    window.allUsers = await resU.json();
-                    const userTbody = document.getElementById('settings-user-list');
-                    if (userTbody) {
-                        userTbody.innerHTML = '';
-                        window.allUsers.forEach(u => {
-                            const isCurrentUser = (u.username === currentUser.username || u.username === 'admin');
-                            const deleteBtn = isCurrentUser ? '' : `<button class="action-btn delete" title="Eliminar" onclick="window.deleteUser(${u.id})"><i class="fa-solid fa-trash"></i></button>`;
-                            const resetBtn = `<button class="action-btn" title="Cambiar Contraseña" style="color:var(--primary); margin-right:8px;" onclick="window.openAdminResetModal(${u.id}, '${u.username}')"><i class="fa-solid fa-key"></i></button>`;
-                            
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td>${u.username}</td>
-                                <td>${u.role}</td>
-                                <td style="text-align: right; width: 120px;">
-                                    ${resetBtn}
-                                    ${deleteBtn}
-                                </td>
-                            `;
-                            userTbody.appendChild(tr);
-                        });
-                    }
-                } catch(e) {}
-                
-                // Fetch Logs
-                const logsBtn = document.getElementById('tab-btn-logs');
-                if (logsBtn) logsBtn.style.display = 'inline-block';
-                try {
-                    const resL = await fetch('/api/logs');
-                    const logs = await resL.json();
-                    const logsTbody = document.getElementById('settings-logs-list');
-                    if (logsTbody && !logs.error) {
-                        logsTbody.innerHTML = '';
-                        logs.forEach(l => {
-                            // Parse as UTC and format locally
-                            const dateObj = new Date(l.timestamp.replace(' ', 'T') + 'Z');
-                            const localDateStr = dateObj.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td>${localDateStr}</td>
-                                <td><strong>${l.username}</strong></td>
-                                <td><span class="status-badge" style="background: rgba(200,155,135,0.15); color: var(--primary);">${l.action}</span></td>
-                                <td style="color: var(--text-muted);">${l.details || '-'}</td>
-                            `;
-                            logsTbody.appendChild(tr);
-                        });
-                    }
-                } catch(e) { console.log(e); }
+                if (typeof fetchUsers === 'function') {
+                    try { await fetchUsers(); } catch(e) {}
+                }
             }
+                
+            // Fetch Logs
+            const logsBtn = document.getElementById('tab-btn-logs');
+            if (logsBtn) logsBtn.style.display = 'inline-block';
+            try {
+                const resL = await fetch('/api/logs');
+                const logs = await resL.json();
+                const logsTbody = document.getElementById('settings-logs-list');
+                if (logsTbody && !logs.error) {
+                    logsTbody.innerHTML = '';
+                    logs.forEach(l => {
+                        // Parse as UTC and format locally
+                        const dateObj = new Date(l.timestamp.replace(' ', 'T') + 'Z');
+                        const localDateStr = dateObj.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${localDateStr}</td>
+                            <td><strong>${l.username}</strong></td>
+                            <td><span class="status-badge" style="background: rgba(200,155,135,0.15); color: var(--primary);">${l.action}</span></td>
+                            <td style="color: var(--text-muted);">${l.details || '-'}</td>
+                        `;
+                        logsTbody.appendChild(tr);
+                    });
+                }
+            } catch(e) { console.log(e); }
 
             renderSettingsList('settings-warehouse-list', allWarehouses, deleteWarehouse);
             renderHotelList('settings-hotel-list', allHotels);
@@ -3090,12 +3023,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.deleteUser = async function(id) {
-        if(!confirm('¿Estás seguro de eliminar este usuario?')) return;
+        let username = '';
+        if (typeof allUsersList !== 'undefined' && Array.isArray(allUsersList)) {
+            const u = allUsersList.find(x => x.id == id);
+            if (u) username = u.username;
+        } else if (typeof window.allUsers !== 'undefined' && Array.isArray(window.allUsers)) {
+            const u = window.allUsers.find(x => x.id == id);
+            if (u) username = u.username;
+        }
+
+        const confirmMsg = username ? `¿Seguro que deseas eliminar al usuario "${username}"?` : '¿Estás seguro de eliminar este usuario?';
+        if (!confirm(confirmMsg)) return;
+
         try {
             const res = await fetch(`/api/settings/users/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                showToast('Usuario eliminado', 'success');
-                fetchSettings();
+                showToast(username ? `Usuario "${username}" eliminado` : 'Usuario eliminado', 'success');
+                if (typeof fetchUsers === 'function') {
+                    await fetchUsers();
+                } else if (typeof fetchSettings === 'function') {
+                    fetchSettings();
+                }
             } else {
                 const data = await res.json();
                 showToast(data.error || 'Error al eliminar', 'error');
@@ -5841,8 +5789,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return ['dashboard', 'inventario', 'pedidos', 'pedidos:crear', 'pedidos:cotizar', 'pedidos:comprar', 'pedidos:recibir', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes'];
         } else if (role === 'Viewer') {
             return ['dashboard', 'inventario', 'pedidos', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'pendientes'];
+        } else if (role === 'Personalizado') {
+            return [];
         }
-        return ['dashboard', 'inventario', 'pedidos', 'pedidos:crear'];
+        return [];
     }
 
     // Toggle de Sub-permisos de Pedidos (Creación y Edición)
@@ -5927,12 +5877,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const exp = document.getElementById('new-user-radio-role-explanation');
         if (exp) exp.innerHTML = radioRoleExplanations[e.target.value] || radioRoleExplanations.viewer;
         updateRadioMatrixRoleView('new', e.target.value);
+        const chkConfig = document.getElementById('chk-new-user-radio-config');
+        if (chkConfig) chkConfig.checked = (e.target.value === 'admin');
     });
 
     document.getElementById('edit-user-radio-role')?.addEventListener('change', (e) => {
         const exp = document.getElementById('edit-user-radio-role-explanation');
         if (exp) exp.innerHTML = radioRoleExplanations[e.target.value] || radioRoleExplanations.viewer;
         updateRadioMatrixRoleView('edit', e.target.value);
+        const chkConfig = document.getElementById('chk-edit-user-radio-config');
+        if (chkConfig) chkConfig.checked = (e.target.value === 'admin');
     });
 
     let cachedHotelsList = null;
@@ -5970,6 +5924,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         const exp = document.getElementById(`${prefix}-user-radio-role-explanation`);
                         if (exp) exp.innerHTML = radioRoleExplanations[currentRadioRole] || radioRoleExplanations.viewer;
                     }
+                    const configChk = document.getElementById(`chk-${prefix}-user-radio-config`);
+                    if (configChk) {
+                        configChk.checked = dataAcc.has_radio_config_access !== undefined ? dataAcc.has_radio_config_access : (currentRadioRole === 'admin');
+                    }
                 }
             }
 
@@ -5989,41 +5947,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const isAdmin = radioRole === 'admin';
 
         let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed var(--color-border);">
-                <span style="font-size: 11px; font-weight: 700; color: var(--color-primary); text-transform: uppercase;">
-                    <i class="fa-solid fa-hotel me-1"></i> Propiedades a las que tendrá acceso:
-                </span>
-                <div style="display: flex; gap: 4px;">
-                    <button type="button" class="btn btn-secondary btn-sm btn-matrix-select-all" data-prefix="${prefix}" style="font-size: 10px; padding: 2px 7px;">Todas</button>
-                    <button type="button" class="btn btn-secondary btn-sm btn-matrix-clear-all" data-prefix="${prefix}" style="font-size: 10px; padding: 2px 7px;">Ninguna</button>
+            <!-- Barra Superior de Herramientas y Filtro de Permisos -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <div style="position: relative; flex: 1; min-width: 180px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 8px; top: 8px; color: #94a3b8; font-size: 11px;"></i>
+                        <input type="text" class="form-control matrix-filter-input" data-prefix="${prefix}" placeholder="Buscar propiedad, departamento..." style="height: 28px; padding-left: 26px; font-size: 11.5px; border-radius: 6px;">
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        <button type="button" class="btn btn-secondary btn-sm btn-matrix-toggle-all" data-prefix="${prefix}" title="Expandir/Contraer" style="font-size: 10.5px; padding: 2px 7px;"><i class="fa-solid fa-up-right-and-down-left-from-center me-1"></i> Expandir</button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-matrix-select-all" data-prefix="${prefix}" style="font-size: 10.5px; padding: 2px 7px;"><i class="fa-solid fa-square-check me-1"></i> Todos</button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-matrix-clear-all" data-prefix="${prefix}" style="font-size: 10.5px; padding: 2px 7px;"><i class="fa-solid fa-square me-1"></i> Ninguno</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #475569;">
+                    <span class="matrix-selection-counter" data-prefix="${prefix}" style="font-weight: 700; color: #1e40af;">Calculando selección...</span>
                 </div>
             </div>
+            <div class="matrix-cards-scroll-wrapper" data-prefix="${prefix}" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 4px;">
         `;
 
         hotels.forEach(h => {
             const propAcc = existingProperties.find(p => p.hotel_id === h.id);
-            // Por defecto en nuevo admin o si can_view/can_manage es true
             const isHotelChecked = propAcc ? (propAcc.can_view || propAcc.can_manage) : (existingProperties.length === 0 && prefix === 'new');
             const hDepts = depts.filter(d => d.hotel_id === h.id && !d.parent_department_id);
 
             html += `
-                <div class="radio-prop-card" data-hotel-id="${h.id}" style="border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 8px; background: var(--color-surface); overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                    <div style="background: var(--color-surface-2, rgba(0,0,0,0.02)); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12px; color: var(--color-primary); cursor: pointer; margin: 0;">
-                            <input type="checkbox" class="chk-matrix-hotel" data-prefix="${prefix}" data-hotel-id="${h.id}" ${isHotelChecked ? 'checked' : ''}>
-                            <span><i class="fa-solid fa-building" style="margin-right: 4px;"></i> ${escapeHtml(h.name)} ${h.sigla ? `(${escapeHtml(h.sigla)})` : ''}</span>
-                        </label>
-                        <span class="badge-prop-role-hint" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(37, 99, 235, 0.08); color: #2563eb;">
+                <div class="radio-prop-card" data-hotel-id="${h.id}" data-search-text="${escapeHtml((h.name + ' ' + (h.sigla || '')).toLowerCase())}" style="border: 1.5px solid #e2e8f0; border-radius: 8px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div class="radio-prop-header" style="background: #f8fafc; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; user-select: none;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" class="btn btn-link p-0 btn-toggle-prop-accordion" data-hotel-id="${h.id}" style="color: #64748b; font-size: 12px; text-decoration: none;">
+                                <i class="fa-solid fa-chevron-down icon-prop-chevron" data-hotel-id="${h.id}" style="transition: transform 0.2s;"></i>
+                            </button>
+                            <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; color: #0f172a; cursor: pointer; margin: 0;">
+                                <input type="checkbox" class="chk-matrix-hotel" data-prefix="${prefix}" data-hotel-id="${h.id}" ${isHotelChecked ? 'checked' : ''}>
+                                <span><i class="fa-solid fa-building text-primary" style="margin-right: 4px;"></i> ${escapeHtml(h.name)} ${h.sigla ? `(${escapeHtml(h.sigla)})` : ''}</span>
+                            </label>
+                        </div>
+                        <span class="badge-prop-role-hint" style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(37, 99, 235, 0.08); color: #2563eb;">
                             ${isAdmin ? '<i class="fa-solid fa-shield me-1"></i> Control Total' : '<i class="fa-solid fa-sitemap me-1"></i> Por Departamentos'}
                         </span>
                     </div>
 
-                    <!-- Panel de Departamentos (visible cuando NO es admin o para desglose) -->
-                    <div class="radio-prop-depts-panel" data-hotel-id="${h.id}" style="padding: 8px 12px; font-size: 11.5px; ${isAdmin ? 'display: none;' : ''}">
+                    <!-- Panel de Departamentos Acordeón -->
+                    <div class="radio-prop-depts-panel" data-hotel-id="${h.id}" style="padding: 8px 12px; font-size: 11.5px; ${isAdmin ? 'display: none;' : 'display: block;'}">
             `;
 
             if (hDepts.length === 0) {
-                html += `<div style="font-size: 11px; color: var(--color-text-muted); font-style: italic;">Sin departamentos configurados en esta propiedad.</div>`;
+                html += `<div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 4px 0;">Sin departamentos configurados en esta propiedad.</div>`;
             } else {
                 hDepts.forEach(d => {
                     const subDepts = depts.filter(sd => sd.parent_department_id === d.id);
@@ -6031,14 +6002,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isChecked = !!matchAcc || (isHotelChecked && existingAccesses.length === 0);
                     const accessLvl = matchAcc ? matchAcc.access_level : (isAdmin ? 'manage' : 'view');
 
+                    const deptSearchStr = (h.name + ' ' + d.name + ' ' + subDepts.map(s => s.name).join(' ')).toLowerCase();
+
                     html += `
-                        <div style="margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--color-border);">
+                        <div class="dept-matrix-item" data-dept-id="${d.id}" data-search-text="${escapeHtml(deptSearchStr)}" style="margin-bottom: 6px; padding: 6px 8px; background: #fafafa; border: 1px solid #f1f5f9; border-radius: 6px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; margin: 0;">
-                                    <input type="checkbox" class="chk-matrix-dept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" ${isChecked ? 'checked' : ''}>
-                                    <span>${escapeHtml(d.name)}</span>
-                                </label>
-                                <select class="sel-matrix-access" data-hotel-id="${h.id}" data-dept-id="${d.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-border); height: 26px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    ${subDepts.length > 0 ? `
+                                        <button type="button" class="btn btn-link p-0 btn-toggle-dept-accordion" data-dept-id="${d.id}" style="color: #94a3b8; font-size: 10px; text-decoration: none;">
+                                            <i class="fa-solid fa-chevron-down icon-dept-chevron" data-dept-id="${d.id}" style="transition: transform 0.2s;"></i>
+                                        </button>
+                                    ` : '<span style="width: 12px;"></span>'}
+                                    <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; color: #1e293b; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" class="chk-matrix-dept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" ${isChecked ? 'checked' : ''}>
+                                        <span>${escapeHtml(d.name)}</span>
+                                    </label>
+                                </div>
+                                <select class="sel-matrix-access" data-hotel-id="${h.id}" data-dept-id="${d.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; height: 26px; font-weight: 600;">
                                     <option value="view" ${accessLvl === 'view' ? 'selected' : ''}>Consultar</option>
                                     <option value="department_manager" ${accessLvl === 'department_manager' ? 'selected' : ''}>Encargado Depto.</option>
                                     <option value="manage" ${accessLvl === 'manage' ? 'selected' : ''}>Gestionar</option>
@@ -6047,14 +6027,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
 
                     if (subDepts.length > 0) {
-                        html += `<div style="margin-left: 20px; margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">`;
+                        html += `<div class="subdept-matrix-panel" data-dept-id="${d.id}" style="margin-left: 20px; margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">`;
                         subDepts.forEach(sd => {
                             const matchSubAcc = existingAccesses.find(a => a.hotel_id === h.id && a.department_id === d.id && a.subdepartment_id === sd.id);
                             const isSubChecked = !!matchSubAcc || (isChecked && existingAccesses.length === 0);
                             html += `
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-text-secondary); cursor: pointer; margin: 0;">
+                                <label class="subdept-pill-label" data-search-text="${escapeHtml(sd.name.toLowerCase())}" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #475569; background: #ffffff; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 4px; cursor: pointer; margin: 0;">
                                     <input type="checkbox" class="chk-matrix-subdept" data-prefix="${prefix}" data-hotel-id="${h.id}" data-dept-id="${d.id}" data-subdept-id="${sd.id}" ${isSubChecked ? 'checked' : ''}>
-                                    <span>↳ ${escapeHtml(sd.name)}</span>
+                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(sd.name)}">${escapeHtml(sd.name)}</span>
                                 </label>
                             `;
                         });
@@ -6071,25 +6051,104 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         });
 
+        html += `</div>`;
         container.innerHTML = html;
 
-        // Event listeners para botones Seleccionar Todas / Ninguna
-        container.querySelector(`.btn-matrix-select-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
-            container.querySelectorAll('.chk-matrix-hotel').forEach(cb => {
-                cb.checked = true;
-                const hId = cb.getAttribute('data-hotel-id');
-                container.querySelectorAll(`.chk-matrix-dept[data-hotel-id="${hId}"]`).forEach(d => d.checked = true);
-                container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"]`).forEach(sd => sd.checked = true);
+        // Actualizador dinámico del contador de selección
+        function updateMatrixSelectionCounters() {
+            const counterEl = container.querySelector(`.matrix-selection-counter[data-prefix="${prefix}"]`);
+            if (!counterEl) return;
+
+            const selectedProps = container.querySelectorAll('.chk-matrix-hotel:checked').length;
+            const selectedDepts = container.querySelectorAll('.chk-matrix-dept:checked').length;
+            const selectedSubdepts = container.querySelectorAll('.chk-matrix-subdept:checked').length;
+
+            counterEl.innerHTML = `<i class="fa-solid fa-check-circle text-success me-1"></i> ${selectedProps} propiedades, ${selectedDepts} departamentos y ${selectedSubdepts} subdepartamentos seleccionados`;
+        }
+
+        updateMatrixSelectionCounters();
+
+        // Buscador en vivo
+        const searchInput = container.querySelector(`.matrix-filter-input[data-prefix="${prefix}"]`);
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.trim().toLowerCase();
+                container.querySelectorAll('.radio-prop-card').forEach(card => {
+                    const txt = card.getAttribute('data-search-text') || '';
+                    if (!term || txt.includes(term)) {
+                        card.style.display = 'block';
+                    } else {
+                        // Comprobar departamentos internos
+                        let hasMatchingDept = false;
+                        card.querySelectorAll('.dept-matrix-item').forEach(deptItem => {
+                            const dTxt = deptItem.getAttribute('data-search-text') || '';
+                            if (dTxt.includes(term)) {
+                                deptItem.style.display = 'block';
+                                hasMatchingDept = true;
+                            } else {
+                                deptItem.style.display = 'none';
+                            }
+                        });
+                        card.style.display = hasMatchingDept ? 'block' : 'none';
+                    }
+                });
+            });
+        }
+
+        // Expandir / Contraer todo
+        let allExpanded = true;
+        container.querySelector(`.btn-matrix-toggle-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
+            allExpanded = !allExpanded;
+            container.querySelectorAll('.radio-prop-depts-panel').forEach(p => p.style.display = allExpanded ? 'block' : 'none');
+            container.querySelectorAll('.subdept-matrix-panel').forEach(p => p.style.display = allExpanded ? 'grid' : 'none');
+            container.querySelectorAll('.icon-prop-chevron, .icon-dept-chevron').forEach(i => {
+                i.style.transform = allExpanded ? 'rotate(0deg)' : 'rotate(-90deg)';
             });
         });
 
-        container.querySelector(`.btn-matrix-clear-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
-            container.querySelectorAll('.chk-matrix-hotel').forEach(cb => {
-                cb.checked = false;
-                const hId = cb.getAttribute('data-hotel-id');
-                container.querySelectorAll(`.chk-matrix-dept[data-hotel-id="${hId}"]`).forEach(d => d.checked = false);
-                container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"]`).forEach(sd => sd.checked = false);
+        // Acordeón por propiedad
+        container.querySelectorAll('.btn-toggle-prop-accordion').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const hId = btn.getAttribute('data-hotel-id');
+                const panel = container.querySelector(`.radio-prop-depts-panel[data-hotel-id="${hId}"]`);
+                const chevron = container.querySelector(`.icon-prop-chevron[data-hotel-id="${hId}"]`);
+                if (panel) {
+                    const isVisible = panel.style.display !== 'none';
+                    panel.style.display = isVisible ? 'none' : 'block';
+                    if (chevron) chevron.style.transform = isVisible ? 'rotate(-90deg)' : 'rotate(0deg)';
+                }
             });
+        });
+
+        // Acordeón por departamento
+        container.querySelectorAll('.btn-toggle-dept-accordion').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dId = btn.getAttribute('data-dept-id');
+                const panel = container.querySelector(`.subdept-matrix-panel[data-dept-id="${dId}"]`);
+                const chevron = container.querySelector(`.icon-dept-chevron[data-dept-id="${dId}"]`);
+                if (panel) {
+                    const isVisible = panel.style.display !== 'none';
+                    panel.style.display = isVisible ? 'none' : 'grid';
+                    if (chevron) chevron.style.transform = isVisible ? 'rotate(-90deg)' : 'rotate(0deg)';
+                }
+            });
+        });
+
+        // Event listeners para botones Seleccionar Todas / Ninguna
+        container.querySelector(`.btn-matrix-select-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
+            container.querySelectorAll('.chk-matrix-hotel').forEach(cb => cb.checked = true);
+            container.querySelectorAll('.chk-matrix-dept').forEach(d => d.checked = true);
+            container.querySelectorAll('.chk-matrix-subdept').forEach(sd => sd.checked = true);
+            updateMatrixSelectionCounters();
+        });
+
+        container.querySelector(`.btn-matrix-clear-all[data-prefix="${prefix}"]`)?.addEventListener('click', () => {
+            container.querySelectorAll('.chk-matrix-hotel').forEach(cb => cb.checked = false);
+            container.querySelectorAll('.chk-matrix-dept').forEach(d => d.checked = false);
+            container.querySelectorAll('.chk-matrix-subdept').forEach(sd => sd.checked = false);
+            updateMatrixSelectionCounters();
         });
 
         // Event listener al marcar o desmarcar una propiedad
@@ -6099,6 +6158,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isChecked = e.target.checked;
                 container.querySelectorAll(`.chk-matrix-dept[data-hotel-id="${hId}"]`).forEach(d => d.checked = isChecked);
                 container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"]`).forEach(sd => sd.checked = isChecked);
+                updateMatrixSelectionCounters();
+            });
+        });
+
+        // Event listener al marcar/desmarcar depts y subdepts
+        container.querySelectorAll('.chk-matrix-dept').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const hId = e.target.getAttribute('data-hotel-id');
+                const dId = e.target.getAttribute('data-dept-id');
+                const isChecked = e.target.checked;
+                container.querySelectorAll(`.chk-matrix-subdept[data-hotel-id="${hId}"][data-dept-id="${dId}"]`).forEach(sd => sd.checked = isChecked);
+                if (isChecked) {
+                    const propChk = container.querySelector(`.chk-matrix-hotel[data-hotel-id="${hId}"]`);
+                    if (propChk) propChk.checked = true;
+                }
+                updateMatrixSelectionCounters();
+            });
+        });
+
+        container.querySelectorAll('.chk-matrix-subdept').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const hId = e.target.getAttribute('data-hotel-id');
+                const dId = e.target.getAttribute('data-dept-id');
+                if (e.target.checked) {
+                    const deptChk = container.querySelector(`.chk-matrix-dept[data-hotel-id="${hId}"][data-dept-id="${dId}"]`);
+                    if (deptChk) deptChk.checked = true;
+                    const propChk = container.querySelector(`.chk-matrix-hotel[data-hotel-id="${hId}"]`);
+                    if (propChk) propChk.checked = true;
+                }
+                updateMatrixSelectionCounters();
             });
         });
     }
@@ -6117,9 +6206,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function collectRadioDeptMatrixData(prefix) {
         const container = document.getElementById(`${prefix}-user-radios-dept-matrix`);
-        if (!container) return { radio_role: 'viewer', properties: [], accesses: [] };
-
         const radioRole = document.getElementById(`${prefix}-user-radio-role`)?.value || 'viewer';
+        const configChk = document.getElementById(`chk-${prefix}-user-radio-config`);
+        const hasRadioConfigAccess = configChk ? configChk.checked : (radioRole === 'admin');
+
+        if (!container) return { radio_role: radioRole, has_radio_config_access: hasRadioConfigAccess, properties: [], accesses: [] };
+
         const properties = [];
         const accesses = [];
 
@@ -6165,6 +6257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return {
             radio_role: radioRole,
+            has_radio_config_access: hasRadioConfigAccess,
             properties: properties,
             accesses: accesses
         };
@@ -6415,7 +6508,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="fa-solid fa-key"></i>
                         </button>
                         ${user.username !== 'admin' ? `
-                        <button class="btn-icon btn-delete-user" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Eliminar Usuario" style="color: var(--color-danger);">
+                        <button class="btn-icon btn-delete-user" data-id="${user.id}" data-username="${escapeHtml(user.username)}" onclick="window.deleteUser(${user.id})" title="Eliminar Usuario" style="color: var(--color-danger);">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                         ` : ''}
@@ -6456,23 +6549,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         listBody.querySelectorAll('.btn-delete-user').forEach(btn => {
-            btn.addEventListener('click', async () => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const id = btn.getAttribute('data-id');
-                const uname = btn.getAttribute('data-username');
-                if (!confirm(`¿Seguro que deseas eliminar al usuario "${uname}"?`)) return;
-
-                try {
-                    const res = await fetch(`/api/settings/users/${id}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        showToast(`Usuario "${uname}" eliminado`, 'success');
-                        fetchUsers();
-                    } else {
-                        const err = await res.json();
-                        showToast(err.error || 'Error al eliminar usuario', 'error');
-                    }
-                } catch(e) {
-                    showToast('Error de conexión', 'error');
-                }
+                window.deleteUser(id);
             });
         });
 

@@ -58,7 +58,7 @@ window.closeModal = function (modalId) {
     if (m) m.classList.remove('active');
 };
 
-window.openNewRadioModal = function () {
+window.openNewRadioModal = async function () {
     const modal = document.getElementById('modal-radio-item');
     if (modal) {
         document.getElementById('form-radio-item')?.reset();
@@ -72,6 +72,13 @@ window.openNewRadioModal = function () {
         const fileInp = document.getElementById('rad-form-image-input');
         if (fileInp) fileInp.value = '';
 
+        const nameInp = document.getElementById('rad-form-assigned-name');
+        if (nameInp) nameInp.value = '';
+        const empInp = document.getElementById('rad-form-assigned-emp-id');
+        if (empInp) empInp.value = '';
+        const posInp = document.getElementById('rad-form-assigned-position');
+        if (posInp) posInp.value = '';
+
         const codeInput = document.getElementById('rad-form-code');
         if (codeInput) {
             codeInput.value = '----';
@@ -83,20 +90,30 @@ window.openNewRadioModal = function () {
             hintEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-primary me-1"></i> Identificando bloque de IDs disponible...';
         }
 
+        const titleEl = document.getElementById('modal-radio-title');
+        if (titleEl) titleEl.innerText = 'Nuevo Radio';
+
+        // Asegurar que userProperties esté cargado
+        if (!userProperties || userProperties.length === 0) {
+            try {
+                const pRes = await fetch('/api/radios/properties');
+                if (pRes.ok) userProperties = await pRes.json();
+            } catch(e) {}
+        }
+
         const propSel = document.getElementById('rad-form-property');
-        if (propSel && userProperties.length > 0) {
+        if (propSel && userProperties && userProperties.length > 0) {
             propSel.innerHTML = userProperties.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.sigla)})</option>`).join('');
             if (currentPropertyId !== 'all') {
                 propSel.value = currentPropertyId;
             }
         }
-        loadDepartmentsForForms().then(() => {
-            const deptSel = document.getElementById('rad-form-dept');
-            if (deptSel && deptSel.options.length > 1) {
-                deptSel.selectedIndex = 1;
-                deptSel.dispatchEvent(new Event('change'));
-            }
-        });
+        await loadDepartmentsForForms(propSel ? propSel.value : null);
+        const deptSel = document.getElementById('rad-form-dept');
+        if (deptSel && deptSel.options.length > 1) {
+            deptSel.selectedIndex = 1;
+            deptSel.dispatchEvent(new Event('change'));
+        }
         modal.classList.add('active');
     }
 };
@@ -106,6 +123,11 @@ window.openNewRadioModal = function () {
 // -------------------------------------------------------------------------
 window.switchRadioTab = function (targetTab) {
     if (!targetTab) return;
+
+    if (targetTab === 'tab-depts' && window.canAccessRadioConfig === false) {
+        if (window.showToast) showToast('No tienes permiso para acceder al módulo de configuración de TEC-RADIOS', 'error');
+        return;
+    }
 
     // Actualizar botones de navegación
     const navItems = document.querySelectorAll('.radio-sidebar-nav-item, .radio-tab-btn');
@@ -129,8 +151,9 @@ window.switchRadioTab = function (targetTab) {
     // 1. Título dinámico del header según el módulo activo
     const TAB_TITLES = {
         'tab-dashboard': 'Inicio',
-        'tab-inventory': 'Radios de Comunicación',
-        'tab-search': 'Consulta de Radio',
+        'tab-inventory': isRadioQueryUser ? 'Mis Radios' : 'Radios de Comunicación',
+        'tab-search': 'Consultar Radio',
+        'tab-incidents': 'Reportar Incidencia',
         'tab-formal-inv': 'Inventario de Radios',
         'tab-my-inv': 'Mi Inventario',
         'tab-assignments': 'Asignaciones',
@@ -143,10 +166,19 @@ window.switchRadioTab = function (targetTab) {
         pageTitleEl.textContent = TAB_TITLES[targetTab];
     }
 
+    // Bloqueo de seguridad Frontend para usuarios de consulta
+    const adminOnlyTabs = ['tab-formal-inv', 'tab-my-inv', 'tab-assignments', 'tab-reports', 'tab-decommissions', 'tab-depts'];
+    if (isRadioQueryUser && adminOnlyTabs.includes(targetTab)) {
+        if (window.showToast) showToast('Acceso denegado. Módulo administrativo no disponible para tu perfil.', 'error');
+        else alert('Acceso denegado. Módulo administrativo no disponible para tu perfil de consulta.');
+        switchRadioTab('tab-dashboard');
+        return;
+    }
+
     // 2. Control de visibilidad del filtro de propiedad en el header
     const propContainer = document.querySelector('.radios-header-property');
     if (propContainer) {
-        if (targetTab === 'tab-formal-inv' || targetTab === 'tab-search') {
+        if (isRadioQueryUser || targetTab === 'tab-formal-inv' || targetTab === 'tab-search' || targetTab === 'tab-incidents') {
             propContainer.style.display = 'none';
         } else {
             propContainer.style.display = 'flex';
@@ -156,7 +188,7 @@ window.switchRadioTab = function (targetTab) {
     // 3. Control de visibilidad del botón "+ Nuevo Radio" en el header
     const topNewBtn = document.getElementById('btn-radio-top-new');
     if (topNewBtn) {
-        if (targetTab === 'tab-inventory') {
+        if (!isRadioQueryUser && targetTab === 'tab-inventory') {
             topNewBtn.style.display = 'inline-flex';
         } else {
             topNewBtn.style.display = 'none';
@@ -173,6 +205,9 @@ window.switchRadioTab = function (targetTab) {
             break;
         case 'tab-search':
             initSearchTab();
+            break;
+        case 'tab-incidents':
+            loadIncidentsTab();
             break;
         case 'tab-formal-inv':
             loadFormalInventories();
@@ -196,8 +231,16 @@ window.switchRadioTab = function (targetTab) {
     }
 };
 
+// Variables de Rol y Estado de Consulta
+let isRadioQueryUser = (typeof window !== 'undefined' && typeof window.IS_RADIO_QUERY_USER !== 'undefined') ? window.IS_RADIO_QUERY_USER : false;
+let queryStatusDonutInstance = null;
+let queryUserProperties = [];
+let querySelectedProp = 'all';
+let querySelectedDept = 'all';
+let querySelectedSubdept = 'all';
+
 // -------------------------------------------------------------------------
-// 1. TAB DASHBOARD
+// 1. TAB DASHBOARD (BIFURCACIÓN DUAL: CONSULTA vs ADMINISTRATIVO)
 // -------------------------------------------------------------------------
 async function loadDashboard() {
     try {
@@ -211,15 +254,48 @@ async function loadDashboard() {
         const res = await fetch(url);
         if (!res.ok) {
             console.error('[TEC-RADIOS] Error HTTP al cargar dashboard:', res.status, res.statusText);
-            const deptContainer = document.getElementById('rad-dept-bar-list');
-            if (deptContainer) {
-                deptContainer.innerHTML = `<div style="text-align: center; color: var(--color-danger); padding: 16px; font-size: 13px;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Error ${res.status} al cargar métricas. Verifica tu sesión.</div>`;
-            }
             return;
         }
         const data = await res.json();
         console.log('[TEC-RADIOS] Datos recibidos del dashboard:', data);
 
+        // Detectar si el usuario tiene rol de consulta o encargado
+        const radioRole = data.radio_role || (window.RADIO_ROLE || 'admin');
+        if (typeof window !== 'undefined' && typeof window.IS_RADIO_QUERY_USER !== 'undefined') {
+            isRadioQueryUser = window.IS_RADIO_QUERY_USER;
+        } else {
+            isRadioQueryUser = (radioRole === 'viewer' || radioRole === 'dept_manager') && !data.is_admin;
+        }
+
+        // Ajustar interfaz según rol
+        const queryContainer = document.getElementById('rad-dash-query-container');
+        const adminContainer = document.getElementById('rad-dash-admin-container');
+
+        if (isRadioQueryUser) {
+            if (queryContainer) queryContainer.style.display = 'block';
+            if (adminContainer) adminContainer.style.display = 'none';
+
+            // Ocultar botones de navegación y acciones administrativas
+            document.querySelectorAll('.rad-admin-only-tab').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.rad-admin-only-action').forEach(el => el.style.display = 'none');
+            const topPropFilter = document.querySelector('.radios-header-property');
+            if (topPropFilter) topPropFilter.style.display = 'none';
+
+            // Cargar dashboard de consulta especializado
+            await renderQueryDashboardData(data);
+            return;
+        } else {
+            if (queryContainer) queryContainer.style.display = 'none';
+            if (adminContainer) adminContainer.style.display = 'block';
+            document.querySelectorAll('.rad-admin-only-tab').forEach(el => el.style.display = 'flex');
+            document.querySelectorAll('.rad-admin-only-action').forEach(el => el.style.display = 'inline-flex');
+            const topPropFilter = document.querySelector('.radios-header-property');
+            if (topPropFilter) topPropFilter.style.display = 'flex';
+        }
+
+        // =========================================================
+        // DASHBOARD ADMINISTRATIVO ORIGINAL (SIN MODIFICACIONES)
+        // =========================================================
         const total = data.total || 0;
         const operativos = data.operativo || 0;
         const revision = data.requiere_revision || 0;
@@ -334,6 +410,338 @@ async function loadDashboard() {
     }
 }
 
+// -------------------------------------------------------------------------
+// RENDERIZADO DEL DASHBOARD EXCLUSIVO DE CONSULTA
+// -------------------------------------------------------------------------
+async function renderQueryDashboardData(data) {
+    // 1. Nombre de usuario en saludo
+    const userEl = document.getElementById('rad-qdash-welcome-user');
+    if (userEl && data.user_name) {
+        userEl.textContent = data.user_name;
+    }
+
+    queryUserProperties = data.assigned_properties || [];
+
+    // 2. Poblar Filtro de Propiedades
+    const propSel = document.getElementById('rad-qfilter-prop');
+    if (propSel) {
+        const totalProps = queryUserProperties.length;
+        let propOpts = `<option value="all">Todas mis propiedades (${totalProps})</option>`;
+        queryUserProperties.forEach(p => {
+            propOpts += `<option value="${p.id}" ${querySelectedProp == p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`;
+        });
+        propSel.innerHTML = propOpts;
+    }
+
+    // 3. Poblar Filtro de Departamentos (Dependiente)
+    const deptSel = document.getElementById('rad-qfilter-dept');
+    if (deptSel) {
+        let deptList = data.by_department || [];
+        let deptOpts = `<option value="all">Todos los departamentos</option>`;
+        deptList.forEach(d => {
+            deptOpts += `<option value="${d.id}" ${querySelectedDept == d.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`;
+        });
+        deptSel.innerHTML = deptOpts;
+    }
+
+    // 4. Poblar Filtro de Subdepartamentos (Dependiente)
+    const subdeptSel = document.getElementById('rad-qfilter-subdept');
+    if (subdeptSel) {
+        let subdeptList = data.by_subdepartment || [];
+        let subOpts = `<option value="all">Todos los subdepartamentos</option>`;
+        subdeptList.forEach(s => {
+            subOpts += `<option value="${s.id}" ${querySelectedSubdept == s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`;
+        });
+        subdeptSel.innerHTML = subOpts;
+    }
+
+    // 5. 4 Cards de Indicadores KPIs
+    const total = data.total || 0;
+    const operativos = data.operativo || 0;
+    const reparacion = data.en_reparacion || 0;
+    const fuera = (data.fuera_servicio || 0) + (data.danado || 0);
+
+    const calcPct = (val) => (total > 0 ? Math.round((val / total) * 100) : 0) + '%';
+
+    const elTotal = document.getElementById('rad-qstat-total');
+    if (elTotal) elTotal.innerText = total;
+
+    const elSubProps = document.getElementById('rad-qstat-sub-props');
+    if (elSubProps) {
+        const pCount = querySelectedProp === 'all' ? queryUserProperties.length : 1;
+        elSubProps.innerText = `en ${pCount} ${pCount === 1 ? 'propiedad' : 'propiedades'}`;
+    }
+
+    const elOp = document.getElementById('rad-qstat-operativos');
+    if (elOp) elOp.innerText = operativos;
+    const elOpPct = document.getElementById('rad-qstat-operativos-pct');
+    if (elOpPct) elOpPct.innerText = calcPct(operativos);
+
+    const elRep = document.getElementById('rad-qstat-reparacion');
+    if (elRep) elRep.innerText = reparacion;
+    const elRepPct = document.getElementById('rad-qstat-reparacion-pct');
+    if (elRepPct) elRepPct.innerText = calcPct(reparacion);
+
+    const elFue = document.getElementById('rad-qstat-fuera');
+    if (elFue) elFue.innerText = fuera;
+    const elFuePct = document.getElementById('rad-qstat-fuera-pct');
+    if (elFuePct) elFuePct.innerText = calcPct(fuera);
+
+    // 6. Gráfico / Barras: Radios por Propiedad
+    const propBarsContainer = document.getElementById('rad-qprop-bars-list');
+    if (propBarsContainer) {
+        const propList = data.by_property || [];
+        if (propList.length === 0) {
+            propBarsContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 12px; padding: 20px;">Sin datos de propiedades.</div>';
+        } else {
+            const maxVal = Math.max(...propList.map(p => p.count), 1);
+            propBarsContainer.innerHTML = propList.map(p => {
+                const pct = Math.round((p.count / maxVal) * 100);
+                return `
+                    <div class="query-bar-row">
+                        <span class="query-bar-label" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+                        <div class="query-bar-track">
+                            <div class="query-bar-fill" style="width: ${p.count > 0 ? Math.max(pct, 10) : 0}%;"></div>
+                        </div>
+                        <span class="query-bar-val">${p.count}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // 7. Gráfico Donut Chart.js: Estado de los Radios con total central
+    renderQueryStatusDonutChart(total, operativos, reparacion, fuera);
+
+    // 8. Barras: Radios por Subdepartamento
+    const subdeptBarsContainer = document.getElementById('rad-qsubdept-bars-list');
+    if (subdeptBarsContainer) {
+        const subList = data.by_subdepartment || [];
+        if (subList.length === 0) {
+            subdeptBarsContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 12px; padding: 20px;">Sin subdepartamentos con radios asignados.</div>';
+        } else {
+            const maxVal = Math.max(...subList.map(s => s.count), 1);
+            subdeptBarsContainer.innerHTML = subList.map(s => {
+                const pct = Math.round((s.count / maxVal) * 100);
+                return `
+                    <div class="query-bar-row">
+                        <span class="query-bar-label" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>
+                        <div class="query-bar-track">
+                            <div class="query-bar-fill" style="width: ${s.count > 0 ? Math.max(pct, 10) : 0}%;"></div>
+                        </div>
+                        <span class="query-bar-val">${s.count}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // 9. Tabla: Mis Radios Asignados (6 columnas limpias)
+    const tableTbody = document.getElementById('rad-qtable-assigned-tbody');
+    if (tableTbody) {
+        const radiosList = data.recent_radios || [];
+        if (radiosList.length === 0) {
+            tableTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 24px;">No tienes radios asignados en esta selección.</td></tr>';
+        } else {
+            tableTbody.innerHTML = radiosList.map(r => {
+                let badgeHtml = '';
+                if (r.status === 'operativo') {
+                    badgeHtml = `<span class="query-badge-operativo"><i class="fa-solid fa-circle-check"></i> Operativo</span>`;
+                } else if (r.status === 'en_reparacion' || r.status === 'requiere_revision') {
+                    badgeHtml = `<span class="query-badge-reparacion"><i class="fa-solid fa-triangle-exclamation"></i> En Reparación</span>`;
+                } else {
+                    badgeHtml = `<span class="query-badge-fuera"><i class="fa-solid fa-circle-xmark"></i> Fuera de Servicio</span>`;
+                }
+
+                return `
+                    <tr style="cursor: pointer;" onclick="consultSingleRadio('${escapeHtml(r.serial_number || r.radio_code)}')">
+                        <td><strong style="color: #0f172a; font-family: monospace;">#${escapeHtml(r.radio_code || r.id)}</strong></td>
+                        <td style="font-family: monospace; font-size: 11.5px;">${escapeHtml(r.serial_number || '-')}</td>
+                        <td>${escapeHtml(r.model || 'Motorola DP4400')}</td>
+                        <td>${escapeHtml(r.property_sigla || r.property_name || 'Hotel')}</td>
+                        <td><span style="font-weight: 600; color: #334155;">${escapeHtml(r.assigned_person_name || 'Sin Asignar')}</span></td>
+                        <td>${badgeHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    // 10. Lista: Mis Propiedades Asignadas
+    const propsListEl = document.getElementById('rad-qdash-assigned-props-list');
+    if (propsListEl) {
+        if (queryUserProperties.length === 0) {
+            propsListEl.innerHTML = '<div style="color: #94a3b8; font-size: 12px;">Sin propiedades asignadas.</div>';
+        } else {
+            propsListEl.innerHTML = queryUserProperties.map(p => `
+                <div class="query-prop-item">
+                    <i class="fa-solid fa-hotel" style="color: #64748b; font-size: 13px;"></i>
+                    <span>${escapeHtml(p.name)}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Inicializar listeners de filtros dependientes
+    initQueryFiltersListeners();
+}
+
+// -------------------------------------------------------------------------
+// DONUT CHART PARA EL DASHBOARD DE CONSULTA
+// -------------------------------------------------------------------------
+function renderQueryStatusDonutChart(total, op, rep, fuera) {
+    const centerTotalEl = document.getElementById('rad-qdonut-center-total');
+    if (centerTotalEl) {
+        centerTotalEl.textContent = total;
+    }
+
+    const calcPctStr = (val) => `${val} (${total > 0 ? Math.round((val / total) * 100) : 0}%)`;
+
+    const elLegOp = document.getElementById('rad-qleg-op');
+    if (elLegOp) elLegOp.innerText = calcPctStr(op);
+    const elLegRep = document.getElementById('rad-qleg-rep');
+    if (elLegRep) elLegRep.innerText = calcPctStr(rep);
+    const elLegFu = document.getElementById('rad-qleg-fuera');
+    if (elLegFu) elLegFu.innerText = calcPctStr(fuera);
+
+    const canvas = document.getElementById('rad-qstatus-donut-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (queryStatusDonutInstance) {
+        queryStatusDonutInstance.destroy();
+    }
+
+    if (typeof Chart !== 'undefined') {
+        queryStatusDonutInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Operativo', 'En Reparación', 'Fuera de Servicio'],
+                datasets: [{
+                    data: total > 0 ? [op, rep, fuera] : [1, 0, 0],
+                    backgroundColor: total > 0 ? ['#10b981', '#f59e0b', '#ef4444'] : ['#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                    borderWidth: 3,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '76%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: total > 0,
+                        callbacks: {
+                            label: function (context) {
+                                const val = context.raw || 0;
+                                const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                                return ` ${context.label}: ${val} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// -------------------------------------------------------------------------
+// FILTROS DEPENDIENTES DASHBOARD CONSULTA
+// -------------------------------------------------------------------------
+function initQueryFiltersListeners() {
+    const propSel = document.getElementById('rad-qfilter-prop');
+    const deptSel = document.getElementById('rad-qfilter-dept');
+    const subdeptSel = document.getElementById('rad-qfilter-subdept');
+    const btnClear = document.getElementById('btn-rad-qfilter-clear');
+    const btnReportNow = document.getElementById('btn-qdash-report-now');
+    const btnVerTodasProps = document.getElementById('btn-qdash-all-props');
+
+    if (propSel && !propSel._hasQueryListener) {
+        propSel._hasQueryListener = true;
+        propSel.addEventListener('change', async () => {
+            querySelectedProp = propSel.value;
+            querySelectedDept = 'all';
+            querySelectedSubdept = 'all';
+            await refreshQueryDashboard();
+        });
+    }
+
+    if (deptSel && !deptSel._hasQueryListener) {
+        deptSel._hasQueryListener = true;
+        deptSel.addEventListener('change', async () => {
+            querySelectedDept = deptSel.value;
+            querySelectedSubdept = 'all';
+            await refreshQueryDashboard();
+        });
+    }
+
+    if (subdeptSel && !subdeptSel._hasQueryListener) {
+        subdeptSel._hasQueryListener = true;
+        subdeptSel.addEventListener('change', async () => {
+            querySelectedSubdept = subdeptSel.value;
+            await refreshQueryDashboard();
+        });
+    }
+
+    if (btnClear && !btnClear._hasQueryListener) {
+        btnClear._hasQueryListener = true;
+        btnClear.addEventListener('click', async () => {
+            querySelectedProp = 'all';
+            querySelectedDept = 'all';
+            querySelectedSubdept = 'all';
+            await refreshQueryDashboard();
+        });
+    }
+
+    if (btnReportNow && !btnReportNow._hasQueryListener) {
+        btnReportNow._hasQueryListener = true;
+        btnReportNow.addEventListener('click', () => {
+            openRadioIncidentModal();
+        });
+    }
+
+    if (btnVerTodasProps && !btnVerTodasProps._hasQueryListener) {
+        btnVerTodasProps._hasQueryListener = true;
+        btnVerTodasProps.addEventListener('click', async () => {
+            querySelectedProp = 'all';
+            querySelectedDept = 'all';
+            querySelectedSubdept = 'all';
+            await refreshQueryDashboard();
+        });
+    }
+}
+
+async function refreshQueryDashboard() {
+    const params = new URLSearchParams();
+    if (querySelectedProp && querySelectedProp !== 'all') params.append('hotel_id', querySelectedProp);
+    if (querySelectedDept && querySelectedDept !== 'all') params.append('department_id', querySelectedDept);
+    if (querySelectedSubdept && querySelectedSubdept !== 'all') params.append('subdepartment_id', querySelectedSubdept);
+
+    const url = `/api/radios/dashboard?${params.toString()}`;
+    try {
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            await renderQueryDashboardData(data);
+        }
+    } catch (e) {
+        console.error('Error al actualizar dashboard de consulta:', e);
+    }
+}
+
+window.consultSingleRadio = function(query) {
+    if (!query) return;
+    switchRadioTab('tab-search');
+    const input = document.getElementById('rad-quick-search-input');
+    if (input) {
+        input.value = query;
+        const btn = document.getElementById('btn-rad-quick-search');
+        if (btn) btn.click();
+    }
+};
+
 function renderStatusChart(values) {
     const canvas = document.getElementById('rad-status-chart');
     if (!canvas) return;
@@ -377,6 +785,14 @@ function initSearchTab() {
     const searchBtn = document.getElementById('btn-rad-quick-search');
     const input = document.getElementById('rad-quick-search-input');
 
+    // Ajustar visibilidad de botones según rol de consulta
+    if (isRadioQueryUser) {
+        const btnEdit = document.getElementById('btn-rad-edit-item');
+        if (btnEdit) btnEdit.style.display = 'none';
+        const btnTrans = document.getElementById('btn-rad-transfer-item');
+        if (btnTrans) btnTrans.style.display = 'none';
+    }
+
     async function doSearch() {
         const query = input ? input.value.trim() : '';
         if (!query) {
@@ -414,7 +830,7 @@ function initSearchTab() {
                 if (elModel) elModel.innerText = r.model || 'R7';
 
                 const elProp = document.getElementById('rad-card-prop');
-                if (elProp) elProp.innerText = r.property_sigla || 'Hotel';
+                if (elProp) elProp.innerText = r.property_sigla || r.property_name || 'Hotel';
 
                 const elDept = document.getElementById('rad-card-dept');
                 if (elDept) elDept.innerText = r.department_name || 'General';
@@ -423,10 +839,10 @@ function initSearchTab() {
                 if (elArea) elArea.innerText = r.subdepartment_name || r.area_name || '-';
 
                 const elAss = document.getElementById('rad-card-assigned');
-                if (elAss) elAss.innerText = r.assigned_person ? r.assigned_person.name : 'Sin Asignar';
+                if (elAss) elAss.innerText = r.assigned_person ? r.assigned_person.name : (r.assigned_person_name || 'Sin Asignar');
 
                 const elEmpNum = document.getElementById('rad-card-emp-num');
-                if (elEmpNum) elEmpNum.innerText = r.assigned_person ? (r.assigned_person.employeeId || '-') : '-';
+                if (elEmpNum) elEmpNum.innerText = r.assigned_person ? (r.assigned_person.employeeId || '-') : (r.assigned_employee_id || '-');
 
                 const elAssignDate = document.getElementById('rad-card-assign-date');
                 if (elAssignDate) elAssignDate.innerText = r.assigned_person ? (r.assigned_person.assignedDate || '-') : '-';
@@ -436,6 +852,26 @@ function initSearchTab() {
 
                 const statusBadge = document.getElementById('rad-card-status-badge');
                 if (statusBadge) statusBadge.innerHTML = renderStatusBadge(r.status);
+
+                const cardImg = document.getElementById('rad-card-img');
+                if (cardImg) {
+                    let imgUrl = r.image_url || r.imageUrl || '';
+                    if (!imgUrl || imgUrl === '/static/img/default_radio.svg') {
+                        const m = (r.model || '').toUpperCase().replace(/\s+|-/g, '');
+                        if (m.includes('DEP450') || m.includes('450')) imgUrl = '/static/img/dep450.jpg';
+                        else if (m.includes('DEP250') || m.includes('250')) imgUrl = '/static/img/dep250.jpg';
+                        else imgUrl = '/static/img/default_radio.svg';
+                    }
+                    cardImg.src = imgUrl;
+                }
+
+                // Ajustar botones en la ficha
+                if (isRadioQueryUser) {
+                    const btnEdit = document.getElementById('btn-rad-edit-item');
+                    if (btnEdit) btnEdit.style.display = 'none';
+                    const btnTrans = document.getElementById('btn-rad-transfer-item');
+                    if (btnTrans) btnTrans.style.display = 'none';
+                }
             } else {
                 currentSearchedRadio = null;
                 if (cardEl) cardEl.style.display = 'none';
@@ -504,59 +940,387 @@ function initSearchTab() {
         openTransferRadioModal(currentSearchedRadio.id);
     });
 
-    // BOTÓN: Reportar Problema
-    document.getElementById('btn-rad-report-issue')?.addEventListener('click', async () => {
+    // BOTÓN: Reportar Problema -> Abre el modal formal de Incidencia
+    document.getElementById('btn-rad-report-issue')?.addEventListener('click', () => {
         if (!currentSearchedRadio) {
-            alert('Por favor busca un radio primero.');
+            promptSearchIfEmpty();
+            return;
+        }
+        openRadioIncidentModal(currentSearchedRadio.id);
+    });
+}
+
+// -------------------------------------------------------------------------
+// GESTIÓN DE INCIDENCIAS (MÓDULO Y MODAL)
+// -------------------------------------------------------------------------
+let cachedRadioIncidents = [];
+
+async function loadIncidentsTab() {
+    const tbody = document.getElementById('rad-incidents-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;"><i class="fa-solid fa-spinner fa-spin me-1"></i> Cargando incidencias...</td></tr>';
+
+    try {
+        const res = await fetch('/api/radios/incidents');
+        if (!res.ok) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 20px;">Error al cargar incidencias del servidor.</td></tr>';
+            return;
+        }
+        const incidents = await res.json();
+        cachedRadioIncidents = incidents;
+
+        if (incidents.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 24px;">No hay incidencias ni reportes registrados.</td></tr>';
             return;
         }
 
-        const newStatus = prompt(
-            `Reportar novedad para el Radio #${currentSearchedRadio.radio_code} (${currentSearchedRadio.serial_number}):\n\n` +
-            `Selecciona el nuevo estado:\n` +
-            `1. Requiere Revisión\n` +
-            `2. En Reparación\n` +
-            `3. Dañado\n` +
-            `4. Fuera de Servicio\n` +
-            `5. No Localizado / Perdido\n\n` +
-            `Ingresa el número o nombre del estado:`,
-            '1'
-        );
+        tbody.innerHTML = incidents.map(inc => {
+            const pColor = inc.priority === 'Crítica' ? '#dc2626' : (inc.priority === 'Alta' ? '#ea580c' : '#475569');
+            const stColor = inc.status === 'Resuelta' ? 'bg-success' : (inc.status === 'En Proceso' ? 'bg-warning text-dark' : 'bg-danger');
 
-        if (!newStatus) return;
+            return `
+                <tr>
+                    <td><small style="font-weight: 600; color: #64748b;">${escapeHtml(inc.created_at || 'Reciente')}</small></td>
+                    <td><strong style="color: #0f172a; font-family: monospace;">#${escapeHtml(inc.radio_code || '-')}</strong> <br><small style="color: #64748b; font-family: monospace;">${escapeHtml(inc.serial_number || '')}</small></td>
+                    <td>${escapeHtml(inc.hotel_name || 'Propiedad')}</td>
+                    <td>${escapeHtml(inc.department_name || 'General')}</td>
+                    <td><strong>${escapeHtml(inc.issue_type)}</strong><br><small style="color: #64748b;">${escapeHtml(inc.description || '')}</small></td>
+                    <td><span style="color: ${pColor}; font-weight: 800; font-size: 11.5px;"><i class="fa-solid fa-circle-exclamation me-1"></i> ${escapeHtml(inc.priority)}</span></td>
+                    <td><span style="font-weight: 600;">${escapeHtml(inc.reported_by || 'Usuario')}</span></td>
+                    <td><span class="badge ${stColor}" style="font-size: 11px; padding: 4px 8px;">${escapeHtml(inc.status || 'Abierta')}</span></td>
+                    <td style="text-align: right;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="consultSingleRadio('${escapeHtml(inc.serial_number || inc.radio_code)}')" style="font-size: 11px; padding: 3px 8px;">
+                            <i class="fa-solid fa-eye me-1"></i> Ver Radio
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Error al cargar incidencias:', e);
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 20px;">Error de red al consultar incidencias.</td></tr>';
+    }
+}
 
-        let statusKey = 'requiere_revision';
-        if (newStatus === '2' || newStatus.toLowerCase().includes('repara')) statusKey = 'en_reparacion';
-        else if (newStatus === '3' || newStatus.toLowerCase().includes('dañ')) statusKey = 'danado';
-        else if (newStatus === '4' || newStatus.toLowerCase().includes('fuera')) statusKey = 'fuera_servicio';
-        else if (newStatus === '5' || newStatus.toLowerCase().includes('perd')) statusKey = 'perdido';
+// -------------------------------------------------------------------------
+// BUSCADOR Y REPORTE DE INCIDENCIAS DE RADIOS
+// -------------------------------------------------------------------------
+let currentSelectedIncidentRadio = null;
 
-        const reason = prompt('Describe brevemente el problema u observación técnica:', 'Falla reportada por el usuario');
-        if (reason === null) return;
+async function searchRadioForIncident(searchTerm) {
+    const term = (searchTerm || document.getElementById('inc-radio-search-input')?.value || '').trim();
+    const idInput = document.getElementById('inc-radio-id');
+    const feedbackEl = document.getElementById('inc-radio-search-feedback');
+    const btnSearch = document.getElementById('btn-inc-radio-search');
 
-        try {
-            const res = await fetch(`/api/radios/${currentSearchedRadio.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    status: statusKey,
-                    notes: (currentSearchedRadio.notes ? currentSearchedRadio.notes + ' | ' : '') + reason
-                })
-            });
+    const idEl = document.getElementById('inc-preview-id');
+    const serialEl = document.getElementById('inc-preview-serial');
+    const modelEl = document.getElementById('inc-preview-model');
+    const propEl = document.getElementById('inc-preview-prop');
+    const deptEl = document.getElementById('inc-preview-dept');
+    const subdeptEl = document.getElementById('inc-preview-subdept');
+    const userEl = document.getElementById('inc-preview-user');
 
-            if (res.ok) {
-                alert('¡Problema reportado exitosamente! El estado del radio ha sido actualizado.');
-                doSearch();
-                loadDashboard();
-                loadRadiosList();
-            } else {
-                const err = await res.json();
-                alert('Error al reportar problema: ' + (err.error || ''));
-            }
-        } catch(e) {
-            alert('Error de conexión al reportar el problema.');
+    if (!term) {
+        if (feedbackEl) {
+            feedbackEl.style.display = 'block';
+            feedbackEl.style.color = '#dc2626';
+            feedbackEl.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i> Por favor escribe un ID o número de serie.';
         }
+        return false;
+    }
+
+    try {
+        if (btnSearch) {
+            btnSearch.disabled = true;
+            btnSearch.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        }
+
+        // Buscar en la lista de radios autorizados
+        let targetRadio = null;
+        if (window.allAuthorizedRadiosList && window.allAuthorizedRadiosList.length > 0) {
+            const cleanTerm = term.toLowerCase().replace('#', '');
+            targetRadio = window.allAuthorizedRadiosList.find(r => 
+                String(r.id) === cleanTerm || 
+                String(r.radio_code || '').toLowerCase() === cleanTerm || 
+                String(r.serial_number || '').toLowerCase() === cleanTerm
+            );
+        }
+
+        // Si no se encuentra en memoria, buscar vía API
+        if (!targetRadio) {
+            const res = await fetch(`/api/radios?search=${encodeURIComponent(term)}`);
+            if (res.ok) {
+                const list = await res.json();
+                if (list && list.length > 0) {
+                    const cleanTerm = term.toLowerCase().replace('#', '');
+                    targetRadio = list.find(r => 
+                        String(r.id) === cleanTerm || 
+                        String(r.radio_code || '').toLowerCase() === cleanTerm || 
+                        String(r.serial_number || '').toLowerCase() === cleanTerm
+                    ) || list[0];
+                }
+            }
+        }
+
+        if (targetRadio) {
+            currentSelectedIncidentRadio = targetRadio;
+            if (idInput) idInput.value = targetRadio.id;
+
+            if (idEl) idEl.textContent = '#' + (targetRadio.radio_code || targetRadio.id);
+            if (serialEl) serialEl.textContent = targetRadio.serial_number || '-';
+            if (modelEl) modelEl.textContent = `${targetRadio.brand || 'Motorola'} ${targetRadio.model || ''}`;
+            if (propEl) propEl.textContent = targetRadio.property_name || targetRadio.property_sigla || 'Hotel';
+            if (deptEl) deptEl.textContent = targetRadio.department_name || '-';
+            if (subdeptEl) subdeptEl.textContent = targetRadio.subdepartment_name || '-';
+            
+            const cust = targetRadio.assigned_person_name || targetRadio.assigned_person?.name || targetRadio.assignedPerson?.name;
+            if (userEl) userEl.textContent = cust ? `${cust} (${targetRadio.assigned_position || 'Responsable'})` : 'Sin Asignar (En Almacén)';
+
+            if (feedbackEl) {
+                feedbackEl.style.display = 'block';
+                feedbackEl.style.color = '#16a34a';
+                feedbackEl.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Radio <strong>#${targetRadio.radio_code || targetRadio.id}</strong> (${targetRadio.serial_number}) identificado correctamente.`;
+            }
+            return true;
+        } else {
+            currentSelectedIncidentRadio = null;
+            if (idInput) idInput.value = '';
+            if (idEl) idEl.textContent = '-';
+            if (serialEl) serialEl.textContent = '-';
+            if (modelEl) modelEl.textContent = '-';
+            if (propEl) propEl.textContent = '-';
+            if (deptEl) deptEl.textContent = '-';
+            if (subdeptEl) subdeptEl.textContent = '-';
+            if (userEl) userEl.textContent = '-';
+
+            if (feedbackEl) {
+                feedbackEl.style.display = 'block';
+                feedbackEl.style.color = '#dc2626';
+                feedbackEl.innerHTML = `<i class="fa-solid fa-circle-xmark me-1"></i> No se encontró ningún radio con ID o Serial "<strong>${escapeHtml(term)}</strong>".`;
+            }
+            return false;
+        }
+    } catch (err) {
+        console.error('Error buscando radio para reporte:', err);
+        if (feedbackEl) {
+            feedbackEl.style.display = 'block';
+            feedbackEl.style.color = '#dc2626';
+            feedbackEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Error al conectar con el servidor.';
+        }
+        return false;
+    } finally {
+        if (btnSearch) {
+            btnSearch.disabled = false;
+            btnSearch.innerHTML = '<i class="fa-solid fa-check"></i> OK';
+        }
+    }
+}
+
+async function openRadioIncidentModal(preselectedRadioId = null) {
+    const modal = document.getElementById('modal-radio-incident');
+    const form = document.getElementById('form-radio-incident');
+    const searchInput = document.getElementById('inc-radio-search-input');
+    const idInput = document.getElementById('inc-radio-id');
+    const feedbackEl = document.getElementById('inc-radio-search-feedback');
+    const statusMsg = document.getElementById('inc-status-msg');
+
+    if (!modal || !form) return;
+
+    if (statusMsg) statusMsg.style.display = 'none';
+    if (feedbackEl) feedbackEl.style.display = 'none';
+    form.reset();
+    if (idInput) idInput.value = '';
+
+    // Limpiar preview
+    document.getElementById('inc-preview-id').textContent = '-';
+    document.getElementById('inc-preview-serial').textContent = '-';
+    document.getElementById('inc-preview-model').textContent = '-';
+    document.getElementById('inc-preview-prop').textContent = '-';
+    document.getElementById('inc-preview-dept').textContent = '-';
+    document.getElementById('inc-preview-subdept').textContent = '-';
+    document.getElementById('inc-preview-user').textContent = '-';
+
+    // Cargar caché de radios autorizados si está vacía
+    try {
+        if (!window.allAuthorizedRadiosList || window.allAuthorizedRadiosList.length === 0) {
+            const res = await fetch('/api/radios');
+            if (res.ok) window.allAuthorizedRadiosList = await res.json();
+        }
+    } catch (e) {
+        console.error('Error precargando radios:', e);
+    }
+
+    // Configurar listener del botón OK y tecla Enter
+    const btnSearch = document.getElementById('btn-inc-radio-search');
+    if (btnSearch && !btnSearch._hasClickListener) {
+        btnSearch._hasClickListener = true;
+        btnSearch.addEventListener('click', () => searchRadioForIncident());
+    }
+    if (searchInput && !searchInput._hasKeydownListener) {
+        searchInput._hasKeydownListener = true;
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchRadioForIncident();
+            }
+        });
+    }
+
+    if (preselectedRadioId) {
+        if (searchInput) searchInput.value = preselectedRadioId;
+        searchRadioForIncident(preselectedRadioId);
+    }
+
+    modal.classList.add('active');
+    setTimeout(() => {
+        if (searchInput) searchInput.focus();
+    }, 150);
+}
+
+// -------------------------------------------------------------------------
+// NOTIFICACIONES EXCLUSIVAS DE TEC-RADIOS Y ALERTAS EN PANTALLA EN VIVO
+// -------------------------------------------------------------------------
+window._lastKnownNotifCount = 0;
+window._knownNotifIds = new Set();
+
+window.showLiveRadioAlertToast = function (title, message, incidentId = null, priority = 'Media') {
+    let container = document.getElementById('live-radio-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'live-radio-toast-container';
+        container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; max-width: 420px; width: 90vw;';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'live-radio-toast-card';
+    const borderColor = priority === 'Crítica' ? '#dc2626' : (priority === 'Alta' ? '#ea580c' : '#2563eb');
+    const iconColor = priority === 'Crítica' ? '#dc2626' : (priority === 'Alta' ? '#ea580c' : '#2563eb');
+    const iconBg = priority === 'Crítica' ? '#fee2e2' : (priority === 'Alta' ? '#ffedd5' : '#eff6ff');
+
+    toast.style.cssText = `
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 16px 36px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.06);
+        border-left: 6px solid ${borderColor};
+        padding: 16px 18px;
+        pointer-events: auto;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        transition: all 0.3s ease;
+    `;
+
+    toast.innerHTML = `
+        <div style="width: 38px; height: 38px; border-radius: 10px; background: ${iconBg}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-weight: 800; font-size: 13.5px; color: #0f172a;">${escapeHtml(title)}</span>
+                <button type="button" class="btn-close-toast" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 0 4px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p style="margin: 0 0 8px 0; font-size: 12.5px; color: #475569; line-height: 1.4;">${escapeHtml(message)}</p>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                ${incidentId ? `<button type="button" class="btn-view-inc" style="background: #0f172a; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-arrow-right me-1"></i> Ver Incidencia</button>` : ''}
+                <span style="font-size: 11px; color: #94a3b8;"><i class="fa-regular fa-clock me-1"></i> Notificación en vivo</span>
+            </div>
+        </div>
+    `;
+
+    toast.querySelector('.btn-close-toast')?.addEventListener('click', () => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(50px)';
+        setTimeout(() => toast.remove(), 300);
     });
+
+    toast.querySelector('.btn-view-inc')?.addEventListener('click', () => {
+        if (typeof switchRadioTab === 'function') switchRadioTab('tab-incidents');
+        toast.remove();
+    });
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(50px)';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 10000);
+};
+
+async function loadRadioNotifications() {
+    try {
+        const res = await fetch('/api/radios/notifications');
+        if (!res.ok) return;
+        const data = await res.json();
+        const unreadCount = data.unread_count || 0;
+        const notifs = data.notifications || [];
+
+        // Detectar si hay nuevas alertas no leídas para mostrarlas en pantalla a Administradores
+        notifs.forEach(n => {
+            if (!n.is_read && n.id && !window._knownNotifIds.has(n.id)) {
+                window._knownNotifIds.add(n.id);
+                // Si la página ya estaba inicializada, emitir el toast en vivo
+                if (window._hasInitialNotifCheck) {
+                    showLiveRadioAlertToast(n.title || 'Alerta de Radio', n.message || '', n.incident_id, n.priority || 'Media');
+                }
+            }
+        });
+        window._hasInitialNotifCheck = true;
+
+        // Actualizar campana en header si existe indicador
+        const bellIconBtn = document.getElementById('btn-notifications-icon');
+        if (bellIconBtn) {
+            let dot = bellIconBtn.querySelector('.rad-notif-dot');
+            if (unreadCount > 0) {
+                if (!dot) {
+                    dot = document.createElement('span');
+                    dot.className = 'rad-notif-dot';
+                    dot.style.cssText = 'position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 6px #ef4444;';
+                    bellIconBtn.appendChild(dot);
+                }
+            } else if (dot) {
+                dot.remove();
+            }
+        }
+
+        // Renderizar en modal si está abierto
+        const listContainer = document.getElementById('rad-notifications-list');
+        if (listContainer) {
+            if (notifs.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 30px; font-size: 13px;">Sin notificaciones pendientes de TEC-RADIOS.</div>';
+            } else {
+                listContainer.innerHTML = notifs.map(n => `
+                    <div class="rad-notif-item ${!n.is_read ? 'unread' : ''}" style="display: flex; gap: 12px; padding: 12px 14px; border-radius: 10px; background: ${n.is_read ? '#f8fafc' : '#eff6ff'}; border: 1px solid ${n.is_read ? '#e2e8f0' : '#bfdbfe'};">
+                        <div style="width: 32px; height: 32px; border-radius: 8px; background: ${n.is_read ? '#e2e8f0' : '#dbeafe'}; color: ${n.is_read ? '#64748b' : '#2563eb'}; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+                                <strong style="font-size: 13px; color: #0f172a;">${escapeHtml(n.title)}</strong>
+                                <small style="font-size: 11px; color: #64748b;">${escapeHtml(n.created_at || 'Reciente')}</small>
+                            </div>
+                            <p style="font-size: 12px; color: #475569; margin: 0 0 6px 0; line-height: 1.4;">${escapeHtml(n.message)}</p>
+                            ${n.incident_id ? `<button type="button" class="btn btn-link btn-sm p-0" onclick="closeModal('modal-radio-notifications'); switchRadioTab('tab-incidents');" style="font-size: 11.5px; font-weight: 700; color: #2563eb; text-decoration: none;"><i class="fa-solid fa-arrow-right me-1"></i> Abrir Incidencia</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (e) {
+        console.error('Error al cargar notificaciones de radios:', e);
+    }
+}
+
+// Sondeo periódico cada 15 segundos para administradores
+if (!window._radioNotifInterval) {
+    window._radioNotifInterval = setInterval(() => {
+        loadRadioNotifications();
+    }, 15000);
 }
 
 // -------------------------------------------------------------------------
@@ -571,29 +1335,41 @@ window.openEditRadioModal = async function (rId) {
         document.getElementById('form-radio-item')?.reset();
         document.getElementById('rad-form-id').value = r.id;
 
-        // 1. Cargar selector de propiedades
-        const propSel = document.getElementById('rad-form-property');
-        if (propSel && userProperties.length > 0) {
-            propSel.innerHTML = userProperties.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.sigla)})</option>`).join('');
-            if (r.hotel_id) {
-                propSel.value = r.hotel_id;
+        // 1. Asegurar carga de propiedades autorizadas
+        if (!userProperties || userProperties.length === 0) {
+            try {
+                const pRes = await fetch('/api/radios/properties');
+                if (pRes.ok) userProperties = await pRes.json();
+            } catch(e) {
+                console.error('Error cargando propiedades:', e);
             }
         }
 
-        // 2. Cargar departamentos de la propiedad seleccionada
-        await loadDepartmentsForForms();
+        // 2. Cargar y seleccionar la Propiedad / Hotel del Radio
+        const propSel = document.getElementById('rad-form-property');
+        if (propSel && userProperties && userProperties.length > 0) {
+            propSel.innerHTML = userProperties.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.sigla)})</option>`).join('');
+            const targetPropId = String(r.hotel_id || r.propertyId || '');
+            if (targetPropId) {
+                propSel.value = targetPropId;
+            }
+        }
 
-        // 3. Seleccionar departamento actual y poblar subdepartamentos
+        // 3. Cargar departamentos de la propiedad a la que pertenece el radio
+        const hotelIdToLoad = r.hotel_id || r.propertyId || (propSel ? propSel.value : null);
+        await loadDepartmentsForForms(hotelIdToLoad);
+
+        // 4. Seleccionar departamento actual y poblar subdepartamentos
         const deptSel = document.getElementById('rad-form-dept');
         if (deptSel && r.department_id) {
-            deptSel.value = r.department_id;
+            deptSel.value = String(r.department_id);
             deptSel.dispatchEvent(new Event('change'));
         }
 
-        // 4. Seleccionar subdepartamento actual si existe
+        // 5. Seleccionar subdepartamento actual si existe
         const areaSel = document.getElementById('rad-form-area');
         if (areaSel && r.subdepartment_id) {
-            areaSel.value = r.subdepartment_id;
+            areaSel.value = String(r.subdepartment_id);
         }
 
         document.getElementById('rad-form-serial').value = r.serial_number || '';
@@ -607,9 +1383,24 @@ window.openEditRadioModal = async function (rId) {
         const urlInp = document.getElementById('rad-form-image-url');
         if (urlInp) urlInp.value = imgUrl;
         const previewImg = document.getElementById('rad-form-img-preview');
-        if (previewImg) previewImg.src = imgUrl || '/static/img/default_radio.svg';
+        let previewSrc = imgUrl;
+        if (!previewSrc || previewSrc === '/static/img/default_radio.svg') {
+            const m = (r.model || '').toUpperCase().replace(/\s+|-/g, '');
+            if (m.includes('DEP450') || m.includes('450')) previewSrc = '/static/img/dep450.jpg';
+            else if (m.includes('DEP250') || m.includes('250')) previewSrc = '/static/img/dep250.jpg';
+            else previewSrc = '/static/img/default_radio.svg';
+        }
+        if (previewImg) previewImg.src = previewSrc;
         const fileInp = document.getElementById('rad-form-image-input');
         if (fileInp) fileInp.value = '';
+
+        const ap = r.assigned_person || r.assignedPerson;
+        const nameInp = document.getElementById('rad-form-assigned-name');
+        if (nameInp) nameInp.value = ap ? (ap.name || '') : '';
+        const empInp = document.getElementById('rad-form-assigned-emp-id');
+        if (empInp) empInp.value = ap ? (ap.employeeId || ap.employee_id || '') : '';
+        const posInp = document.getElementById('rad-form-assigned-position');
+        if (posInp) posInp.value = ap ? (ap.position || '') : '';
 
         const hintEl = document.getElementById('rad-form-id-hint');
         if (hintEl) {
@@ -652,54 +1443,123 @@ window.showRadioHistoryModal = async function (rId) {
     }
 };
 
-window.openTransferRadioModal = function (rId) {
+window.openAssignRadioModal = async function (rId) {
     const assignIdInput = document.getElementById('rad-assign-radio-id');
     if (assignIdInput) assignIdInput.value = rId;
     document.getElementById('form-radio-assign')?.reset();
+
+    let r = (typeof currentRadiosList !== 'undefined' && currentRadiosList) ? currentRadiosList.find(x => String(x.id) === String(rId)) : null;
+    if (!r) {
+        try {
+            const res = await fetch(`/api/radios/${rId}`);
+            if (res.ok) r = await res.json();
+        } catch(e){}
+    }
+    if (r && (r.assigned_person || r.assignedPerson)) {
+        const ap = r.assigned_person || r.assignedPerson;
+        const nameInp = document.getElementById('rad-assign-name');
+        if (nameInp) nameInp.value = ap.name || '';
+        const empIdInp = document.getElementById('rad-assign-emp-id');
+        if (empIdInp) empIdInp.value = ap.employeeId || ap.employee_id || '';
+        const posInp = document.getElementById('rad-assign-position');
+        if (posInp) posInp.value = ap.position || '';
+    }
+
     openModal('modal-radio-assign');
 };
 
 // -------------------------------------------------------------------------
-// 3. TAB INVENTARIO DE RADIOS
+// 3. TAB INVENTARIO DE RADIOS & FILTROS DE ESTADO INTERACTIVOS
 // -------------------------------------------------------------------------
-async function loadRadiosList() {
+window.currentRadiosStatusFilter = 'all';
+
+window.filterRadiosByDashboardStatus = function (statusKey) {
+    window.currentRadiosStatusFilter = statusKey || 'all';
+    switchRadioTab('tab-inventory');
+    const sel = document.getElementById('rad-filter-status-select');
+    if (sel) sel.value = window.currentRadiosStatusFilter;
+    updateActiveFilterBadge(window.currentRadiosStatusFilter);
+    loadRadiosList(window.currentRadiosStatusFilter);
+};
+
+function updateActiveFilterBadge(statusKey) {
+    const badge = document.getElementById('rad-active-filter-badge');
+    const label = document.getElementById('rad-active-filter-label');
+    if (!badge || !label) return;
+    if (statusKey && statusKey !== 'all') {
+        const meta = STATUS_MAP[statusKey] || { label: statusKey };
+        label.textContent = meta.label || statusKey;
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+async function loadRadiosList(statusFilterOverride = null) {
     try {
         const tbody = document.getElementById('rad-inventory-tbody');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-secondary"><i class="fa-solid fa-spinner fa-spin me-2"></i> Cargando inventario de radios...</td></tr>';
         }
 
-        const res = await fetch(`/api/radios?hotel_id=${currentPropertyId}`);
+        const selStatus = document.getElementById('rad-filter-status-select');
+        const activeStatus = statusFilterOverride !== null ? statusFilterOverride : (selStatus ? selStatus.value : (window.currentRadiosStatusFilter || 'all'));
+        window.currentRadiosStatusFilter = activeStatus;
+        updateActiveFilterBadge(activeStatus);
+
+        const searchInp = document.getElementById('rad-inventory-search-input');
+        const searchTerm = searchInp ? searchInp.value.trim() : '';
+
+        const params = new URLSearchParams();
+        if (currentPropertyId && currentPropertyId !== 'all') {
+            params.append('hotel_id', currentPropertyId);
+        }
+        if (activeStatus && activeStatus !== 'all') {
+            params.append('status', activeStatus);
+        }
+        if (searchTerm) {
+            params.append('search', searchTerm);
+        }
+
+        const res = await fetch(`/api/radios?${params.toString()}`);
         if (!res.ok) return;
         currentRadiosList = await res.json();
 
         if (!tbody) return;
 
         if (currentRadiosList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-secondary">No se encontraron radios registrados en esta propiedad.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-secondary">No se encontraron radios ${activeStatus !== 'all' ? `con estado "${STATUS_MAP[activeStatus]?.label || activeStatus}"` : ''} en esta selección.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = currentRadiosList.map(r => `
-            <tr>
-                <td><strong>#${escapeHtml(r.radio_code || r.id)}</strong></td>
-                <td><code>${escapeHtml(r.serial_number)}</code></td>
-                <td>${escapeHtml(r.brand)} ${escapeHtml(r.model)}</td>
-                <td><span class="badge badge-outline">${escapeHtml(r.property_sigla || 'Hotel')}</span></td>
-                <td>${escapeHtml(r.department_name || '-')}</td>
-                <td>${r.assigned_person ? escapeHtml(r.assigned_person.name) : '<span class="text-secondary">Sin Asignar</span>'}</td>
-                <td>${renderStatusBadge(r.status)}</td>
-                <td>
+        tbody.innerHTML = currentRadiosList.map(r => {
+            const actionsHtml = isRadioQueryUser
+                ? `<button type="button" class="btn btn-sm btn-outline btn-hist-r" data-id="${r.id}" title="Historial"><i class="fa-solid fa-history"></i></button>`
+                : `
                     <button type="button" class="btn btn-sm btn-outline btn-assign-r" data-id="${r.id}" title="Asignar"><i class="fa-solid fa-user-pen"></i></button>
                     <button type="button" class="btn btn-sm btn-outline btn-edit-r" data-id="${r.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
                     <button type="button" class="btn btn-sm btn-outline btn-hist-r" data-id="${r.id}" title="Historial"><i class="fa-solid fa-history"></i></button>
-                </td>
-            </tr>
-        `).join('');
+                `;
+
+            return `
+                <tr>
+                    <td><strong>#${escapeHtml(r.radio_code || r.id)}</strong></td>
+                    <td><code>${escapeHtml(r.serial_number)}</code></td>
+                    <td>${escapeHtml(r.brand)} ${escapeHtml(r.model)}</td>
+                    <td><span class="badge badge-outline">${escapeHtml(r.property_sigla || 'Hotel')}</span></td>
+                    <td>${escapeHtml(r.department_name || '-')}</td>
+                    <td>${r.assigned_person ? escapeHtml(r.assigned_person.name) : (r.assigned_person_name ? escapeHtml(r.assigned_person_name) : '<span class="text-secondary">Sin Asignar</span>')}</td>
+                    <td>${renderStatusBadge(r.status)}</td>
+                    <td style="text-align: right;">
+                        ${actionsHtml}
+                    </td>
+                </tr>
+            `;
+        }).join('');
 
         tbody.querySelectorAll('.btn-assign-r').forEach(btn => {
             btn.onclick = function() {
-                openTransferRadioModal(this.getAttribute('data-id'));
+                openAssignRadioModal(this.getAttribute('data-id'));
             };
         });
 
@@ -714,6 +1574,34 @@ async function loadRadiosList() {
                 showRadioHistoryModal(this.getAttribute('data-id'));
             };
         });
+
+        // Configurar listeners de la barra de filtros de inventario (solo una vez)
+        if (selStatus && !selStatus._hasChangeListener) {
+            selStatus._hasChangeListener = true;
+            selStatus.addEventListener('change', () => {
+                loadRadiosList(selStatus.value);
+            });
+        }
+
+        const btnClearFilter = document.getElementById('btn-clear-status-filter');
+        if (btnClearFilter && !btnClearFilter._hasClickListener) {
+            btnClearFilter._hasClickListener = true;
+            btnClearFilter.addEventListener('click', () => {
+                if (selStatus) selStatus.value = 'all';
+                loadRadiosList('all');
+            });
+        }
+
+        if (searchInp && !searchInp._hasInputListener) {
+            searchInp._hasInputListener = true;
+            let debounceTimeout = null;
+            searchInp.addEventListener('input', () => {
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(() => {
+                    loadRadiosList(selStatus ? selStatus.value : 'all');
+                }, 300);
+            });
+        }
 
     } catch (e) {
         console.error('Error cargando inventario de radios:', e);
@@ -861,6 +1749,9 @@ window.openTransferRadioModal = async function(arg1, arg2) {
     let currentDeptId = null;
     let currentSubdeptId = null;
 
+    let currentPersonText = 'Sin Asignar';
+    let currentAp = null;
+
     if (activeFormalInventory && arg2) {
         itemId = arg1;
         radioId = arg2;
@@ -872,6 +1763,7 @@ window.openTransferRadioModal = async function(arg1, arg2) {
             hotelId = activeFormalInventory.hotel_id;
             currentDeptId = item.department_id;
             currentSubdeptId = item.subdepartment_id;
+            currentAp = item.assigned_person || item.assignedPerson || { name: item.assigned_person_name };
         }
     } else {
         radioId = arg1 || (currentSearchedRadio ? currentSearchedRadio.id : null);
@@ -888,16 +1780,32 @@ window.openTransferRadioModal = async function(arg1, arg2) {
                 hotelId = r.hotel_id;
                 currentDeptId = r.department_id;
                 currentSubdeptId = r.subdepartment_id;
+                currentAp = r.assigned_person || r.assignedPerson;
             }
         } catch(err) {
             console.error('Error al obtener detalles del radio:', err);
         }
     }
 
+    if (currentAp && currentAp.name) {
+        currentPersonText = `${currentAp.name}${currentAp.employeeId ? ' (Ficha: ' + currentAp.employeeId + ')' : ''}`;
+    }
+
     document.getElementById('trans-item-id').value = itemId || '';
     document.getElementById('trans-radio-id').value = radioId || '';
     document.getElementById('trans-radio-title').textContent = `#${radioCode} · Serial: ${serialNumber}`;
     document.getElementById('trans-radio-current-loc').textContent = `Ubicación Actual: ${fullLocation}`;
+
+    const curPersonEl = document.getElementById('trans-radio-current-person');
+    if (curPersonEl) curPersonEl.textContent = `Custodio Actual: ${currentPersonText}`;
+
+    const pNameInp = document.getElementById('trans-person-name');
+    if (pNameInp) pNameInp.value = currentAp ? (currentAp.name || '') : '';
+    const pEmpInp = document.getElementById('trans-person-emp-id');
+    if (pEmpInp) pEmpInp.value = currentAp ? (currentAp.employeeId || currentAp.employee_id || '') : '';
+    const pPosInp = document.getElementById('trans-person-position');
+    if (pPosInp) pPosInp.value = currentAp ? (currentAp.position || '') : '';
+
     document.getElementById('trans-notes-input').value = '';
     document.getElementById('trans-status-msg').style.display = 'none';
 
@@ -953,12 +1861,6 @@ function initTransferRadioModalListener() {
         const notes = document.getElementById('trans-notes-input').value.trim();
         const statusMsg = document.getElementById('trans-status-msg');
 
-        if (!deptId) {
-            statusMsg.style.display = 'block';
-            statusMsg.textContent = 'Selecciona un departamento destino.';
-            return;
-        }
-
         const origHtml = btnSubmit.innerHTML;
         btnSubmit.disabled = true;
         btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...';
@@ -968,9 +1870,12 @@ function initTransferRadioModalListener() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    department_id: parseInt(deptId),
+                    department_id: deptId ? parseInt(deptId) : null,
                     subdepartment_id: subdeptId ? parseInt(subdeptId) : null,
-                    notes: notes
+                    notes: notes,
+                    assigned_person_name: document.getElementById('trans-person-name')?.value.trim() || '',
+                    assigned_employee_id: document.getElementById('trans-person-emp-id')?.value.trim() || '',
+                    assigned_position: document.getElementById('trans-person-position')?.value.trim() || ''
                 })
             });
 
@@ -1318,10 +2223,15 @@ async function updateSuggestedRadioId() {
 // -------------------------------------------------------------------------
 // 9. TAB CONFIGURACIÓN: DEPARTAMENTOS Y RANGOS DE IDS
 // -------------------------------------------------------------------------
-async function loadDepartmentsForForms() {
+async function loadDepartmentsForForms(hotelIdOverride = null) {
     try {
-        const queryProp = (currentPropertyId && currentPropertyId !== 'all') ? currentPropertyId : '';
-        const url = queryProp ? `/api/radios/departments?hotel_id=${queryProp}` : '/api/radios/departments';
+        const formProp = document.getElementById('rad-form-property');
+        let propIdToUse = hotelIdOverride;
+        if (!propIdToUse) {
+            propIdToUse = formProp?.value || (currentPropertyId !== 'all' ? currentPropertyId : '');
+        }
+
+        const url = propIdToUse ? `/api/radios/departments?hotel_id=${encodeURIComponent(propIdToUse)}` : '/api/radios/departments';
         const res = await fetch(url);
         if (!res.ok) return;
         allPropertyDepartments = await res.json();
@@ -1329,9 +2239,8 @@ async function loadDepartmentsForForms() {
         const tbody = document.getElementById('rad-depts-tbody');
         const formDept = document.getElementById('rad-form-dept');
         const formArea = document.getElementById('rad-form-area');
-        const formProp = document.getElementById('rad-form-property');
 
-        // 1. Renderizar tabla de Configuración de Departamentos
+        // 1. Renderizar tabla de Configuración de Departamentos si existe el tbody
         if (tbody) {
             if (allPropertyDepartments.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center p-3 text-secondary">No hay departamentos configurados.</td></tr>';
@@ -1396,11 +2305,16 @@ async function loadDepartmentsForForms() {
 
         // 2. Poblar selectores de Departamento y Subdepartamento en el modal
         if (formDept) {
-            const currentSelectedProp = formProp ? formProp.value : (currentPropertyId !== 'all' ? currentPropertyId : (userProperties[0]?.id || ''));
+            const currentSelectedProp = propIdToUse || (formProp ? formProp.value : (currentPropertyId !== 'all' ? currentPropertyId : (userProperties[0]?.id || '')));
             const propMainDepts = allPropertyDepartments.filter(d => !d.parent_department_id && (!currentSelectedProp || String(d.hotel_id) === String(currentSelectedProp)));
 
+            const prevDeptVal = formDept.value;
             formDept.innerHTML = '<option value="">-- Seleccione Departamento Principal --</option>' + 
                 propMainDepts.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+
+            if (prevDeptVal && propMainDepts.some(d => String(d.id) === String(prevDeptVal))) {
+                formDept.value = prevDeptVal;
+            }
 
             // Evento onchange para cargar subdepartamentos
             formDept.onchange = function() {
@@ -1437,17 +2351,11 @@ async function loadDepartmentsForForms() {
                 };
             }
 
-            if (formProp) {
+            if (formProp && !formProp._hasChangeListener) {
+                formProp._hasChangeListener = true;
                 formProp.onchange = function() {
                     const newPropId = this.value;
-                    const filteredDepts = allPropertyDepartments.filter(d => !d.parent_department_id && (!newPropId || String(d.hotel_id) === String(newPropId)));
-                    formDept.innerHTML = '<option value="">-- Seleccione Departamento Principal --</option>' + 
-                        filteredDepts.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
-                    if (formArea) {
-                        formArea.innerHTML = '<option value="">-- Seleccione Departamento Primero --</option>';
-                        formArea.disabled = true;
-                    }
-                    updateSuggestedRadioId();
+                    loadDepartmentsForForms(newPropId);
                 };
             }
         }
@@ -1607,6 +2515,28 @@ async function loadCurrentUser() {
                 if (nameEl) nameEl.innerText = u.username;
                 if (welcomeNameEl) welcomeNameEl.innerText = u.username;
                 if (roleEl) roleEl.innerText = u.role || 'Administrador';
+
+                // Permisos de módulo TEC-RADIOS Configuración y TEC-INVENTORY
+                const uPerms = Array.isArray(u.permissions) ? u.permissions : [];
+                const canAccessConfig = (u.role === 'Admin') || uPerms.includes('all') || uPerms.includes('tec-radios:config');
+                window.canAccessRadioConfig = canAccessConfig;
+
+                const deptsNavBtn = document.getElementById('rad-nav-depts');
+                if (deptsNavBtn) {
+                    deptsNavBtn.style.display = canAccessConfig ? 'flex' : 'none';
+                }
+
+                // Aplicar visibilidad de pestañas del header global (TEC-INVENTORY vs TEC-RADIOS)
+                if (typeof window.applyRolePermissions === 'function') {
+                    try { window.applyRolePermissions(); } catch(e){}
+                } else {
+                    const INVENTORY_MODULES = ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion', 'pedidos'];
+                    const hasInventoryAccess = (u.role === 'Admin') || uPerms.includes('all') || INVENTORY_MODULES.some(m => uPerms.includes(m));
+                    const invTab = document.getElementById('app-tab-inventory');
+                    if (invTab) {
+                        invTab.style.display = hasInventoryAccess ? 'inline-flex' : 'none';
+                    }
+                }
             }
         }
     } catch (e) {
@@ -2171,7 +3101,10 @@ function initRadiosModule() {
             subdepartment_id: subdeptId ? parseInt(subdeptId) : null,
             status: document.getElementById('rad-form-status').value,
             notes: document.getElementById('rad-form-notes').value.trim(),
-            image_url: document.getElementById('rad-form-image-url')?.value || ''
+            image_url: document.getElementById('rad-form-image-url')?.value || '',
+            assigned_person_name: document.getElementById('rad-form-assigned-name')?.value.trim() || '',
+            assigned_employee_id: document.getElementById('rad-form-assigned-emp-id')?.value.trim() || '',
+            assigned_position: document.getElementById('rad-form-assigned-position')?.value.trim() || ''
         };
 
         const url = rId ? `/api/radios/${rId}` : '/api/radios';
@@ -2306,12 +3239,106 @@ function initRadiosModule() {
         reader.readAsText(file);
     });
 
-    // Notificaciones header
-    document.querySelector('.radios-header-icon-btn')?.addEventListener('click', () => {
-        const dVal = document.getElementById('rad-stat-danados')?.innerText || '0';
-        const rVal = document.getElementById('rad-stat-revision')?.innerText || '0';
-        const pVal = document.getElementById('rad-stat-perdidos')?.innerText || '0';
-        alert(`🔔 Panel de Alertas TEC-RADIOS:\n\n• Radios Requieren Revisión: ${rVal}\n• Radios Dañados / En Reparación: ${dVal}\n• Radios No Localizados: ${pVal}\n\nRevisa el panel de alertas en la pestaña Inicio.`);
+    // Submit Formulario de Incidencias
+    document.getElementById('form-radio-incident')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btnSubmit = document.getElementById('btn-submit-incident');
+        const statusMsg = document.getElementById('inc-status-msg');
+        const originalText = btnSubmit ? btnSubmit.innerHTML : '';
+
+        const radioId = document.getElementById('inc-radio-id')?.value;
+        const issueType = document.getElementById('inc-issue-type')?.value;
+        const description = document.getElementById('inc-description')?.value.trim();
+        const priorityEl = document.querySelector('input[name="inc_priority"]:checked');
+        const priority = priorityEl ? priorityEl.value : 'Media';
+
+        if (!radioId) {
+            if (statusMsg) {
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'alert alert-danger';
+                statusMsg.textContent = 'Por favor busca un radio por su ID o Serial y haz clic en OK antes de enviar.';
+            }
+            return;
+        }
+
+        if (!issueType || !description) {
+            if (statusMsg) {
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'alert alert-danger';
+                statusMsg.textContent = 'Por favor completa el tipo de problema y la descripción detallada.';
+            }
+            return;
+        }
+
+        try {
+            if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Enviando...'; }
+
+            const res = await fetch('/api/radios/incidents', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    radio_id: parseInt(radioId),
+                    issue_type: issueType,
+                    description: description,
+                    priority: priority
+                })
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+                closeModal('modal-radio-incident');
+                // Alerta Toast visual en vivo
+                const rCode = currentSelectedIncidentRadio ? (currentSelectedIncidentRadio.radio_code || currentSelectedIncidentRadio.id) : radioId;
+                const rSerial = currentSelectedIncidentRadio ? currentSelectedIncidentRadio.serial_number : '';
+                showLiveRadioAlertToast(
+                    `¡Incidencia Reportada! Radio #${rCode}`,
+                    `Se notificó al Administrador: "${issueType}" [Prioridad ${priority}]. ${description.substring(0, 70)}...`,
+                    result.incident_id || result.id || null,
+                    priority
+                );
+
+                loadDashboard();
+                if (typeof loadIncidentsTab === 'function') loadIncidentsTab();
+                loadRadioNotifications();
+            } else {
+                if (statusMsg) {
+                    statusMsg.style.display = 'block';
+                    statusMsg.className = 'alert alert-danger';
+                    statusMsg.textContent = result.error || 'Error al registrar incidencia.';
+                }
+            }
+        } catch (err) {
+            console.error('Error enviando reporte de incidencia:', err);
+            if (statusMsg) {
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'alert alert-danger';
+                statusMsg.textContent = 'Error de red o conexión al servidor.';
+            }
+        } finally {
+            if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerHTML = originalText; }
+        }
+    });
+
+    // Botón abrir modal de incidencia desde tab
+    document.getElementById('btn-open-modal-incident')?.addEventListener('click', () => {
+        openRadioIncidentModal();
+    });
+
+    // Campana de notificaciones del Header
+    document.getElementById('btn-notifications-icon')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal('modal-radio-notifications');
+        loadRadioNotifications();
+    });
+
+    // Botón Marcar todas como leídas
+    document.getElementById('btn-rad-notif-mark-all-read')?.addEventListener('click', async () => {
+        try {
+            await fetch('/api/radios/notifications/read-all', { method: 'POST' });
+            loadRadioNotifications();
+        } catch (e) {
+            console.error('Error marcando notificaciones como leídas:', e);
+        }
     });
 
     // Inicializar listener del modal de transferencia en inventario
@@ -2320,11 +3347,8 @@ function initRadiosModule() {
     }
 
     // Cargas iniciales
-    loadCurrentUser();
     loadDashboard();
-    loadAuthorizedProperties().then(() => {
-        loadDashboard();
-    });
+    loadRadioNotifications();
 }
 
 // Auto-ejecución inmediata
@@ -2332,8 +3356,10 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         initRadiosModule();
         loadDashboard();
+        loadRadioNotifications();
     });
 } else {
     initRadiosModule();
     loadDashboard();
+    loadRadioNotifications();
 }

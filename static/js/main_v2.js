@@ -12,6 +12,46 @@ document.addEventListener('DOMContentLoaded', () => {
         currentWarehouseFilter = urlWh;
     }
 
+    window.applyRolePermissions = function() {
+        if (!currentUser) return;
+
+        const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+        const isAdmin = currentUser.role === 'Admin' || perms.includes('all');
+
+        // Módulos estándar de TEC-INVENTORY
+        const INVENTORY_MODULES = ['dashboard', 'inventario', 'decomiso', 'reparaciones', 'prestamos', 'herramientas', 'despacho', 'pendientes', 'configuracion', 'pedidos'];
+        const hasInventoryAccess = isAdmin || INVENTORY_MODULES.some(m => perms.includes(m));
+
+        // Visibilidad de la pestaña TEC-INVENTORY en el header superior
+        const invTab = document.getElementById('app-tab-inventory');
+        if (invTab) {
+            invTab.style.display = hasInventoryAccess ? 'inline-flex' : 'none';
+        }
+
+        // Visibilidad de la pestaña TEC-RADIOS en el header superior
+        const radiosTab = document.getElementById('app-tab-radios');
+        if (radiosTab) {
+            const hasRadiosAccess = isAdmin || perms.includes('tec-radios') || perms.includes('radios');
+            radiosTab.style.display = hasRadiosAccess ? 'inline-flex' : 'none';
+        }
+
+        // Ocultar/mostrar ítems del sidebar de inventario por data-module
+        document.querySelectorAll('#sidebar [data-module]').forEach(el => {
+            const mod = el.getAttribute('data-module');
+            if (!mod) return;
+            if (isAdmin) {
+                el.style.display = '';
+            } else {
+                el.style.display = perms.includes(mod) ? '' : 'none';
+            }
+        });
+
+        // Redirigir a /radios si no tiene permisos de inventario y está en una ruta de inventario
+        if (!hasInventoryAccess && window.location.pathname !== '/radios' && window.location.pathname !== '/tec-radios') {
+            window.location.href = '/radios';
+        }
+    };
+
     async function checkAuth() {
         try {
             const res = await fetch('/api/me');
@@ -59,10 +99,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value;
+        e.stopPropagation();
+        
+        const usernameEl = document.getElementById('login-username');
+        const passwordEl = document.getElementById('login-password');
         const errEl = document.getElementById('login-error');
+        
+        const username = usernameEl ? usernameEl.value.trim() : '';
+        const password = passwordEl ? passwordEl.value : '';
+        
         if (errEl) errEl.style.display = 'none';
+
+        if (!username || !password) {
+            if (errEl) {
+                errEl.innerText = 'Por favor ingrese usuario y contraseña';
+                errEl.style.display = 'block';
+            }
+            return;
+        }
 
         try {
             const res = await fetch('/api/login', {
@@ -73,25 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 currentUser = data.user;
-                const overlay = document.getElementById('login-overlay');
-                const mainApp = document.getElementById('main-app');
-                if (overlay) overlay.style.display = 'none';
-                if (mainApp) mainApp.style.display = 'flex';
-                
-                const loggedUserEl = document.getElementById('logged-username');
-                if (loggedUserEl && currentUser) {
-                    loggedUserEl.innerText = currentUser.username + ' (' + currentUser.role + ')';
-                }
-                
-                try { applyRolePermissions(); } catch(e){}
-                try { await fetchStockLimits(); } catch(e){}
-                try { await fetchInactivitySettings(); } catch(e){}
-                try { await populateSidebarWarehouses(); } catch(e){}
-                try { await fetchDevices(); } catch(e){}
-                try { await fetchDecommissions(); } catch(e){}
-                try { loadOperationalTasks(); } catch(e){}
-                try { resetInactivityTimer(); } catch(e){}
                 if (window.showToast) showToast('Bienvenido, ' + currentUser.username, 'success');
+                window.location.href = window.location.pathname;
             } else {
                 if (errEl) {
                     errEl.innerText = data.error || 'Credenciales inválidas';
@@ -99,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (err) {
+            console.error('Error en submit login:', err);
             if (errEl) {
                 errEl.innerText = 'Error de conexión con el servidor';
                 errEl.style.display = 'block';
@@ -106,85 +144,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function handleLogout() {
+    async function performLogout() {
+        try {
+            clearTimeout(inactivityTimer);
+            clearInterval(countdownTimer);
+        } catch(e) {}
         try {
             await fetch('/api/logout', { method: 'POST' });
         } catch(e) {}
-        currentUser = null;
-        const overlay = document.getElementById('login-overlay');
-        const mainApp = document.getElementById('main-app');
-        if (overlay) overlay.style.display = 'flex';
-        if (mainApp) mainApp.style.display = 'none';
-        closeMobileSidebar?.();
+        window.location.href = '/dashboard';
     }
 
-    document.getElementById('btn-logout')?.addEventListener('click', handleLogout);
-    document.getElementById('btn-sidebar-logout')?.addEventListener('click', handleLogout);
-    
-    function applyRolePermissions() {
-        const role = currentUser.role;
-        // Hide/Show elements based on role
-        const btnNewDevice = document.getElementById('btn-new-device');
-        const btnMobileNewDevice = document.getElementById('btn-mobile-new-device');
-        const tabSettings = document.querySelector('[data-tab="settings"]');
-        const tabDispatch = document.querySelector('[data-tab="dispatch"]');
-        
-        if (role === 'Viewer') {
-            if(btnNewDevice) btnNewDevice.style.display = 'none';
-            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'none';
-            if(tabSettings) tabSettings.style.display = 'none';
-            if(tabDispatch) tabDispatch.style.display = 'none';
-            // Disable action buttons in tables
-            document.querySelectorAll('.action-btn').forEach(btn => {
-                if (btn.id !== 'btn-logout') btn.style.display = 'none';
-            });
-        } else if (role === 'Tecnico') {
-            if(btnNewDevice) btnNewDevice.style.display = 'block';
-            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'flex';
-            if(tabSettings) tabSettings.style.display = 'none';
-            if(tabDispatch) tabDispatch.style.display = 'block';
-        } else {
-            // Admin
-            if(btnNewDevice) btnNewDevice.style.display = 'block';
-            if(btnMobileNewDevice) btnMobileNewDevice.style.display = 'flex';
-            if(tabSettings) tabSettings.style.display = 'flex';
-            if(tabDispatch) tabDispatch.style.display = 'block';
-        }
-    }
-
-    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const u = document.getElementById('login-username').value;
-        const p = document.getElementById('login-password').value;
-        const err = document.getElementById('login-error');
-        err.style.display = 'none';
-        
-        try {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: u, password: p })
-            });
-            if (res.ok) {
-                document.getElementById('login-form').reset();
-                checkAuth();
-            } else {
-                const d = await res.json();
-                err.innerText = d.error || 'Error al iniciar sesión';
-                err.style.display = 'block';
-            }
-        } catch (e) {
-            err.innerText = 'Error de conexión';
-            err.style.display = 'block';
-        }
-    });
-
-    document.getElementById('btn-logout')?.addEventListener('click', async () => {
-        clearTimeout(inactivityTimer);
-        clearInterval(countdownTimer);
-        await fetch('/api/logout', { method: 'POST' });
-        location.reload();
-    });
+    document.getElementById('btn-logout')?.addEventListener('click', performLogout);
+    document.getElementById('btn-sidebar-logout')?.addEventListener('click', performLogout);
 
     // --- Change Password ---
     const passwordModal = document.getElementById('password-modal');
@@ -2384,63 +2356,40 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const resH = await fetch('/api/settings/hotels');
             allHotels = await resH.json();
-            const resT = await fetch('/api/settings/technicians');
-            allTechnicians = await resT.json();
             const resP = await fetch('/api/settings/providers');
             window.allProviders = await resP.json();
             
             // Fetch users only if Admin
             if (currentUser && currentUser.role === 'Admin') {
-                try {
-                    const resU = await fetch('/api/settings/users');
-                    window.allUsers = await resU.json();
-                    const userTbody = document.getElementById('settings-user-list');
-                    if (userTbody) {
-                        userTbody.innerHTML = '';
-                        window.allUsers.forEach(u => {
-                            const isCurrentUser = (u.username === currentUser.username || u.username === 'admin');
-                            const deleteBtn = isCurrentUser ? '' : `<button class="action-btn delete" title="Eliminar" onclick="window.deleteUser(${u.id})"><i class="fa-solid fa-trash"></i></button>`;
-                            const resetBtn = `<button class="action-btn" title="Cambiar Contraseña" style="color:var(--primary); margin-right:8px;" onclick="window.openAdminResetModal(${u.id}, '${u.username}')"><i class="fa-solid fa-key"></i></button>`;
-                            
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td>${u.username}</td>
-                                <td>${u.role}</td>
-                                <td style="text-align: right; width: 120px;">
-                                    ${resetBtn}
-                                    ${deleteBtn}
-                                </td>
-                            `;
-                            userTbody.appendChild(tr);
-                        });
-                    }
-                } catch(e) {}
-                
-                // Fetch Logs
-                const logsBtn = document.getElementById('tab-btn-logs');
-                if (logsBtn) logsBtn.style.display = 'inline-block';
-                try {
-                    const resL = await fetch('/api/logs');
-                    const logs = await resL.json();
-                    const logsTbody = document.getElementById('settings-logs-list');
-                    if (logsTbody && !logs.error) {
-                        logsTbody.innerHTML = '';
-                        logs.forEach(l => {
-                            // Parse as UTC and format locally
-                            const dateObj = new Date(l.timestamp.replace(' ', 'T') + 'Z');
-                            const localDateStr = dateObj.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td>${localDateStr}</td>
-                                <td><strong>${l.username}</strong></td>
-                                <td><span class="status-badge" style="background: rgba(200,155,135,0.15); color: var(--primary);">${l.action}</span></td>
-                                <td style="color: var(--text-muted);">${l.details || '-'}</td>
-                            `;
-                            logsTbody.appendChild(tr);
-                        });
-                    }
-                } catch(e) { console.log(e); }
+                if (typeof fetchUsers === 'function') {
+                    try { await fetchUsers(); } catch(e) {}
+                }
             }
+                
+            // Fetch Logs
+            const logsBtn = document.getElementById('tab-btn-logs');
+            if (logsBtn) logsBtn.style.display = 'inline-block';
+            try {
+                const resL = await fetch('/api/logs');
+                const logs = await resL.json();
+                const logsTbody = document.getElementById('settings-logs-list');
+                if (logsTbody && !logs.error) {
+                    logsTbody.innerHTML = '';
+                    logs.forEach(l => {
+                        // Parse as UTC and format locally
+                        const dateObj = new Date(l.timestamp.replace(' ', 'T') + 'Z');
+                        const localDateStr = dateObj.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${localDateStr}</td>
+                            <td><strong>${l.username}</strong></td>
+                            <td><span class="status-badge" style="background: rgba(200,155,135,0.15); color: var(--primary);">${l.action}</span></td>
+                            <td style="color: var(--text-muted);">${l.details || '-'}</td>
+                        `;
+                        logsTbody.appendChild(tr);
+                    });
+                }
+            } catch(e) { console.log(e); }
 
             renderSettingsList('settings-warehouse-list', allWarehouses, deleteWarehouse);
             renderSettingsList('settings-hotel-list', allHotels, deleteHotel);
@@ -2710,12 +2659,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.deleteUser = async function(id) {
-        if(!confirm('¿Estás seguro de eliminar este usuario?')) return;
+        let username = '';
+        if (typeof allUsersList !== 'undefined' && Array.isArray(allUsersList)) {
+            const u = allUsersList.find(x => x.id == id);
+            if (u) username = u.username;
+        } else if (typeof window.allUsers !== 'undefined' && Array.isArray(window.allUsers)) {
+            const u = window.allUsers.find(x => x.id == id);
+            if (u) username = u.username;
+        }
+
+        const confirmMsg = username ? `¿Seguro que deseas eliminar al usuario "${username}"?` : '¿Estás seguro de eliminar este usuario?';
+        if (!confirm(confirmMsg)) return;
+
         try {
             const res = await fetch(`/api/settings/users/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                showToast('Usuario eliminado', 'success');
-                fetchSettings();
+                showToast(username ? `Usuario "${username}" eliminado` : 'Usuario eliminado', 'success');
+                if (typeof fetchUsers === 'function') {
+                    await fetchUsers();
+                } else if (typeof fetchSettings === 'function') {
+                    fetchSettings();
+                }
             } else {
                 const data = await res.json();
                 showToast(data.error || 'Error al eliminar', 'error');
@@ -5680,7 +5644,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="fa-solid fa-key"></i>
                         </button>
                         ${user.username !== 'admin' ? `
-                        <button class="btn-icon btn-delete-user" data-id="${user.id}" data-username="${escapeHtml(user.username)}" title="Eliminar Usuario" style="color: var(--color-danger);">
+                        <button class="btn-icon btn-delete-user" data-id="${user.id}" data-username="${escapeHtml(user.username)}" onclick="window.deleteUser(${user.id})" title="Eliminar Usuario" style="color: var(--color-danger);">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                         ` : ''}
@@ -5723,23 +5687,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         listBody.querySelectorAll('.btn-delete-user').forEach(btn => {
-            btn.addEventListener('click', async () => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const id = btn.getAttribute('data-id');
-                const uname = btn.getAttribute('data-username');
-                if (!confirm(`¿Seguro que deseas eliminar al usuario "${uname}"?`)) return;
-
-                try {
-                    const res = await fetch(`/api/settings/users/${id}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        showToast(`Usuario "${uname}" eliminado`, 'success');
-                        fetchUsers();
-                    } else {
-                        const err = await res.json();
-                        showToast(err.error || 'Error al eliminar usuario', 'error');
-                    }
-                } catch(e) {
-                    showToast('Error de conexión', 'error');
-                }
+                window.deleteUser(id);
             });
         });
 
