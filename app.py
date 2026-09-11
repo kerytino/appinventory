@@ -576,6 +576,7 @@ class RadioItem(db.Model):
     decommission_date = db.Column(db.String(50), nullable=True, default='')
     decommission_user = db.Column(db.String(100), nullable=True, default='')
     notes = db.Column(db.Text, nullable=True, default='')
+    image_url = db.Column(db.Text, nullable=True, default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     hotel = db.relationship('Hotel', backref=db.backref('radios', cascade='all, delete-orphan'))
@@ -621,6 +622,8 @@ class RadioItem(db.Model):
             'decommission_date': self.decommission_date or '',
             'decommission_user': self.decommission_user or '',
             'notes': self.notes or '',
+            'image_url': self.image_url or '',
+            'imageUrl': self.image_url or '',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }
 
@@ -5388,7 +5391,8 @@ def create_radio():
         assigned_position=assigned_p.get('position', ''),
         assigned_date=assigned_p.get('assignedDate', ''),
         assigned_by=user.username,
-        notes=data.get('notes', '')
+        notes=data.get('notes', ''),
+        image_url=data.get('image_url') or data.get('imageUrl') or ''
     )
     
     db.session.add(new_radio)
@@ -5447,6 +5451,8 @@ def update_radio(radio_id):
         radio.department_id = int(data['department_id']) if data['department_id'] else None
     if 'area_id' in data:
         radio.area_id = int(data['area_id']) if data['area_id'] else None
+    if 'image_url' in data or 'imageUrl' in data:
+        radio.image_url = data.get('image_url') if 'image_url' in data else data.get('imageUrl', '')
     if 'status' in data and data['status'] != old_status:
         radio.status = data['status']
         h_ev = RadioHistory(
@@ -5717,7 +5723,7 @@ def get_formal_inventory_detail(inv_id):
         
     return jsonify(inv.to_dict())
 
-@app.route('/api/radios/inventories/<int:inv_id>', methods=['PUT'])
+@app.route('/api/radios/inventories/<int:inv_id>', methods=['PUT', 'DELETE'])
 def update_formal_inventory(inv_id):
     user = get_current_user()
     if not user:
@@ -5726,6 +5732,13 @@ def update_formal_inventory(inv_id):
     inv = RadioFormalInventory.query.get_or_404(inv_id)
     if not can_user_access_radio_hotel(user, inv.hotel_id, need_manage=True):
         return jsonify({'error': 'Sin permiso para actualizar este inventario'}), 403
+
+    if request.method == 'DELETE':
+        title = inv.title
+        db.session.delete(inv)
+        db.session.commit()
+        log_activity(user.username, 'Módulo Radios', f"Eliminó/Canceló inventario formal '{title}' (#{inv.id})")
+        return jsonify({'message': 'Inventario cancelado correctamente'}), 200
         
     data = request.json or {}
     new_status = data.get('status')
@@ -6521,12 +6534,12 @@ def get_radio_decommissions():
     else:
         query = query.filter(RadioItem.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(db.false())
         
-    radios = query.order_by(RadioItem.updated_at.desc()).all()
+    radios = query.order_by(RadioItem.created_at.desc()).all()
     res = []
     for r in radios:
         d = r.to_dict()
         d['decommission_reason'] = r.notes or 'Fuera de operación / Baja'
-        d['decommission_date'] = r.updated_at.strftime('%d/%m/%Y %H:%M') if r.updated_at else ''
+        d['decommission_date'] = r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''
         d['decommission_user'] = r.assigned_by or 'Sistema'
         res.append(d)
     return jsonify(res)

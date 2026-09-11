@@ -5,34 +5,6 @@
 {% block content %}
 <div id="view-radios" class="radios-app-wrapper">
 
-    <!-- BARRA SUPERIOR INTERNA DE TEC-RADIOS -->
-    <div class="radios-header-bar">
-        <div class="radios-header-property">
-            <span class="radios-header-property-label"><i class="fa-solid fa-building-user text-primary me-1"></i> Propiedad:</span>
-            <select id="radio-property-selector" class="radios-header-property-select">
-                <option value="all">Todas las Propiedades</option>
-            </select>
-        </div>
-
-        <div class="radios-header-right">
-            <div class="radios-header-icon-btn" title="Notificaciones">
-                <i class="fa-solid fa-bell"></i>
-            </div>
-            
-            <div class="radios-header-user">
-                <div class="radios-header-avatar" id="rad-user-avatar">ER</div>
-                <div class="radios-header-user-info">
-                    <span class="radios-header-user-name" id="rad-user-name">Usuario Activo</span>
-                    <span class="radios-header-user-role" id="rad-user-role">Administrador</span>
-                </div>
-            </div>
-
-            <button class="btn btn-primary btn-sm" id="btn-radio-top-new" style="border-radius: 6px; padding: 6px 14px; font-weight: 600;">
-                <i class="fa-solid fa-plus me-1"></i> Nuevo Radio
-            </button>
-        </div>
-    </div>
-
     <!-- CONTENIDO PRINCIPAL DE TEC-RADIOS -->
     <div style="padding: 24px;">
 
@@ -245,7 +217,7 @@
             <div class="radio-card-detail-layout" id="rad-search-result-card" style="display: none;">
                 <!-- Columna 1: Imagen del Radio -->
                 <div class="radio-img-box">
-                    <img src="{{ url_for('static', filename='img/motorola_r7.png') }}" alt="Motorola R7 Walkie Talkie" id="rad-card-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3655/3655611.png'">
+                    <img src="{{ url_for('static', filename='img/default_radio.svg') }}" alt="Radio Walkie Talkie" id="rad-card-img" onerror="this.src='{{ url_for('static', filename='img/default_radio.svg') }}'">
                 </div>
 
                 <!-- Columna 2: Datos de Control -->
@@ -342,13 +314,16 @@
 
         <!-- 4. TAB INVENTARIO FORMAL PASO A PASO -->
         <div id="tab-formal-inv" class="radio-tab-content" style="display: none;">
-            <div class="radios-card-header" style="margin-bottom: 14px;">
+            <div class="radios-card-header" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                 <div>
                     <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">Inventario de Radios</h3>
                     <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Verifica todos los radios de una propiedad, incluyendo los dañados y disponibles.</p>
                 </div>
-                <button class="btn btn-primary" id="btn-start-formal-inv"><i class="fa-solid fa-clipboard-check me-1"></i> Iniciar inventario</button>
-                <button class="btn btn-primary" id="btn-finish-formal-inv" style="display:none;"><i class="fa-solid fa-check me-1"></i> Finalizar Inventario</button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn btn-primary" id="btn-start-formal-inv"><i class="fa-solid fa-clipboard-check me-1"></i> Iniciar inventario</button>
+                    <button class="btn btn-outline-danger" id="btn-cancel-formal-inv" style="display:none; border-radius: 8px; font-weight: 600;"><i class="fa-solid fa-xmark me-1"></i> Cancelar Inventario</button>
+                    <button class="btn btn-primary" id="btn-finish-formal-inv" style="display:none;"><i class="fa-solid fa-check me-1"></i> Finalizar Inventario</button>
+                </div>
             </div>
 
             <div id="rad-formal-start" class="radios-card-box" style="text-align:center; padding:42px 20px;">
@@ -753,44 +728,46 @@
 </div>
 
 <!-- MODAL DE TRANSFERENCIA DE RADIO EN INVENTARIO -->
-<div id="modal-radio-transfer-inv" class="radios-modal-overlay">
-    <div class="radios-modal-box" style="max-width: 520px;">
-        <div class="radios-modal-header">
-            <h3 class="radios-modal-title"><i class="fa-solid fa-right-left text-primary me-2"></i> Transferir Radio de Ubicación</h3>
-            <button class="radios-modal-close" type="button" onclick="closeModal('modal-radio-transfer-inv')">&times;</button>
+<div id="modal-radio-transfer-inv" class="modal-overlay">
+    <div class="modal-content" style="max-width: 520px; width: 92vw; padding: 24px 28px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-right-left text-primary"></i> Transferir Radio de Ubicación
+            </h3>
+            <button class="btn-close" type="button" onclick="closeModal('modal-radio-transfer-inv')"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="radios-modal-body">
+        <div>
             <input type="hidden" id="trans-radio-id">
             <input type="hidden" id="trans-item-id">
             
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
-                <div style="font-size: 0.82rem; color: #64748b; font-weight: 600;">Radio Seleccionado</div>
-                <div style="font-weight: 800; font-size: 1.1rem; color: #0f172a;" id="trans-radio-title">#---- · Serial: ----</div>
-                <div style="font-size: 0.85rem; color: #475569; margin-top: 4px;" id="trans-radio-current-loc">Ubicación Actual: ----</div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
+                <div style="font-size: 0.78rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Radio Seleccionado</div>
+                <div style="font-weight: 800; font-size: 1.1rem; color: #0f172a; margin-top: 2px;" id="trans-radio-title">#---- · Serial: ----</div>
+                <div style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin-top: 4px;" id="trans-radio-current-loc">Ubicación Actual: ----</div>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label" style="font-weight: 700;">Nuevo Departamento Destino <span class="text-danger">*</span></label>
-                <select id="trans-dept-select" class="form-control" style="height: 42px;" required></select>
+                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Nuevo Departamento Destino <span class="text-danger">*</span></label>
+                <select id="trans-dept-select" class="form-control" style="height: 42px; font-size: 13.5px; font-weight: 600;" required></select>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label" style="font-weight: 700;">Nuevo Subdepartamento Destino</label>
-                <select id="trans-subdept-select" class="form-control" style="height: 42px;">
+                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Nuevo Subdepartamento Destino</label>
+                <select id="trans-subdept-select" class="form-control" style="height: 42px; font-size: 13.5px;">
                     <option value="">Aplica al Departamento Principal Directamente</option>
                 </select>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label" style="font-weight: 700;">Observación / Motivo del Traslado</label>
-                <input id="trans-notes-input" class="form-control" style="height: 40px;" placeholder="Ej: Traslado verificado durante inventario formal">
+                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Observación / Motivo del Traslado</label>
+                <input id="trans-notes-input" class="form-control" style="height: 42px; font-size: 13px;" placeholder="Ej: Traslado verificado durante inventario formal">
             </div>
 
             <div id="trans-status-msg" style="display:none; margin-top: 10px;" class="alert alert-danger"></div>
         </div>
-        <div class="radios-modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
-            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-radio-transfer-inv')">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btn-submit-transfer-radio"><i class="fa-solid fa-check me-1"></i> Confirmar Transferencia</button>
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-radio-transfer-inv')" style="padding: 9px 20px; font-weight: 600; border-radius: 8px;">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-submit-transfer-radio" style="padding: 9px 22px; font-weight: 700; border-radius: 8px;"><i class="fa-solid fa-check me-1"></i> Confirmar Transferencia</button>
         </div>
     </div>
 </div>

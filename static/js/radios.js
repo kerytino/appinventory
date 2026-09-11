@@ -65,6 +65,13 @@ window.openNewRadioModal = function () {
         const idField = document.getElementById('rad-form-id');
         if (idField) idField.value = '';
         
+        const urlInp = document.getElementById('rad-form-image-url');
+        if (urlInp) urlInp.value = '';
+        const previewImg = document.getElementById('rad-form-img-preview');
+        if (previewImg) previewImg.src = '/static/img/default_radio.svg';
+        const fileInp = document.getElementById('rad-form-image-input');
+        if (fileInp) fileInp.value = '';
+
         const codeInput = document.getElementById('rad-form-code');
         if (codeInput) {
             codeInput.value = '----';
@@ -117,6 +124,43 @@ window.switchRadioTab = function (targetTab) {
     const targetEl = document.getElementById(targetTab);
     if (targetEl) {
         targetEl.style.display = 'block';
+    }
+
+    // 1. Título dinámico del header según el módulo activo
+    const TAB_TITLES = {
+        'tab-dashboard': 'Inicio',
+        'tab-inventory': 'Radios de Comunicación',
+        'tab-search': 'Consulta de Radio',
+        'tab-formal-inv': 'Inventario de Radios',
+        'tab-my-inv': 'Mi Inventario',
+        'tab-assignments': 'Asignaciones',
+        'tab-reports': 'Reportes',
+        'tab-decommissions': 'Bajas y Decomisos',
+        'tab-depts': 'Configuración'
+    };
+    const pageTitleEl = document.querySelector('.page-title') || document.getElementById('page-title');
+    if (pageTitleEl && TAB_TITLES[targetTab]) {
+        pageTitleEl.textContent = TAB_TITLES[targetTab];
+    }
+
+    // 2. Control de visibilidad del filtro de propiedad en el header
+    const propContainer = document.querySelector('.radios-header-property');
+    if (propContainer) {
+        if (targetTab === 'tab-formal-inv' || targetTab === 'tab-search') {
+            propContainer.style.display = 'none';
+        } else {
+            propContainer.style.display = 'flex';
+        }
+    }
+
+    // 3. Control de visibilidad del botón "+ Nuevo Radio" en el header
+    const topNewBtn = document.getElementById('btn-radio-top-new');
+    if (topNewBtn) {
+        if (targetTab === 'tab-inventory') {
+            topNewBtn.style.display = 'inline-flex';
+        } else {
+            topNewBtn.style.display = 'none';
+        }
     }
 
     // Cargar los datos correspondientes a cada solapa
@@ -526,13 +570,46 @@ window.openEditRadioModal = async function (rId) {
 
         document.getElementById('form-radio-item')?.reset();
         document.getElementById('rad-form-id').value = r.id;
-        document.getElementById('rad-form-property').value = r.hotel_id;
+
+        // 1. Cargar selector de propiedades
+        const propSel = document.getElementById('rad-form-property');
+        if (propSel && userProperties.length > 0) {
+            propSel.innerHTML = userProperties.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.sigla)})</option>`).join('');
+            if (r.hotel_id) {
+                propSel.value = r.hotel_id;
+            }
+        }
+
+        // 2. Cargar departamentos de la propiedad seleccionada
+        await loadDepartmentsForForms();
+
+        // 3. Seleccionar departamento actual y poblar subdepartamentos
+        const deptSel = document.getElementById('rad-form-dept');
+        if (deptSel && r.department_id) {
+            deptSel.value = r.department_id;
+            deptSel.dispatchEvent(new Event('change'));
+        }
+
+        // 4. Seleccionar subdepartamento actual si existe
+        const areaSel = document.getElementById('rad-form-area');
+        if (areaSel && r.subdepartment_id) {
+            areaSel.value = r.subdepartment_id;
+        }
+
         document.getElementById('rad-form-serial').value = r.serial_number || '';
         document.getElementById('rad-form-code').value = '#' + (r.radio_code || r.id);
         document.getElementById('rad-form-brand').value = r.brand || 'Motorola';
         document.getElementById('rad-form-model').value = r.model || 'R7';
         document.getElementById('rad-form-status').value = r.status || 'operativo';
         document.getElementById('rad-form-notes').value = r.notes || '';
+
+        const imgUrl = r.image_url || r.imageUrl || '';
+        const urlInp = document.getElementById('rad-form-image-url');
+        if (urlInp) urlInp.value = imgUrl;
+        const previewImg = document.getElementById('rad-form-img-preview');
+        if (previewImg) previewImg.src = imgUrl || '/static/img/default_radio.svg';
+        const fileInp = document.getElementById('rad-form-image-input');
+        if (fileInp) fileInp.value = '';
 
         const hintEl = document.getElementById('rad-form-id-hint');
         if (hintEl) {
@@ -671,6 +748,9 @@ async function loadFormalInventories() {
     const btnFinish = document.getElementById('btn-finish-formal-inv');
     if (btnFinish) btnFinish.onclick = finishFormalInventory;
 
+    const btnCancel = document.getElementById('btn-cancel-formal-inv');
+    if (btnCancel) btnCancel.onclick = cancelFormalInventory;
+
     const searchInp = document.getElementById('rad-formal-search');
     if (searchInp) searchInp.oninput = renderFormalInventoryItems;
 
@@ -692,8 +772,8 @@ async function startFormalInventory() {
 
         const res = await fetch('/api/radios/inventories', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({hotel_id: parseInt(propertyId), title: 'Inventario de radios'})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hotel_id: parseInt(propertyId) })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -716,6 +796,8 @@ function openFormalInventory(inventory) {
     document.getElementById('rad-formal-workspace').style.display = 'block';
     document.getElementById('btn-start-formal-inv').style.display = 'none';
     document.getElementById('btn-finish-formal-inv').style.display = 'inline-block';
+    const btnCancel = document.getElementById('btn-cancel-formal-inv');
+    if (btnCancel) btnCancel.style.display = 'inline-block';
     document.getElementById('rad-formal-title').textContent = `${inventory.inventory_code} · ${inventory.property_name}`;
     renderFormalInventoryItems();
 }
@@ -769,28 +851,71 @@ function renderFormalInventoryItems() {
     }).join('') || '<tr><td colspan="10" class="text-center p-4 text-secondary">No hay coincidencias.</td></tr>';
 }
 
-window.openTransferRadioModal = async function(itemId, radioId) {
-    if (!activeFormalInventory) return;
-    const item = activeFormalInventory.items.find(i => String(i.id) === String(itemId));
-    if (!item) return;
+window.openTransferRadioModal = async function(arg1, arg2) {
+    let itemId = null;
+    let radioId = null;
+    let radioCode = '----';
+    let serialNumber = '----';
+    let fullLocation = 'Sin Asignar';
+    let hotelId = null;
+    let currentDeptId = null;
+    let currentSubdeptId = null;
 
-    document.getElementById('trans-item-id').value = itemId;
-    document.getElementById('trans-radio-id').value = radioId;
-    document.getElementById('trans-radio-title').textContent = `#${item.radio_code} · Serial: ${item.serialNumber}`;
-    document.getElementById('trans-radio-current-loc').textContent = `Ubicación Actual: ${item.full_location || 'Sin Asignar'}`;
+    if (activeFormalInventory && arg2) {
+        itemId = arg1;
+        radioId = arg2;
+        const item = activeFormalInventory.items.find(i => String(i.id) === String(itemId));
+        if (item) {
+            radioCode = item.radio_code || item.radioCode || '----';
+            serialNumber = item.serialNumber || item.serial_number || '----';
+            fullLocation = item.full_location || 'Sin Asignar';
+            hotelId = activeFormalInventory.hotel_id;
+            currentDeptId = item.department_id;
+            currentSubdeptId = item.subdepartment_id;
+        }
+    } else {
+        radioId = arg1 || (currentSearchedRadio ? currentSearchedRadio.id : null);
+        if (!radioId) return;
+        try {
+            const res = await fetch(`/api/radios/${radioId}`);
+            if (res.ok) {
+                const r = await res.json();
+                radioCode = r.radio_code || r.id;
+                serialNumber = r.serial_number;
+                const dN = r.department_name || '';
+                const sN = r.subdepartment_name || '';
+                fullLocation = (dN && sN) ? `${dN} > ${sN}` : (dN || sN || 'Sin Asignar');
+                hotelId = r.hotel_id;
+                currentDeptId = r.department_id;
+                currentSubdeptId = r.subdepartment_id;
+            }
+        } catch(err) {
+            console.error('Error al obtener detalles del radio:', err);
+        }
+    }
+
+    document.getElementById('trans-item-id').value = itemId || '';
+    document.getElementById('trans-radio-id').value = radioId || '';
+    document.getElementById('trans-radio-title').textContent = `#${radioCode} · Serial: ${serialNumber}`;
+    document.getElementById('trans-radio-current-loc').textContent = `Ubicación Actual: ${fullLocation}`;
     document.getElementById('trans-notes-input').value = '';
     document.getElementById('trans-status-msg').style.display = 'none';
 
-    const hotelId = activeFormalInventory.hotel_id;
+    if (!hotelId && typeof currentPropertyId !== 'undefined' && currentPropertyId !== 'all') {
+        hotelId = currentPropertyId;
+    }
+
     const deptSel = document.getElementById('trans-dept-select');
     const subdeptSel = document.getElementById('trans-subdept-select');
 
     try {
-        const res = await fetch(`/api/radios/departments?hotel_id=${hotelId}`);
+        const url = hotelId ? `/api/radios/departments?hotel_id=${hotelId}` : `/api/radios/departments`;
+        const res = await fetch(url);
         if (res.ok) {
             const depts = await res.json();
             const mainDepts = depts.filter(d => !d.parent_department_id);
-            deptSel.innerHTML = mainDepts.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+            deptSel.innerHTML = '<option value="">-- Seleccionar Departamento --</option>' + 
+                mainDepts.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
 
             deptSel.onchange = function() {
                 const selectedDeptId = this.value;
@@ -801,10 +926,10 @@ window.openTransferRadioModal = async function(itemId, radioId) {
                 }
             };
 
-            if (item.department_id) {
-                deptSel.value = item.department_id;
+            if (currentDeptId) {
+                deptSel.value = currentDeptId;
                 deptSel.dispatchEvent(new Event('change'));
-                if (item.subdepartment_id) subdeptSel.value = item.subdepartment_id;
+                if (currentSubdeptId) subdeptSel.value = currentSubdeptId;
             } else {
                 deptSel.dispatchEvent(new Event('change'));
             }
@@ -854,7 +979,7 @@ function initTransferRadioModalListener() {
                 alert(data.message || 'Radio transferido con éxito.');
                 closeModal('modal-radio-transfer-inv');
 
-                if (activeFormalInventory) {
+                if (activeFormalInventory && itemId) {
                     const item = activeFormalInventory.items.find(i => String(i.id) === String(itemId));
                     if (item) {
                         item.department_id = data.radio.department_id;
@@ -867,6 +992,16 @@ function initTransferRadioModalListener() {
                     }
                     renderFormalInventoryItems();
                 }
+
+                if (currentSearchedRadio && String(currentSearchedRadio.id) === String(radioId)) {
+                    currentSearchedRadio.department_name = data.radio.department_name;
+                    currentSearchedRadio.subdepartment_name = data.radio.subdepartment_name;
+                    const elDept = document.getElementById('rad-card-dept');
+                    if (elDept) elDept.innerText = data.radio.department_name || 'General';
+                    const elArea = document.getElementById('rad-card-area');
+                    if (elArea) elArea.innerText = data.radio.subdepartment_name || '-';
+                }
+                loadRadiosList();
             } else {
                 statusMsg.style.display = 'block';
                 statusMsg.textContent = data.error || 'No se pudo realizar la transferencia.';
@@ -907,7 +1042,33 @@ async function finishFormalInventory() {
     document.getElementById('rad-formal-workspace').style.display = 'none';
     document.getElementById('btn-start-formal-inv').style.display = 'inline-block';
     document.getElementById('btn-finish-formal-inv').style.display = 'none';
+    const btnCancel = document.getElementById('btn-cancel-formal-inv');
+    if (btnCancel) btnCancel.style.display = 'none';
     loadDashboard();
+}
+
+async function cancelFormalInventory() {
+    if (!activeFormalInventory) return;
+    if (!confirm('¿Estás seguro de cancelar este inventario en curso? Se eliminará este borrador y los avances no guardados se descartarán.')) return;
+    try {
+        const res = await fetch(`/api/radios/inventories/${activeFormalInventory.id}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const data = await res.json();
+            return alert(data.error || 'No se pudo cancelar el inventario.');
+        }
+        activeFormalInventory = null;
+        alert('Inventario cancelado correctamente.');
+        document.getElementById('rad-formal-start').style.display = 'block';
+        document.getElementById('rad-formal-workspace').style.display = 'none';
+        document.getElementById('btn-start-formal-inv').style.display = 'inline-block';
+        document.getElementById('btn-finish-formal-inv').style.display = 'none';
+        const btnCancel = document.getElementById('btn-cancel-formal-inv');
+        if (btnCancel) btnCancel.style.display = 'none';
+        loadDashboard();
+    } catch(err) {
+        console.error('Error cancelando inventario:', err);
+        alert('Error de conexión al cancelar el inventario.');
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -1061,6 +1222,9 @@ async function loadDecommissions() {
 let allPropertyDepartments = [];
 
 async function updateSuggestedRadioId() {
+    const isEditing = Boolean(document.getElementById('rad-form-id')?.value);
+    if (isEditing) return; // Si estamos editando un radio existente, no cambiar su ID asignado
+
     const propSel = document.getElementById('rad-form-property');
     const deptSel = document.getElementById('rad-form-dept');
     const subdeptSel = document.getElementById('rad-form-area');
@@ -1465,6 +1629,25 @@ function initRadiosModule() {
             if (targetTab) window.switchRadioTab(targetTab);
         }
     });
+
+    // Listener para previsualización y conversión de foto de radio
+    const imgInput = document.getElementById('rad-form-image-input');
+    if (imgInput) {
+        imgInput.onchange = function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const dataUrl = evt.target.result;
+                    const urlInp = document.getElementById('rad-form-image-url');
+                    if (urlInp) urlInp.value = dataUrl;
+                    const previewImg = document.getElementById('rad-form-img-preview');
+                    if (previewImg) previewImg.src = dataUrl;
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
 
     // Botones para abrir modal de nuevo radio
     document.getElementById('btn-sidebar-new-radio')?.addEventListener('click', () => window.openNewRadioModal());
@@ -1987,7 +2170,8 @@ function initRadiosModule() {
             department_id: deptId ? parseInt(deptId) : null,
             subdepartment_id: subdeptId ? parseInt(subdeptId) : null,
             status: document.getElementById('rad-form-status').value,
-            notes: document.getElementById('rad-form-notes').value.trim()
+            notes: document.getElementById('rad-form-notes').value.trim(),
+            image_url: document.getElementById('rad-form-image-url')?.value || ''
         };
 
         const url = rId ? `/api/radios/${rId}` : '/api/radios';

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="screenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Antenna -->
+  <rect x="130" y="30" width="22" height="130" rx="10" fill="#334155" />
+  <rect x="134" y="20" width="14" height="20" rx="4" fill="#475569" />
+
+  <!-- Knob Left (Channel) -->
+  <rect x="175" y="125" width="30" height="35" rx="6" fill="#475569" />
+  <rect x="179" y="120" width="22" height="10" rx="3" fill="#64748b" />
+
+  <!-- Knob Right (Volume/Power) -->
+  <rect x="235" y="130" width="26" height="30" rx="5" fill="#475569" />
+  <rect x="238" y="123" width="20" height="10" rx="3" fill="#64748b" />
+
+  <!-- Main Body -->
+  <rect x="100" y="155" width="200" height="310" rx="32" fill="url(#bodyGrad)" filter="url(#shadow)" />
+
+  <!-- Side Grip Bumpers -->
+  <rect x="90" y="220" width="12" height="140" rx="6" fill="#334155" />
+  <rect x="298" y="220" width="12" height="140" rx="6" fill="#334155" />
+
+  <!-- PTT Button Left -->
+  <rect x="86" y="240" width="10" height="70" rx="5" fill="#ef4444" />
+
+  <!-- Outer Display Frame -->
+  <rect x="125" y="180" width="150" height="100" rx="14" fill="#020617" stroke="#334155" stroke-width="3"/>
+
+  <!-- Screen Content -->
+  <rect x="132" y="187" width="136" height="86" rx="8" fill="url(#screenGrad)" />
+
+  <!-- Screen UI Elements -->
+  <text x="145" y="212" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="bold" fill="#ffffff" opacity="0.9">CH 01 · SEC-02</text>
+  <text x="145" y="242" font-family="monospace, 'Courier New'" font-size="22" font-weight="900" fill="#ffffff" letter-spacing="1">ID: #2016</text>
+
+  <!-- Signal & Battery Icons on Screen -->
+  <circle cx="248" cy="208" r="4" fill="#22c55e" />
+  <rect x="238" y="232" width="18" height="10" rx="2" fill="#ffffff" opacity="0.85"/>
+  <rect x="256" y="235" width="2" height="4" rx="1" fill="#ffffff" opacity="0.85"/>
+
+  <!-- Speaker Grille -->
+  <g fill="#1e293b">
+    <rect x="140" y="305" width="120" height="6" rx="3" />
+    <rect x="130" y="320" width="140" height="6" rx="3" />
+    <rect x="140" y="335" width="120" height="6" rx="3" />
+    <rect x="150" y="350" width="100" height="6" rx="3" />
+    <rect x="165" y="365" width="70" height="6" rx="3" />
+  </g>
+
+  <!-- Keypad / Buttons Area -->
+  <rect x="135" y="390" width="130" height="45" rx="10" fill="#1e293b" />
+
+  <!-- Buttons Grid -->
+  <circle cx="155" cy="412" r="10" fill="#334155" />
+  <circle cx="185" cy="412" r="10" fill="#334155" />
+  <circle cx="215" cy="412" r="10" fill="#334155" />
+  <circle cx="245" cy="412" r="10" fill="url(#accentGrad)" />
+
+  <!-- Mic Hole -->
+  <circle cx="200" cy="450" r="3" fill="#475569" />
+</svg>
