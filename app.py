@@ -11,7 +11,7 @@ from io import BytesIO
 from PIL import Image as PILImage
 from dotenv import load_dotenv
 
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
@@ -623,6 +623,9 @@ class RadioItem(db.Model):
             'area_id': self.area_id,
             'area_name': self.area.name if self.area else '',
             'status': self.status,
+            'assigned_employee_id': self.assigned_employee_id or '',
+            'assigned_person_name': self.assigned_person_name or '',
+            'assigned_position': self.assigned_position or '',
             'assigned_person': assigned_person,
             'assignedPerson': assigned_person,
             'last_inventory_date': self.last_inventory_date or '',
@@ -838,6 +841,122 @@ class RadioNotification(db.Model):
             'severity': self.severity,
             'is_read': self.is_read,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+class RadioDocumentSequence(db.Model):
+    __tablename__ = 'radio_document_sequence'
+    id = db.Column(db.Integer, primary_key=True)
+    doc_type = db.Column(db.String(20), unique=True, nullable=False) # 'RES' or 'DESC'
+    last_number = db.Column(db.Integer, nullable=False, default=0)
+
+class RadioDocument(db.Model):
+    __tablename__ = 'radio_document'
+    id = db.Column(db.Integer, primary_key=True)
+    doc_type = db.Column(db.String(20), nullable=False) # 'RESGUARDO' or 'DESCARGO'
+    folio = db.Column(db.String(50), unique=True, nullable=False, index=True) # Ej: RES-000001, DESC-000001
+    hotel_id = db.Column(db.Integer, db.ForeignKey('hotel.id'), nullable=False, index=True)
+    doc_date = db.Column(db.String(100), nullable=False) # Ej: "martes, agosto 25, 2026"
+    collaborator_name = db.Column(db.String(150), nullable=False)
+    collaborator_id = db.Column(db.String(50), nullable=False, index=True) # No. Colaborador, ej: "17056"
+    collaborator_position = db.Column(db.String(150), nullable=True, default='')
+    parent_document_id = db.Column(db.Integer, db.ForeignKey('radio_document.id'), nullable=True, index=True)
+    total_units = db.Column(db.Integer, nullable=False, default=0)
+    total_usd = db.Column(db.Float, nullable=False, default=0.0)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by_username = db.Column(db.String(100), nullable=False, default='')
+    snapshot_data = db.Column(db.Text, nullable=True, default='{}')
+    notes = db.Column(db.Text, nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    hotel = db.relationship('Hotel')
+    parent_document = db.relationship('RadioDocument', remote_side=[id], backref=db.backref('child_descargos', lazy=True))
+    items = db.relationship('RadioDocumentItem', foreign_keys='RadioDocumentItem.document_id', backref='document', cascade='all, delete-orphan', lazy=True)
+
+    def to_dict(self, include_items=True):
+        data = {
+            'id': self.id,
+            'doc_type': self.doc_type,
+            'folio': self.folio,
+            'hotel_id': self.hotel_id,
+            'property_name': self.hotel.name if self.hotel else '',
+            'property_sigla': self.hotel.sigla if self.hotel else '',
+            'doc_date': self.doc_date,
+            'collaborator_name': self.collaborator_name,
+            'collaborator_id': self.collaborator_id,
+            'collaborator_position': self.collaborator_position or '',
+            'parent_document_id': self.parent_document_id,
+            'parent_folio': self.parent_document.folio if self.parent_document else '',
+            'total_units': self.total_units,
+            'total_usd': self.total_usd,
+            'created_by_user_id': self.created_by_user_id,
+            'created_by_username': self.created_by_username,
+            'notes': self.notes or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+        if include_items:
+            data['items'] = [i.to_dict() for i in self.items]
+            try:
+                data['snapshot'] = json.loads(self.snapshot_data) if self.snapshot_data else {}
+            except Exception:
+                data['snapshot'] = {}
+        return data
+
+class RadioDocumentItem(db.Model):
+    __tablename__ = 'radio_document_item'
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('radio_document.id', ondelete='CASCADE'), nullable=False, index=True)
+    radio_id = db.Column(db.Integer, db.ForeignKey('radio_item.id'), nullable=False, index=True)
+    item_order = db.Column(db.Integer, nullable=False, default=1)
+    radio_code = db.Column(db.String(50), nullable=True, default='')
+    description = db.Column(db.String(150), nullable=False, default='RADIO MOTOROLA')
+    model = db.Column(db.String(100), nullable=True, default='')
+    serial_number = db.Column(db.String(100), nullable=False)
+    department_name = db.Column(db.String(100), nullable=True, default='')
+    subdepartment_name = db.Column(db.String(100), nullable=True, default='')
+    collaborator_id = db.Column(db.String(50), nullable=True, default='')
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    cost_usd = db.Column(db.Float, nullable=False, default=500.00)
+    is_new = db.Column(db.Boolean, nullable=False, default=True)
+    total_usd = db.Column(db.Float, nullable=False, default=500.00)
+    accessories_delivered = db.Column(db.Text, nullable=True, default='[]')
+    accessories_returned = db.Column(db.Text, nullable=True, default='[]')
+    is_discharged = db.Column(db.Boolean, nullable=False, default=False)
+    discharged_by_doc_id = db.Column(db.Integer, db.ForeignKey('radio_document.id'), nullable=True)
+
+    radio = db.relationship('RadioItem')
+
+    def to_dict(self):
+        acc_del = []
+        acc_ret = []
+        try:
+            acc_del = json.loads(self.accessories_delivered) if self.accessories_delivered else []
+        except Exception:
+            pass
+        try:
+            acc_ret = json.loads(self.accessories_returned) if self.accessories_returned else []
+        except Exception:
+            pass
+
+        return {
+            'id': self.id,
+            'document_id': self.document_id,
+            'radio_id': self.radio_id,
+            'item_order': self.item_order,
+            'radio_code': self.radio_code or '',
+            'description': self.description,
+            'model': self.model or '',
+            'serial_number': self.serial_number,
+            'department_name': self.department_name or '',
+            'subdepartment_name': self.subdepartment_name or '',
+            'collaborator_id': self.collaborator_id or '',
+            'quantity': self.quantity,
+            'cost_usd': self.cost_usd,
+            'is_new': self.is_new,
+            'total_usd': self.total_usd,
+            'accessories_delivered': acc_del,
+            'accessories_returned': acc_ret,
+            'is_discharged': self.is_discharged,
+            'discharged_by_doc_id': self.discharged_by_doc_id
         }
 
 def ensure_radio_tables():
@@ -7135,6 +7254,726 @@ def get_radio_decommissions():
         res.append(d)
     return jsonify(res)
 
+# ==============================================================================
+# --- MÓDULO DE RESGUARDOS Y DESCARGOS DE RADIOS (RUTAS API Y PDF) ---
+# ==============================================================================
+
+def user_has_radio_resguardos_permission(user):
+    if not user:
+        return False
+    role = (user.role or '').strip().lower()
+    if role == 'admin':
+        return True
+    perms = user.get_permissions()
+    return any(p in perms for p in ['radios:resguardos', 'resguardos', 'tec-radios'])
+
+def generate_next_radio_folio(prefix):
+    # Generador atómico de folios secuenciales (RES-000001, DESC-000001)
+    seq = RadioDocumentSequence.query.filter_by(doc_type=prefix).with_for_update().first()
+    if not seq:
+        seq = RadioDocumentSequence(doc_type=prefix, last_number=0)
+        db.session.add(seq)
+        db.session.flush()
+    seq.last_number += 1
+    num = seq.last_number
+    return f"{prefix}-{num:06d}"
+
+def get_reportlab_image_from_base64(b64_str, max_width=180, max_height=50):
+    if not b64_str or not isinstance(b64_str, str):
+        return None
+    try:
+        data = b64_str
+        if ',' in data:
+            data = data.split(',', 1)[1]
+        img_bytes = base64.b64decode(data)
+        img_io = BytesIO(img_bytes)
+        pil_img = PILImage.open(img_io)
+        w, h = pil_img.size
+        if w > 0 and h > 0:
+            aspect = w / float(h)
+            if aspect > 1:
+                w_final = min(w, max_width)
+                h_final = int(w_final / aspect)
+            else:
+                h_final = min(h, max_height)
+                w_final = int(h_final * aspect)
+            img_io.seek(0)
+            return Image(img_io, width=w_final, height=h_final)
+    except Exception as e:
+        print(f"[PDF LOGO ERROR] {e}")
+    return None
+
+def build_radio_document_pdf(doc):
+    buffer = BytesIO()
+    # Orientación Horizontal / Landscape (Letter: 792 x 612 pt)
+    page_width, page_height = landscape(letter)
+    
+    doc_pdf = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    
+    style_title = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor('#0f172a'),
+        alignment=TA_LEFT
+    )
+
+    style_folio = ParagraphStyle(
+        'DocFolio',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        leading=14,
+        textColor=colors.HexColor('#1e293b'),
+        alignment=TA_RIGHT
+    )
+
+    style_meta_label = ParagraphStyle(
+        'MetaLabel',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor('#334155')
+    )
+
+    style_meta_val = ParagraphStyle(
+        'MetaVal',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor('#0f172a')
+    )
+
+    style_table_header = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#0f172a')
+    )
+
+    style_table_cell = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#1e293b')
+    )
+
+    style_legal = ParagraphStyle(
+        'LegalText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11.5,
+        alignment=TA_LEFT,
+        textColor=colors.HexColor('#334155')
+    )
+
+    story = []
+
+    # 1. Encabezado de 3 columnas (Título Izq | Logo Centro | Folio Der)
+    hotel = Hotel.query.get(doc.hotel_id)
+    logo_element = None
+    if hotel and hotel.logo:
+        logo_element = get_reportlab_image_from_base64(hotel.logo, max_width=180, max_height=45)
+    
+    if not logo_element:
+        logo_text = hotel.name if hotel else "LOGO DE LA PROPIEDAD"
+        logo_element = Paragraph(f"<b><font size=11>{logo_text}</font></b>", ParagraphStyle('LogoText', alignment=TA_CENTER))
+
+    header_table_data = [
+        [
+            Paragraph(f"<b>{doc.doc_type}</b>", style_title),
+            logo_element,
+            Paragraph(f"FOLIO: <u>&nbsp;&nbsp;{doc.folio}&nbsp;&nbsp;</u><br/><font size=7 color='#64748b'>No. de secuencia automática</font>", style_folio)
+        ]
+    ]
+
+    header_table = Table(header_table_data, colWidths=[200, 320, 200])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 15))
+
+    # 2. Datos del Colaborador y Fecha
+    meta_data = [
+        [Paragraph("FECHA:", style_meta_label), Paragraph(doc.doc_date, style_meta_val)],
+        [Paragraph("NOMBRE:", style_meta_label), Paragraph(doc.collaborator_name, style_meta_val)],
+        [Paragraph("CARGO:", style_meta_label), Paragraph(doc.collaborator_position or '', style_meta_val)],
+        [Paragraph("NO. COLABORADOR:", style_meta_label), Paragraph(doc.collaborator_id or '', style_meta_val)]
+    ]
+    meta_table = Table(meta_data, colWidths=[120, 600])
+    meta_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (1, 0), (1, -1), 0.75, colors.HexColor('#000000')),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 15))
+
+    # 3. Tabla Principal de Radios
+    table_headers = [
+        Paragraph("NO.", style_table_header),
+        Paragraph("DESCRIPCION", style_table_header),
+        Paragraph("MODELO", style_table_header),
+        Paragraph("NO. DE SERIE", style_table_header),
+        Paragraph("DEPARTAMENTO", style_table_header),
+        Paragraph("SUB-DEPARTAMENTO", style_table_header),
+        Paragraph("No. COLABORADOR", style_table_header),
+        Paragraph("CANTIDAD", style_table_header),
+        Paragraph("COSTO USD$", style_table_header),
+        Paragraph("NUEVO<br/>SI &nbsp;|&nbsp; NO", style_table_header),
+        Paragraph("IMPORTE", style_table_header)
+    ]
+
+    items_data = [table_headers]
+    for idx, item in enumerate(doc.items, 1):
+        si_mark = "X" if item.is_new else ""
+        no_mark = "" if item.is_new else "X"
+        nuevo_str = f"{si_mark} &nbsp;|&nbsp; {no_mark}"
+        
+        acc_list = []
+        if item.accessories_delivered:
+            try:
+                acc_list = json.loads(item.accessories_delivered)
+            except Exception:
+                acc_list = []
+        
+        desc_text = item.description or 'RADIO MOTOROLA'
+        if acc_list:
+            desc_text += f"<br/><font size=7 color='#334155'><b>Accesorios:</b> {', '.join(acc_list)}</font>"
+        
+        colab_num = item.collaborator_id or doc.collaborator_id or ''
+
+        items_data.append([
+            Paragraph(str(idx), style_table_cell),
+            Paragraph(desc_text, style_table_cell),
+            Paragraph(item.model or '', style_table_cell),
+            Paragraph(f"<b>{item.serial_number}</b>", style_table_cell),
+            Paragraph(item.department_name or '', style_table_cell),
+            Paragraph(item.subdepartment_name or '', style_table_cell),
+            Paragraph(colab_num, style_table_cell),
+            Paragraph(str(item.quantity), style_table_cell),
+            Paragraph(f"{item.cost_usd:,.2f}", style_table_cell),
+            Paragraph(nuevo_str, style_table_cell),
+            Paragraph(f"{item.total_usd:,.2f}", style_table_cell)
+        ])
+
+    col_widths = [30, 95, 65, 85, 95, 95, 75, 45, 55, 45, 40]
+    items_table = Table(items_data, colWidths=col_widths)
+    items_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#000000')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f8fafc')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(items_table)
+    story.append(Spacer(1, 10))
+
+    # 4. Fila de Totales
+    totals_data = [
+        [
+            "",
+            Paragraph("<b>TOTAL UND</b>", ParagraphStyle('TotLbl', alignment=TA_RIGHT, fontSize=9, fontName='Helvetica-Bold')),
+            Paragraph(f"<b>{doc.total_units}</b>", ParagraphStyle('TotVal', alignment=TA_CENTER, fontSize=9, fontName='Helvetica-Bold')),
+            "",
+            Paragraph("<b>TOTAL USDS</b>", ParagraphStyle('TotLbl2', alignment=TA_RIGHT, fontSize=9, fontName='Helvetica-Bold')),
+            Paragraph(f"<b>{doc.total_usd:,.2f}</b>", ParagraphStyle('TotVal2', alignment=TA_RIGHT, fontSize=9, fontName='Helvetica-Bold'))
+        ]
+    ]
+    totals_table = Table(totals_data, colWidths=[400, 75, 45, 40, 80, 80])
+    totals_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LINEBELOW', (1, 0), (2, 0), 1, colors.HexColor('#000000')),
+        ('LINEBELOW', (4, 0), (5, 0), 1, colors.HexColor('#000000')),
+    ]))
+    story.append(totals_table)
+    story.append(Spacer(1, 15))
+
+    # 5. Textos Legales
+    if doc.doc_type == 'RESGUARDO':
+        legal_text = (
+            "Hago constar que los artículos antes mencionados los recibo nuevo o usado y me obligo en términos de mi "
+            "contrato laboral a conservarlos en buen estado y a utilizarlos en forma razonable para lo que están designados, "
+            "en razón del desempeño de mis labores en esta empresa y a restituirlos cuando me sean canjeados o me los requieran "
+            "o se de por terminada la relacion de trabajo.<br/><br/>"
+            "En caso de destruccion o desaparicion de los mismos, pagaré el importe de dichos artículos en efectivo o por descuento por nómina o finiquito."
+        )
+    else:
+        legal_text = (
+            "Hago constar que en esta fecha hago entrega y devolución del equipo de comunicación anteriormente descrito, el cual "
+            "se encontraba bajo mi responsabilidad, quedando registrado en el sistema de inventario de la empresa.<br/><br/>"
+            "Declaro que realizo la entrega del equipo junto con los accesorios que me fueron asignados, en las condiciones en que se "
+            "encuentra al momento de la devolución. La persona responsable de recibir el equipo realizará la verificación correspondiente "
+            "de su estado físico y funcionamiento.<br/><br/>"
+            "A partir de la recepción y verificación del equipo por parte de la empresa, queda registrada la devolución del mismo y finaliza "
+            "mi asignación y responsabilidad operativa sobre dicho equipo, sin perjuicio de cualquier situación, daño o faltante que sea "
+            "identificado durante el proceso de revisión y que corresponda ser documentado de acuerdo con las políticas de la empresa."
+        )
+
+    story.append(Paragraph(legal_text, style_legal))
+    story.append(Spacer(1, 25))
+
+    # 6. Firmas
+    signatures_data = [
+        [
+            Paragraph("_____________________________<br/><b>Firma responsable<br/>equipo asignado</b>", ParagraphStyle('Sig1', alignment=TA_CENTER, fontSize=8)),
+            Paragraph("_____________________________<br/><b>Firma entregado por:<br/>Caja General</b>", ParagraphStyle('Sig2', alignment=TA_CENTER, fontSize=8)),
+            Paragraph("_____________________________<br/><b>Firma revision<br/>Depto. Costos</b>", ParagraphStyle('Sig3', alignment=TA_CENTER, fontSize=8))
+        ]
+    ]
+    signatures_table = Table(signatures_data, colWidths=[240, 240, 240])
+    signatures_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    story.append(KeepTogether(signatures_table))
+
+    doc_pdf.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+# --- RUTAS DE API ---
+
+@app.route('/api/radios/receipts', methods=['GET'])
+def get_radio_receipts():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    if not user_has_radio_resguardos_permission(user):
+        return jsonify({'error': 'No tiene permisos para acceder a Resguardos y Descargos'}), 403
+
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    hotel_id = request.args.get('hotel_id')
+    doc_type = request.args.get('type') # RESGUARDO, DESCARGO
+    search = request.args.get('search', '').strip().lower()
+
+    query = RadioDocument.query
+    if hotel_id and hotel_id != 'all':
+        try:
+            h_id = int(hotel_id)
+            if h_id not in allowed_ids:
+                return jsonify({'error': 'No autorizado para esta propiedad'}), 403
+            query = query.filter(RadioDocument.hotel_id == h_id)
+        except ValueError:
+            query = query.filter(RadioDocument.hotel_id.in_(allowed_ids))
+    else:
+        query = query.filter(RadioDocument.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(db.false())
+
+    if doc_type:
+        query = query.filter(RadioDocument.doc_type == doc_type.upper())
+
+    if search:
+        query = query.filter(
+            db.or_(
+                RadioDocument.folio.ilike(f"%{search}%"),
+                RadioDocument.collaborator_name.ilike(f"%{search}%"),
+                RadioDocument.collaborator_id.ilike(f"%{search}%")
+            )
+        )
+
+    docs = query.order_by(RadioDocument.created_at.desc()).all()
+    return jsonify([d.to_dict(include_items=True) for d in docs])
+
+@app.route('/api/radios/receipts/next-folio/<string:doc_type>', methods=['GET'])
+def get_next_receipt_folio_api(doc_type):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    prefix = 'RES' if 'res' in doc_type.lower() else 'DESC'
+    seq = RadioDocumentSequence.query.filter_by(doc_type=prefix).first()
+    next_num = (seq.last_number + 1) if seq else 1
+    folio = f"{prefix}-{next_num:06d}"
+    return jsonify({'folio': folio, 'next_number': next_num})
+
+@app.route('/api/radios/receipts/collaborator/<string:emp_id>', methods=['GET'])
+def get_collaborator_active_resguardos(emp_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    clean_emp = emp_id.strip()
+    docs = RadioDocument.query.filter_by(doc_type='RESGUARDO', collaborator_id=clean_emp).order_by(RadioDocument.created_at.desc()).all()
+    
+    res = []
+    for d in docs:
+        active_items = [i.to_dict() for i in d.items if not i.is_discharged]
+        if active_items:
+            dict_doc = d.to_dict(include_items=False)
+            dict_doc['items'] = active_items
+            res.append(dict_doc)
+            
+    return jsonify(res)
+
+@app.route('/api/radios/by-collaborator/<string:emp_id>', methods=['GET'])
+def get_radios_by_collaborator(emp_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    
+    clean_emp = emp_id.strip()
+    hotel_id = request.args.get('hotel_id')
+    
+    query = RadioItem.query.filter(
+        db.or_(
+            RadioItem.assigned_employee_id.ilike(clean_emp),
+            RadioItem.assigned_person_name.ilike(f"%{clean_emp}%")
+        )
+    )
+    if hotel_id and hotel_id != 'all':
+        try:
+            query = query.filter(RadioItem.hotel_id == int(hotel_id))
+        except ValueError:
+            pass
+            
+    radios = query.all()
+    return jsonify([r.to_dict() for r in radios])
+
+@app.route('/api/radios/receipts/<int:doc_id>', methods=['GET'])
+def get_radio_receipt_detail(doc_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    doc = RadioDocument.query.get_or_404(doc_id)
+    return jsonify(doc.to_dict(include_items=True))
+
+@app.route('/api/radios/receipts/<int:doc_id>/pdf', methods=['GET'])
+def download_radio_receipt_pdf(doc_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    doc = RadioDocument.query.get_or_404(doc_id)
+    pdf_buffer = build_radio_document_pdf(doc)
+    filename = f"{doc.folio}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=filename
+    )
+
+@app.route('/api/radios/receipts/resguardo', methods=['POST'])
+def create_radio_resguardo():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    if not user_has_radio_resguardos_permission(user):
+        return jsonify({'error': 'No tiene permisos para crear Resguardos'}), 403
+
+    data = request.json or {}
+    hotel_id = data.get('hotel_id')
+    colab_name = (data.get('collaborator_name') or '').strip()
+    colab_id = (data.get('collaborator_id') or '').strip()
+    colab_position = (data.get('collaborator_position') or '').strip()
+    doc_date = (data.get('doc_date') or '').strip()
+    radios_data = data.get('radios', [])
+
+    if not hotel_id or not colab_name or not colab_id:
+        return jsonify({'error': 'Debe especificar Propiedad, Nombre y No. de Colaborador'}), 400
+
+    if not radios_data or not isinstance(radios_data, list):
+        return jsonify({'error': 'Debe agregar al menos una radio al Resguardo'}), 400
+
+    if not doc_date:
+        doc_date = datetime.now().strftime('%d de %B de %Y')
+
+    # Validar que cada radio exista y esté disponible para asignación
+    radio_objs = []
+    for r_entry in radios_data:
+        r_id = r_entry.get('radio_id')
+        radio = RadioItem.query.get(r_id)
+        if not radio:
+            return jsonify({'error': f"Radio ID {r_id} no encontrada en inventario."}), 404
+        
+        # Validar estado: Si ya tiene colaborador o no está en disponible/operativo sin asignar
+        if radio.assigned_person_name or radio.assigned_employee_id:
+            if radio.assigned_employee_id != colab_id:
+                return jsonify({'error': f"La radio '{radio.radio_code or radio.serial_number}' no está disponible. Ya se encuentra asignada a {radio.assigned_person_name} (Colab: {radio.assigned_employee_id})."}), 400
+        
+        if radio.status in ['danado', 'perdido', 'fuera_servicio', 'en_reparacion', 'decomisado']:
+            st_name = STATUS_MAP.get(radio.status, {}).get('label', radio.status)
+            return jsonify({'error': f"La radio '{radio.radio_code or radio.serial_number}' no está disponible para resguardo (Estado actual: {st_name})."}), 400
+            
+        radio_objs.append((radio, r_entry))
+
+    try:
+        folio = generate_next_radio_folio('RES')
+        total_units = sum(int(r.get('quantity', 1)) for _, r in radio_objs)
+        total_usd = sum(float(r.get('cost_usd', 500.00)) * int(r.get('quantity', 1)) for _, r in radio_objs)
+
+        doc = RadioDocument(
+            doc_type='RESGUARDO',
+            folio=folio,
+            hotel_id=int(hotel_id),
+            doc_date=doc_date,
+            collaborator_name=colab_name,
+            collaborator_id=colab_id,
+            collaborator_position=colab_position,
+            total_units=total_units,
+            total_usd=total_usd,
+            created_by_user_id=user.id,
+            created_by_username=user.username,
+            notes=data.get('notes', '')
+        )
+        db.session.add(doc)
+        db.session.flush()
+
+        doc_items_list = []
+        for idx, (radio, r_entry) in enumerate(radio_objs, 1):
+            cost_usd = float(r_entry.get('cost_usd', 500.00))
+            is_new = bool(r_entry.get('is_new', True))
+            qty = int(r_entry.get('quantity', 1))
+            tot_usd = cost_usd * qty
+            accessories = r_entry.get('accessories', [])
+
+            dept_name = radio.department.name if radio.department else ''
+            subdept_name = radio.subdepartment.name if radio.subdepartment else ''
+
+            doc_item = RadioDocumentItem(
+                document_id=doc.id,
+                radio_id=radio.id,
+                item_order=idx,
+                radio_code=radio.radio_code or str(radio.id),
+                description=f"RADIO {radio.brand.upper()}" if radio.brand else "RADIO MOTOROLA",
+                model=radio.model or '',
+                serial_number=radio.serial_number,
+                department_name=dept_name,
+                subdepartment_name=subdept_name,
+                collaborator_id=colab_id,
+                quantity=qty,
+                cost_usd=cost_usd,
+                is_new=is_new,
+                total_usd=tot_usd,
+                accessories_delivered=json.dumps(accessories)
+            )
+            db.session.add(doc_item)
+            doc_items_list.append(doc_item)
+
+            # Actualizar asignación del radio
+            radio.status = 'operativo'
+            radio.assigned_person_name = colab_name
+            radio.assigned_employee_id = colab_id
+            radio.assigned_position = colab_position
+            radio.assigned_date = doc_date
+            radio.assigned_by = user.username
+
+            # Registrar en Historial
+            history_ev = RadioHistory(
+                radio_id=radio.id,
+                hotel_id=radio.hotel_id,
+                event_type='RESGUARDO',
+                detail=f"Emisión de Resguardo Folio: {folio} a {colab_name} (No. {colab_id})",
+                new_info=f"Accesorios: {', '.join(accessories) if accessories else 'Ninguno'} | Costo: USD$ {cost_usd:.2f}",
+                user_id=user.id,
+                user_name=user.username
+            )
+            db.session.add(history_ev)
+
+        # Snapshot inmutable
+        snapshot = {
+            'folio': folio,
+            'doc_type': 'RESGUARDO',
+            'doc_date': doc_date,
+            'hotel_id': hotel_id,
+            'collaborator_name': colab_name,
+            'collaborator_id': colab_id,
+            'collaborator_position': colab_position,
+            'items': [i.to_dict() for i in doc_items_list]
+        }
+        doc.snapshot_data = json.dumps(snapshot, ensure_ascii=False)
+
+        db.session.commit()
+        log_activity(user.username, 'Resguardo Radios', f"Generó el Resguardo {folio} a {colab_name} ({total_units} radios)")
+
+        return jsonify({'message': f'Resguardo {folio} generado exitosamente', 'document': doc.to_dict()}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[RESGUARDO ERROR]: {e}")
+        return jsonify({'error': f'Error al generar el resguardo: {str(e)}'}), 500
+
+
+@app.route('/api/radios/receipts/descargo', methods=['POST'])
+def create_radio_descargo():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    if not user_has_radio_resguardos_permission(user):
+        return jsonify({'error': 'No tiene permisos para crear Descargos'}), 403
+
+    data = request.json or {}
+    hotel_id = data.get('hotel_id')
+    colab_name = (data.get('collaborator_name') or '').strip()
+    colab_id = (data.get('collaborator_id') or '').strip()
+    colab_position = (data.get('collaborator_position') or '').strip()
+    doc_date = (data.get('doc_date') or '').strip()
+    parent_doc_id = data.get('parent_document_id')
+    radios_data = data.get('radios', [])
+
+    if not hotel_id or not colab_name or not colab_id:
+        return jsonify({'error': 'Debe especificar Propiedad, Nombre y No. de Colaborador'}), 400
+
+    if not radios_data or not isinstance(radios_data, list):
+        return jsonify({'error': 'Debe seleccionar al menos una radio para realizar el descargo'}), 400
+
+    if not doc_date:
+        doc_date = datetime.now().strftime('%d de %B de %Y')
+
+    # Validar que cada radio pertenezca al resguardo y siga asignada
+    radio_objs = []
+    for r_entry in radios_data:
+        r_id = r_entry.get('radio_id')
+        radio = RadioItem.query.get(r_id)
+        if not radio:
+            return jsonify({'error': f"Radio ID {r_id} no encontrada en inventario."}), 404
+        
+        orig_item_id = r_entry.get('original_item_id')
+        orig_item = RadioDocumentItem.query.get(orig_item_id) if orig_item_id else None
+        
+        if orig_item and orig_item.is_discharged:
+            return jsonify({'error': f"La radio '{radio.radio_code or radio.serial_number}' ya fue descargada previamente."}), 400
+
+        radio_objs.append((radio, r_entry, orig_item))
+
+    try:
+        folio = generate_next_radio_folio('DESC')
+        total_units = len(radio_objs)
+        total_usd = sum(float(r.get('cost_usd', 500.00)) for _, r, _ in radio_objs)
+
+        doc = RadioDocument(
+            doc_type='DESCARGO',
+            folio=folio,
+            hotel_id=int(hotel_id),
+            doc_date=doc_date,
+            collaborator_name=colab_name,
+            collaborator_id=colab_id,
+            collaborator_position=colab_position,
+            parent_document_id=parent_doc_id,
+            total_units=total_units,
+            total_usd=total_usd,
+            created_by_user_id=user.id,
+            created_by_username=user.username,
+            notes=data.get('notes', '')
+        )
+        db.session.add(doc)
+        db.session.flush()
+
+        doc_items_list = []
+        for idx, (radio, r_entry, orig_item) in enumerate(radio_objs, 1):
+            cost_usd = float(r_entry.get('cost_usd', 500.00))
+            is_new = bool(r_entry.get('is_new', False))
+            acc_del = r_entry.get('accessories_delivered', [])
+            acc_ret = r_entry.get('accessories_returned', [])
+
+            dept_name = radio.department.name if radio.department else ''
+            subdept_name = radio.subdepartment.name if radio.subdepartment else ''
+
+            doc_item = RadioDocumentItem(
+                document_id=doc.id,
+                radio_id=radio.id,
+                item_order=idx,
+                radio_code=radio.radio_code or str(radio.id),
+                description=f"RADIO {radio.brand.upper()}" if radio.brand else "RADIO MOTOROLA",
+                model=radio.model or '',
+                serial_number=radio.serial_number,
+                department_name=dept_name,
+                subdepartment_name=subdept_name,
+                collaborator_id=colab_id,
+                quantity=1,
+                cost_usd=cost_usd,
+                is_new=is_new,
+                total_usd=cost_usd,
+                accessories_delivered=json.dumps(acc_del),
+                accessories_returned=json.dumps(acc_ret),
+                is_discharged=True
+            )
+            db.session.add(doc_item)
+            doc_items_list.append(doc_item)
+
+            if orig_item:
+                orig_item.is_discharged = True
+                orig_item.discharged_by_doc_id = doc.id
+
+            # REGLA CRÍTICA DE DESCARGO:
+            # 1. Estado -> 'disponible' (DISPONIBLE)
+            # 2. Desvincular colaborador
+            # 3. Limpiar subdepartamento (subdepartment_id = None)
+            # 4. MANTENER EL DEPARTAMENTO PRINCIPAL (department_id) E HOTEL (hotel_id)
+            radio.status = 'disponible'
+            radio.assigned_person_name = ''
+            radio.assigned_employee_id = ''
+            radio.assigned_position = ''
+            radio.assigned_date = ''
+            radio.assigned_by = ''
+            radio.subdepartment_id = None
+
+            # Registrar en Historial
+            missing_acc = [a for a in acc_del if a not in acc_ret]
+            notes_acc = f"Devueltos: {', '.join(acc_ret) or 'Ninguno'}"
+            if missing_acc:
+                notes_acc += f" | FALTANTES: {', '.join(missing_acc)}"
+
+            history_ev = RadioHistory(
+                radio_id=radio.id,
+                hotel_id=radio.hotel_id,
+                event_type='DESCARGO',
+                detail=f"Emisión de Descargo Folio: {folio} por devolución de {colab_name} (No. {colab_id})",
+                new_info=notes_acc,
+                user_id=user.id,
+                user_name=user.username
+            )
+            db.session.add(history_ev)
+
+        # Snapshot inmutable
+        snapshot = {
+            'folio': folio,
+            'doc_type': 'DESCARGO',
+            'doc_date': doc_date,
+            'hotel_id': hotel_id,
+            'collaborator_name': colab_name,
+            'collaborator_id': colab_id,
+            'collaborator_position': colab_position,
+            'parent_document_id': parent_doc_id,
+            'items': [i.to_dict() for i in doc_items_list]
+        }
+        doc.snapshot_data = json.dumps(snapshot, ensure_ascii=False)
+
+        db.session.commit()
+        log_activity(user.username, 'Descargo Radios', f"Generó el Descargo {folio} a {colab_name} ({total_units} radios)")
+
+        return jsonify({'message': f'Descargo {folio} generado exitosamente', 'document': doc.to_dict()}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[DESCARGO ERROR]: {e}")
+        return jsonify({'error': f'Error al generar el descargo: {str(e)}'}), 500
+
+
 # Alias de compatibilidad
 @app.route('/api/radios/items', methods=['GET'])
 def get_radios_items_alias():
@@ -7147,6 +7986,7 @@ def create_radio_item_alias():
 @app.route('/api/radios/formal-inventories', methods=['GET'])
 def get_formal_inventories_alias():
     return get_formal_inventories()
+
 
 
 if __name__ == '__main__':

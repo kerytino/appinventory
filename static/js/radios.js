@@ -157,6 +157,7 @@ window.switchRadioTab = function (targetTab) {
         'tab-formal-inv': 'Inventario de Radios',
         'tab-my-inv': 'Mi Inventario',
         'tab-assignments': 'Asignaciones',
+        'tab-receipts': 'Resguardos y Descargos',
         'tab-reports': 'Reportes',
         'tab-decommissions': 'Bajas y Decomisos',
         'tab-depts': 'Configuración'
@@ -167,7 +168,7 @@ window.switchRadioTab = function (targetTab) {
     }
 
     // Bloqueo de seguridad Frontend para usuarios de consulta
-    const adminOnlyTabs = ['tab-formal-inv', 'tab-my-inv', 'tab-assignments', 'tab-reports', 'tab-decommissions', 'tab-depts'];
+    const adminOnlyTabs = ['tab-formal-inv', 'tab-my-inv', 'tab-assignments', 'tab-receipts', 'tab-reports', 'tab-decommissions', 'tab-depts'];
     if (isRadioQueryUser && adminOnlyTabs.includes(targetTab)) {
         if (window.showToast) showToast('Acceso denegado. Módulo administrativo no disponible para tu perfil.', 'error');
         else alert('Acceso denegado. Módulo administrativo no disponible para tu perfil de consulta.');
@@ -217,6 +218,9 @@ window.switchRadioTab = function (targetTab) {
             break;
         case 'tab-assignments':
             loadAssignments();
+            break;
+        case 'tab-receipts':
+            loadRadioReceipts();
             break;
         case 'tab-reports':
             loadReports();
@@ -3350,6 +3354,1189 @@ function initRadiosModule() {
     loadDashboard();
     loadRadioNotifications();
 }
+
+// =========================================================================
+// MÓDULO DE RESGUARDOS Y DESCARGOS
+// =========================================================================
+
+let currentReceiptsFilter = 'all';
+let currentReceiptsSearch = '';
+let currentResguardoItems = [];
+let currentDescargoItems = [];
+let currentActiveDocument = null;
+
+async function loadRadioReceipts() {
+    const tbody = document.getElementById('rad-receipts-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #94a3b8; padding: 20px;"><i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando resguardos y descargos...</td></tr>';
+
+    try {
+        let url = `/api/radios/receipts?hotel_id=${currentPropertyId}`;
+        if (currentReceiptsFilter !== 'all') {
+            url += `&type=${currentReceiptsFilter}`;
+        }
+        if (currentReceiptsSearch) {
+            url += `&search=${encodeURIComponent(currentReceiptsSearch)}`;
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) {
+            if (res.status === 403) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #dc2626; padding: 20px;">Acceso denegado. No posees permisos para gestionar Resguardos y Descargos.</td></tr>';
+                return;
+            }
+            throw new Error('Error al cargar documentos');
+        }
+
+        const docs = await res.json();
+        if (!docs || docs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #94a3b8; padding: 24px;">No se encontraron resguardos ni descargos registrados.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = docs.map(d => {
+            const isRes = d.doc_type === 'RESGUARDO';
+            const badgeClass = isRes ? 'bg-primary' : 'bg-secondary';
+            const typeLabel = isRes ? 'RESGUARDO' : 'DESCARGO';
+            
+            return `
+                <tr>
+                    <td style="font-family: monospace; font-weight: 800; color: #0f172a;">${escapeHtml(d.folio)}</td>
+                    <td><span class="badge ${badgeClass}" style="font-weight: 700;">${typeLabel}</span></td>
+                    <td style="font-weight: 600; color: #334155;">${escapeHtml(d.doc_date)}</td>
+                    <td style="font-weight: 600; color: #1e293b;">${escapeHtml(d.property_name)}</td>
+                    <td style="font-weight: 700; color: #0f172a;">
+                        ${escapeHtml(d.collaborator_name)}
+                        <small style="display: block; color: #64748b; font-weight: 500;">No. ${escapeHtml(d.collaborator_id)}</small>
+                    </td>
+                    <td style="color: #475569;">${escapeHtml(d.collaborator_position || '-')}</td>
+                    <td style="text-align: center; font-weight: 800; color: #0f172a;">${d.total_units}</td>
+                    <td style="text-align: right; font-weight: 800; color: #166534;">$${Number(d.total_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="font-size: 11.5px; color: #64748b;">${escapeHtml(d.created_by_username || 'Sistema')}</td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewReceiptDocument(${d.id})" title="Ver / Previsualizar Documento" style="padding: 4px 10px; font-weight: 600;">
+                                <i class="fa-solid fa-eye"></i> Ver
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadReceiptPdf(${d.id})" title="Descargar PDF Landscape" style="padding: 4px 10px; font-weight: 600;">
+                                <i class="fa-solid fa-file-pdf"></i> PDF
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #dc2626; padding: 20px;">Error de conexión: ${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function filterReceiptsTab(type) {
+    currentReceiptsFilter = type;
+    ['btn-rcp-filter-all', 'btn-rcp-filter-res', 'btn-rcp-filter-desc'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('active');
+    });
+    if (type === 'all') document.getElementById('btn-rcp-filter-all')?.classList.add('active');
+    if (type === 'RESGUARDO') document.getElementById('btn-rcp-filter-res')?.classList.add('active');
+    if (type === 'DESCARGO') document.getElementById('btn-rcp-filter-desc')?.classList.add('active');
+    loadRadioReceipts();
+}
+
+let receiptsSearchTimeout = null;
+function onReceiptsSearchChange() {
+    clearTimeout(receiptsSearchTimeout);
+    receiptsSearchTimeout = setTimeout(() => {
+        const inp = document.getElementById('rad-rcp-search-input');
+        currentReceiptsSearch = inp ? inp.value.trim() : '';
+        loadRadioReceipts();
+    }, 300);
+}
+
+// --- CREACIÓN DE RESGUARDO ---
+
+async function openNewResguardoModal() {
+    currentResguardoItems = [];
+    document.getElementById('form-create-resguardo')?.reset();
+    const msgEl = document.getElementById('res-radio-search-msg');
+    if (msgEl) msgEl.style.display = 'none';
+
+    // Cargar propiedades
+    const hotelSel = document.getElementById('res-form-hotel');
+    if (hotelSel) {
+        if (!userProperties || userProperties.length === 0) {
+            try {
+                const res = await fetch('/api/radios/properties');
+                if (res.ok) userProperties = await res.json();
+            } catch (e) {}
+        }
+        hotelSel.innerHTML = (userProperties || []).map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+        if (currentPropertyId !== 'all') {
+            hotelSel.value = currentPropertyId;
+        }
+    }
+
+    // Obtener folio correlativo
+    try {
+        const folioRes = await fetch('/api/radios/receipts/next-folio/resguardo');
+        if (folioRes.ok) {
+            const data = await folioRes.json();
+            document.getElementById('res-form-folio-preview').innerText = data.folio;
+        }
+    } catch (e) {}
+
+    // Fecha actual formateada
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateFormatted = now.toLocaleDateString('es-ES', options);
+    document.getElementById('res-form-date').value = dateFormatted;
+
+    renderResguardoItemsList();
+    openModal('modal-create-resguardo');
+}
+
+function onResguardoHotelChange() {
+    renderResguardoItemsList();
+}
+
+let currentFoundColabRadios = [];
+
+function getCollaboratorInfoFromRadio(r) {
+    if (!r) return { empId: '', name: '', position: '' };
+    const empId = r.assigned_employee_id || (r.assigned_person ? r.assigned_person.employeeId : '') || (r.assignedPerson ? r.assignedPerson.employeeId : '') || '';
+    const name = r.assigned_person_name || (r.assigned_person ? r.assigned_person.name : '') || (r.assignedPerson ? r.assignedPerson.name : '') || '';
+    const position = r.assigned_position || (r.assigned_person ? r.assigned_person.position : '') || (r.assignedPerson ? r.assignedPerson.position : '') || '';
+    return { empId, name, position };
+}
+
+async function autoSearchCollaboratorInfo() {
+    const empInput = document.getElementById('res-form-emp-id');
+    if (!empInput || !empInput.value.trim()) return;
+    searchAndLoadCollaboratorRadiosForResguardo();
+}
+
+async function searchAndLoadCollaboratorRadiosForResguardo() {
+    const empInput = document.getElementById('res-form-emp-id');
+    const nameInput = document.getElementById('res-form-emp-name');
+    const posInput = document.getElementById('res-form-emp-position');
+    const foundBox = document.getElementById('res-colab-radios-found-box');
+    const targetHotelId = document.getElementById('res-form-hotel').value;
+
+    const query = (empInput?.value.trim() || nameInput?.value.trim() || '');
+    if (!query) return;
+
+    try {
+        let radios = [];
+        const res = await fetch(`/api/radios/by-collaborator/${encodeURIComponent(query)}?hotel_id=${targetHotelId}`);
+        if (res.ok) {
+            radios = await res.json();
+        }
+
+        let colabName = '';
+        let colabPos = '';
+        let colabEmp = '';
+
+        if (radios && radios.length > 0) {
+            for (const r of radios) {
+                const info = getCollaboratorInfoFromRadio(r);
+                if (info.name && !colabName) colabName = info.name;
+                if (info.empId && !colabEmp) colabEmp = info.empId;
+                if (info.position && !colabPos) colabPos = info.position;
+            }
+        }
+
+        if (!colabName || !colabEmp) {
+            try {
+                const recRes = await fetch(`/api/radios/receipts/collaborator/${encodeURIComponent(query)}`);
+                if (recRes.ok) {
+                    const docs = await recRes.json();
+                    if (docs && docs.length > 0) {
+                        const lastDoc = docs[0];
+                        if (!colabEmp) colabEmp = lastDoc.collaborator_id;
+                        if (!colabName) colabName = lastDoc.collaborator_name;
+                        if (!colabPos) colabPos = lastDoc.collaborator_position || '';
+                    }
+                }
+            } catch(e) {}
+        }
+
+        if (empInput && colabEmp) empInput.value = colabEmp;
+        if (nameInput && colabName) nameInput.value = colabName;
+        if (posInput && colabPos) posInput.value = colabPos;
+
+        currentFoundColabRadios = radios || [];
+
+        if (foundBox) {
+            foundBox.style.display = 'block';
+
+            if (currentFoundColabRadios.length === 0) {
+                foundBox.innerHTML = `
+                    <div style="font-size: 12px; color: #475569; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-info-circle me-1 text-primary"></i> No hay radios actualmente asignadas a <strong>${escapeHtml(colabName || query)}</strong>. Puedes agregar radios individuales abajo.</span>
+                        <button type="button" class="btn-close" style="font-size: 10px;" onclick="document.getElementById('res-colab-radios-found-box').style.display='none'"></button>
+                    </div>
+                `;
+            } else {
+                foundBox.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-weight: 800; font-size: 12.5px; color: #1e40af; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-list-check"></i> Radios asignadas a ${escapeHtml(colabName || query)} (${currentFoundColabRadios.length}):
+                        </span>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <label style="font-size: 12px; font-weight: 700; color: #1e40af; cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="res-colab-check-all" checked onchange="toggleSelectAllColabRadios(this.checked)"> Seleccionar Todas
+                            </label>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="addSelectedCollaboratorRadiosToResguardo()" id="btn-add-selected-colab-radios" style="font-weight: 700; padding: 4px 14px; font-size: 12px;">
+                                <i class="fa-solid fa-plus me-1"></i> Agregar (<span id="cnt-selected-colab-radios">${currentFoundColabRadios.length}</span>) Seleccionada(s)
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px;">
+                        ${currentFoundColabRadios.map((r, idx) => `
+                            <label style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 10px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="res-colab-radio-item-check" data-index="${idx}" checked onchange="updateSelectedColabRadiosCount()">
+                                <div>
+                                    <strong style="color: #1e40af; font-family: monospace;">#${escapeHtml(r.radio_code || r.id)}</strong> (${escapeHtml(r.model || 'Radio')})<br/>
+                                    <span style="font-size: 11px; color: #64748b;">Serie: ${escapeHtml(r.serial_number)}</span>
+                                </div>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+    } catch (e) {
+        console.error('Error al buscar radios por colaborador:', e);
+    }
+}
+
+function toggleSelectAllColabRadios(isChecked) {
+    const checkboxes = document.querySelectorAll('.res-colab-radio-item-check');
+    checkboxes.forEach(cb => cb.checked = isChecked);
+    updateSelectedColabRadiosCount();
+}
+
+function updateSelectedColabRadiosCount() {
+    const checkboxes = document.querySelectorAll('.res-colab-radio-item-check');
+    let selectedCount = 0;
+    checkboxes.forEach(cb => { if (cb.checked) selectedCount++; });
+
+    const cntSpan = document.getElementById('cnt-selected-colab-radios');
+    const btn = document.getElementById('btn-add-selected-colab-radios');
+    
+    if (cntSpan) cntSpan.innerText = selectedCount;
+    if (btn) {
+        btn.disabled = (selectedCount === 0);
+        btn.style.opacity = selectedCount === 0 ? '0.5' : '1';
+    }
+
+    const checkAll = document.getElementById('res-colab-check-all');
+    if (checkAll && checkboxes.length > 0) {
+        checkAll.checked = (selectedCount === checkboxes.length);
+    }
+}
+
+function addSelectedCollaboratorRadiosToResguardo() {
+    const checkboxes = document.querySelectorAll('.res-colab-radio-item-check');
+    let addedCount = 0;
+
+    checkboxes.forEach(cb => {
+        if (cb.checked) {
+            const idx = parseInt(cb.getAttribute('data-index'));
+            const match = currentFoundColabRadios[idx];
+            if (match && !currentResguardoItems.some(i => i.radio_id === match.id || i.serial_number === match.serial_number)) {
+                currentResguardoItems.push({
+                    radio_id: parseInt(match.id),
+                    radio_code: match.radio_code || match.id.toString(),
+                    serial_number: match.serial_number,
+                    brand: match.brand || 'Motorola',
+                    model: match.model || '',
+                    department_name: match.department_name || '',
+                    subdepartment_name: match.subdepartment_name || '',
+                    cost_usd: 500.00,
+                    is_new: true,
+                    accessories: ['Antena', 'Cargador', 'Pila']
+                });
+                addedCount++;
+            }
+        }
+    });
+
+    renderResguardoItemsList();
+    const foundBox = document.getElementById('res-colab-radios-found-box');
+    if (foundBox) foundBox.style.display = 'none';
+
+    if (window.showToast) showToast(`Se agregaron ${addedCount} radio(s) seleccionadas al resguardo`, 'success');
+}
+
+async function searchAndAddRadioToResguardo() {
+    const input = document.getElementById('res-radio-search-input');
+    const msgEl = document.getElementById('res-radio-search-msg');
+    if (!input || !input.value.trim()) return;
+
+    const query = input.value.trim().toLowerCase();
+    msgEl.style.display = 'none';
+
+    if (currentResguardoItems.some(i => (i.radio_code && i.radio_code.toLowerCase() === query) || i.serial_number.toLowerCase() === query)) {
+        msgEl.className = 'alert alert-danger';
+        msgEl.style.display = 'block';
+        msgEl.innerText = 'Esta radio ya fue agregada a la lista del resguardo.';
+        return;
+    }
+
+    const targetHotelId = document.getElementById('res-form-hotel').value;
+    try {
+        const res = await fetch(`/api/radios?hotel_id=${targetHotelId}`);
+        if (!res.ok) throw new Error('No se pudo consultar el inventario');
+        const radios = await res.json();
+
+        const match = radios.find(r => 
+            (r.radio_code && String(r.radio_code).toLowerCase() === query) ||
+            r.serial_number.toLowerCase() === query ||
+            r.id.toString() === query
+        );
+
+        if (!match) {
+            msgEl.className = 'alert alert-danger';
+            msgEl.style.display = 'block';
+            msgEl.innerHTML = `<i class="fa-solid fa-circle-xmark me-1"></i> No se encontró ninguna radio con el ID o Serial '${escapeHtml(input.value)}' en esta propiedad.`;
+            return;
+        }
+
+        // AUTOCOMPLETAR SIEMPRE DATOS DEL COLABORADOR DE LA RADIO ELEGIDA
+        const empInput = document.getElementById('res-form-emp-id');
+        const nameInput = document.getElementById('res-form-emp-name');
+        const posInput = document.getElementById('res-form-emp-position');
+
+        if (match.assigned_person_name || match.assigned_employee_id) {
+            if (empInput) empInput.value = match.assigned_employee_id || empInput.value;
+            if (nameInput) nameInput.value = match.assigned_person_name || nameInput.value;
+            if (posInput) posInput.value = match.assigned_position || posInput.value;
+        }
+
+        if (['danado', 'perdido', 'fuera_servicio', 'en_reparacion', 'decomisado'].includes(match.status)) {
+            const stLabel = STATUS_MAP[match.status] ? STATUS_MAP[match.status].label : match.status;
+            msgEl.className = 'alert alert-danger';
+            msgEl.style.display = 'block';
+            msgEl.innerHTML = `<i class="fa-solid fa-ban me-1"></i> La radio <strong>${escapeHtml(match.radio_code || match.serial_number)}</strong> no está disponible para resguardo (Estado actual: <strong>${stLabel}</strong>).`;
+            return;
+        }
+
+        currentResguardoItems.push({
+            radio_id: parseInt(match.id),
+            radio_code: match.radio_code || match.id.toString(),
+            serial_number: match.serial_number,
+            brand: match.brand || 'Motorola',
+            model: match.model || '',
+            department_name: match.department_name || '',
+            subdepartment_name: match.subdepartment_name || '',
+            cost_usd: 500.00,
+            is_new: true,
+            accessories: ['Antena', 'Cargador', 'Pila']
+        });
+
+        input.value = '';
+        renderResguardoItemsList();
+
+    } catch (err) {
+        msgEl.className = 'alert alert-danger';
+        msgEl.style.display = 'block';
+        msgEl.innerText = err.message;
+    }
+}
+
+function removeRadioFromResguardo(index) {
+    currentResguardoItems.splice(index, 1);
+    renderResguardoItemsList();
+}
+
+function updateResguardoItemCost(index, val) {
+    const c = parseFloat(val);
+    if (!isNaN(c) && c >= 0) {
+        currentResguardoItems[index].cost_usd = c;
+        recalculateResguardoTotals();
+    }
+}
+
+function updateResguardoItemNew(index, isNew) {
+    currentResguardoItems[index].is_new = isNew;
+}
+
+function toggleResguardoItemAccessory(index, accName, checked) {
+    const item = currentResguardoItems[index];
+    if (!item.accessories) item.accessories = [];
+    if (checked) {
+        if (!item.accessories.includes(accName)) item.accessories.push(accName);
+    } else {
+        item.accessories = item.accessories.filter(a => a !== accName);
+    }
+}
+
+function renderResguardoItemsList() {
+    const container = document.getElementById('res-items-container');
+    const badge = document.getElementById('res-items-count-badge');
+    if (badge) badge.innerText = currentResguardoItems.length;
+
+    if (!container) return;
+
+    if (currentResguardoItems.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: #94a3b8; padding: 24px; font-size: 13px; border: 2px dashed #e2e8f0; border-radius: 8px;">
+                <i class="fa-solid fa-inbox me-1" style="font-size: 1.5rem; display: block; margin-bottom: 6px; color: #cbd5e1;"></i>
+                Aún no has agregado radios a este resguardo. Utiliza el buscador para añadir equipos.
+            </div>
+        `;
+        recalculateResguardoTotals();
+        return;
+    }
+
+    const ACC_LIST = ['Antena', 'Cargador', 'Pila', 'Auriculares'];
+
+    container.innerHTML = currentResguardoItems.map((item, idx) => {
+        const accChecks = ACC_LIST.map(acc => {
+            const isChecked = item.accessories && item.accessories.includes(acc);
+            return `
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; cursor: pointer; color: #334155;">
+                    <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleResguardoItemAccessory(${idx}, '${acc}', this.checked)" style="cursor: pointer;">
+                    ${acc}
+                </label>
+            `;
+        }).join('');
+
+        return `
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="badge bg-primary" style="font-family: monospace; font-size: 13px;">ID: ${escapeHtml(item.radio_code)}</span>
+                            <span style="font-weight: 800; font-size: 1rem; color: #0f172a;">${escapeHtml(item.brand)} ${escapeHtml(item.model)}</span>
+                        </div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 3px;">
+                            Serie: <strong style="color: #1e293b;">${escapeHtml(item.serial_number)}</strong> | Depto: <strong>${escapeHtml(item.department_name || 'Sin Asignar')}</strong> ${item.subdepartment_name ? `> ${escapeHtml(item.subdepartment_name)}` : ''}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRadioFromResguardo(${idx})" style="padding: 4px 10px; font-weight: 600;">
+                        <i class="fa-solid fa-trash-can me-1"></i> Eliminar
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 160px 180px 1fr; gap: 14px; align-items: center; background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px;">Costo USD$</label>
+                        <div style="position: relative;">
+                            <span style="position: absolute; left: 8px; top: 7px; font-size: 12px; font-weight: 700; color: #64748b;">$</span>
+                            <input type="number" step="0.01" value="${item.cost_usd}" class="form-control" style="height: 32px; padding-left: 20px; font-size: 12.5px; font-weight: 800;" onchange="updateResguardoItemCost(${idx}, this.value)">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px;">Estado del Equipo</label>
+                        <div style="display: flex; gap: 12px;">
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; cursor: pointer; color: #166534;">
+                                <input type="radio" name="item_new_${idx}" value="si" ${item.is_new ? 'checked' : ''} onchange="updateResguardoItemNew(${idx}, true)"> Nuevo (Sí)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; cursor: pointer; color: #475569;">
+                                <input type="radio" name="item_new_${idx}" value="no" ${!item.is_new ? 'checked' : ''} onchange="updateResguardoItemNew(${idx}, false)"> Usado (No)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px;">Accesorios Entregados</label>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            ${accChecks}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    recalculateResguardoTotals();
+}
+
+function recalculateResguardoTotals() {
+    const totalUnd = currentResguardoItems.reduce((acc, item) => acc + 1, 0);
+    const totalUsd = currentResguardoItems.reduce((acc, item) => acc + (parseFloat(item.cost_usd) || 0), 0);
+
+    const undEl = document.getElementById('res-total-und');
+    const usdEl = document.getElementById('res-total-usd');
+
+    if (undEl) undEl.innerText = totalUnd;
+    if (usdEl) usdEl.innerText = `$${totalUsd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+async function submitResguardoForm() {
+    const hotelId = document.getElementById('res-form-hotel').value;
+    const empId = document.getElementById('res-form-emp-id').value.trim();
+    const empName = document.getElementById('res-form-emp-name').value.trim();
+    const empPosition = document.getElementById('res-form-emp-position').value.trim();
+    const docDate = document.getElementById('res-form-date').value.trim();
+
+    if (!hotelId || !empId || !empName) {
+        if (window.showToast) showToast('Por favor completa todos los campos obligatorios del colaborador.', 'warning');
+        else alert('Por favor completa todos los campos obligatorios del colaborador.');
+        return;
+    }
+
+    if (currentResguardoItems.length === 0) {
+        if (window.showToast) showToast('Debe agregar al menos una radio al resguardo.', 'warning');
+        else alert('Debe agregar al menos una radio al resguardo.');
+        return;
+    }
+
+    const payload = {
+        hotel_id: parseInt(hotelId),
+        collaborator_id: empId,
+        collaborator_name: empName,
+        collaborator_position: empPosition,
+        doc_date: docDate,
+        radios: currentResguardoItems.map(item => ({
+            radio_id: item.radio_id,
+            cost_usd: item.cost_usd,
+            is_new: item.is_new,
+            quantity: 1,
+            accessories: item.accessories || []
+        }))
+    };
+
+    try {
+        const res = await fetch('/api/radios/receipts/resguardo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al crear el resguardo');
+
+        if (window.showToast) showToast(`Resguardo ${data.document.folio} generado exitosamente`, 'success');
+        else alert(`Resguardo ${data.document.folio} generado exitosamente`);
+
+        closeModal('modal-create-resguardo');
+        loadRadioReceipts();
+        viewReceiptDocument(data.document.id);
+
+    } catch (err) {
+        if (window.showToast) showToast(err.message, 'error');
+        else alert(`Error: ${err.message}`);
+    }
+}
+
+// --- CREACIÓN DE DESCARGO ---
+
+let descargoSelectedMode = 'resguardo';
+
+function selectDescargoMode(mode) {
+    descargoSelectedMode = mode;
+    const cardRes = document.getElementById('desc-mode-resguardo-card');
+    const cardMan = document.getElementById('desc-mode-manual-card');
+    const flowPanel = document.getElementById('desc-panel-resguardo-flow');
+
+    if (mode === 'resguardo') {
+        if (cardRes) { cardRes.style.border = '2px solid #2563eb'; cardRes.style.background = '#eff6ff'; }
+        if (cardMan) { cardMan.style.border = '1px solid #cbd5e1'; cardMan.style.background = '#ffffff'; }
+        if (flowPanel) flowPanel.style.display = 'block';
+    } else {
+        if (cardRes) { cardRes.style.border = '1px solid #cbd5e1'; cardRes.style.background = '#ffffff'; }
+        if (cardMan) { cardMan.style.border = '2px solid #475569'; cardMan.style.background = '#f8fafc'; }
+        if (flowPanel) flowPanel.style.display = 'none';
+    }
+}
+
+async function openNewDescargoModal() {
+    currentDescargoItems = [];
+    document.getElementById('form-create-descargo')?.reset();
+    selectDescargoMode('resguardo');
+
+    const hotelSel = document.getElementById('desc-form-hotel');
+    if (hotelSel) {
+        if (!userProperties || userProperties.length === 0) {
+            try {
+                const res = await fetch('/api/radios/properties');
+                if (res.ok) userProperties = await res.json();
+            } catch (e) {}
+        }
+        hotelSel.innerHTML = (userProperties || []).map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+        if (currentPropertyId !== 'all') {
+            hotelSel.value = currentPropertyId;
+        }
+    }
+
+    try {
+        const folioRes = await fetch('/api/radios/receipts/next-folio/descargo');
+        if (folioRes.ok) {
+            const data = await folioRes.json();
+            document.getElementById('desc-form-folio-preview').innerText = data.folio;
+        }
+    } catch (e) {}
+
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('desc-form-date').value = now.toLocaleDateString('es-ES', options);
+
+    renderDescargoItemsList();
+    openModal('modal-create-descargo');
+}
+
+async function searchCollaboratorResguardosForDescargo() {
+    const input = document.getElementById('desc-search-emp-id');
+    const container = document.getElementById('desc-colab-resguardos-list');
+    if (!input || !input.value.trim()) return;
+
+    const empId = input.value.trim();
+    container.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 14px;"><i class="fa-solid fa-spinner fa-spin me-2"></i>Buscando resguardos activos...</div>';
+
+    try {
+        const res = await fetch(`/api/radios/receipts/collaborator/${encodeURIComponent(empId)}`);
+        if (!res.ok) throw new Error('Error al consultar resguardos');
+        const docs = await res.json();
+
+        if (!docs || docs.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: #dc2626; padding: 14px; font-weight: 600;">No se encontraron resguardos vigentes con radios pendientes de devolución para el colaborador No. ${escapeHtml(empId)}.</div>`;
+            return;
+        }
+
+        const first = docs[0];
+        document.getElementById('desc-form-emp-id').value = first.collaborator_id;
+        document.getElementById('desc-form-emp-name').value = first.collaborator_name;
+        document.getElementById('desc-form-emp-position').value = first.collaborator_position || '';
+        document.getElementById('desc-form-hotel').value = first.hotel_id;
+
+        container.innerHTML = docs.map(d => `
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div>
+                        <strong style="font-family: monospace; font-size: 13.5px; color: #2563eb;">Folio: ${escapeHtml(d.folio)}</strong>
+                        <span style="font-size: 12px; color: #64748b; margin-left: 10px;">${escapeHtml(d.doc_date)}</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="loadResguardoItemsIntoDescargo(${d.id})" style="font-weight: 700; padding: 4px 12px;">
+                        <i class="fa-solid fa-check me-1"></i> Seleccionar Resguardo
+                    </button>
+                </div>
+                <div style="font-size: 12px; color: #334155;">
+                    Radios pendientes: <strong>${d.items.length}</strong> | Propiedad: <strong>${escapeHtml(d.property_name)}</strong>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (err) {
+        container.innerHTML = `<div style="text-align: center; color: #dc2626; padding: 14px;">Error: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function loadResguardoItemsIntoDescargo(docId) {
+    try {
+        const res = await fetch(`/api/radios/receipts/${docId}`);
+        if (!res.ok) throw new Error('No se pudo cargar el resguardo');
+        const doc = await res.json();
+
+        document.getElementById('desc-form-emp-id').value = doc.collaborator_id;
+        document.getElementById('desc-form-emp-name').value = doc.collaborator_name;
+        document.getElementById('desc-form-emp-position').value = doc.collaborator_position || '';
+        document.getElementById('desc-form-hotel').value = doc.hotel_id;
+        
+        window._currentParentDescargoDocId = doc.id;
+
+        currentDescargoItems = doc.items.filter(i => !i.is_discharged).map(i => ({
+            original_item_id: i.id,
+            radio_id: i.radio_id,
+            radio_code: i.radio_code,
+            serial_number: i.serial_number,
+            model: i.model,
+            department_name: i.department_name,
+            subdepartment_name: i.subdepartment_name,
+            cost_usd: i.cost_usd,
+            is_new: i.is_new,
+            accessories_delivered: i.accessories_delivered || [],
+            accessories_returned: [...(i.accessories_delivered || [])],
+            selected_for_descargo: true
+        }));
+
+        renderDescargoItemsList();
+
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+function toggleDescargoItemSelection(index, checked) {
+    currentDescargoItems[index].selected_for_descargo = checked;
+    recalculateDescargoTotals();
+}
+
+function toggleDescargoReturnedAccessory(index, accName, checked) {
+    const item = currentDescargoItems[index];
+    if (!item.accessories_returned) item.accessories_returned = [];
+    if (checked) {
+        if (!item.accessories_returned.includes(accName)) item.accessories_returned.push(accName);
+    } else {
+        item.accessories_returned = item.accessories_returned.filter(a => a !== accName);
+    }
+}
+
+function renderDescargoItemsList() {
+    const container = document.getElementById('desc-items-container');
+    const badge = document.getElementById('desc-items-count-badge');
+    const activeSelected = currentDescargoItems.filter(i => i.selected_for_descargo);
+    
+    if (badge) badge.innerText = activeSelected.length;
+    if (!container) return;
+
+    if (currentDescargoItems.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: #94a3b8; padding: 24px; font-size: 13px; border: 2px dashed #e2e8f0; border-radius: 8px;">
+                Selecciona un resguardo o radios a descargar para ver el desglose.
+            </div>
+        `;
+        recalculateDescargoTotals();
+        return;
+    }
+
+    const ALL_ACC = ['Antena', 'Cargador', 'Pila', 'Auriculares'];
+
+    container.innerHTML = currentDescargoItems.map((item, idx) => {
+        const isSelected = item.selected_for_descargo;
+        const delivered = item.accessories_delivered || [];
+        const returned = item.accessories_returned || [];
+
+        const accChecks = ALL_ACC.map(acc => {
+            const wasDelivered = delivered.includes(acc);
+            const isRet = returned.includes(acc);
+            return `
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; cursor: pointer; color: ${wasDelivered ? '#1e293b' : '#94a3b8'}; opacity: ${wasDelivered ? '1' : '0.5'};">
+                    <input type="checkbox" ${isRet ? 'checked' : ''} ${!wasDelivered ? 'disabled' : ''} onchange="toggleDescargoReturnedAccessory(${idx}, '${acc}', this.checked)" style="cursor: pointer;">
+                    ${acc} ${!wasDelivered ? '<small>(No entregado)</small>' : ''}
+                </label>
+            `;
+        }).join('');
+
+        return `
+            <div style="background: ${isSelected ? '#ffffff' : '#f8fafc'}; border: 2px solid ${isSelected ? '#475569' : '#e2e8f0'}; border-radius: 10px; padding: 14px; opacity: ${isSelected ? '1' : '0.6'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleDescargoItemSelection(${idx}, this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+                        <div>
+                            <span class="badge bg-secondary" style="font-family: monospace; font-size: 13px;">ID: ${escapeHtml(item.radio_code)}</span>
+                            <span style="font-weight: 800; font-size: 1rem; color: #0f172a; margin-left: 6px;">Motorola ${escapeHtml(item.model)}</span>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                                Serie: <strong>${escapeHtml(item.serial_number)}</strong> | Depto Principal: <strong>${escapeHtml(item.department_name || '-')}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right; font-weight: 800; color: #166534; font-size: 1rem;">
+                        USD$ ${Number(item.cost_usd).toFixed(2)}
+                    </div>
+                </div>
+
+                ${isSelected ? `
+                <div style="margin-top: 10px; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">Confirmar Accesorios Devueltos Físicamente:</label>
+                    <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                        ${accChecks}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    recalculateDescargoTotals();
+}
+
+function recalculateDescargoTotals() {
+    const selected = currentDescargoItems.filter(i => i.selected_for_descargo);
+    const totalUnd = selected.length;
+    const totalUsd = selected.reduce((acc, item) => acc + (parseFloat(item.cost_usd) || 0), 0);
+
+    const undEl = document.getElementById('desc-total-und');
+    const usdEl = document.getElementById('desc-total-usd');
+
+    if (undEl) undEl.innerText = totalUnd;
+    if (usdEl) usdEl.innerText = `$${totalUsd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+async function submitDescargoForm() {
+    const hotelId = document.getElementById('desc-form-hotel').value;
+    const empId = document.getElementById('desc-form-emp-id').value.trim();
+    const empName = document.getElementById('desc-form-emp-name').value.trim();
+    const empPosition = document.getElementById('desc-form-emp-position').value.trim();
+    const docDate = document.getElementById('desc-form-date').value.trim();
+
+    const selectedRadios = currentDescargoItems.filter(i => i.selected_for_descargo);
+
+    if (!hotelId || !empId || !empName) {
+        if (window.showToast) showToast('Por favor completa los datos del colaborador.', 'warning');
+        else alert('Por favor completa los datos del colaborador.');
+        return;
+    }
+
+    if (selectedRadios.length === 0) {
+        if (window.showToast) showToast('Debe seleccionar al menos una radio para realizar el descargo.', 'warning');
+        else alert('Debe seleccionar al menos una radio para realizar el descargo.');
+        return;
+    }
+
+    const payload = {
+        hotel_id: parseInt(hotelId),
+        collaborator_id: empId,
+        collaborator_name: empName,
+        collaborator_position: empPosition,
+        doc_date: docDate,
+        parent_document_id: window._currentParentDescargoDocId || null,
+        radios: selectedRadios.map(item => ({
+            radio_id: item.radio_id,
+            original_item_id: item.original_item_id || null,
+            cost_usd: item.cost_usd,
+            is_new: item.is_new,
+            accessories_delivered: item.accessories_delivered || [],
+            accessories_returned: item.accessories_returned || []
+        }))
+    };
+
+    try {
+        const res = await fetch('/api/radios/receipts/descargo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al generar el descargo');
+
+        if (window.showToast) showToast(`Descargo ${data.document.folio} generado exitosamente`, 'success');
+        else alert(`Descargo ${data.document.folio} generado exitosamente`);
+
+        closeModal('modal-create-descargo');
+        loadRadioReceipts();
+        viewReceiptDocument(data.document.id);
+
+    } catch (err) {
+        if (window.showToast) showToast(err.message, 'error');
+        else alert(`Error: ${err.message}`);
+    }
+}
+
+// --- VISUALIZACIÓN Y PREVISUALIZACIÓN HORIZONTAL (LANDSCAPE) ---
+
+async function viewReceiptDocument(docId) {
+    try {
+        const res = await fetch(`/api/radios/receipts/${docId}`);
+        if (!res.ok) throw new Error('No se pudo cargar el documento');
+        const doc = await res.json();
+        currentActiveDocument = doc;
+
+        renderDocumentPreviewModal(doc);
+        openModal('modal-view-document');
+
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+function downloadReceiptPdf(docId) {
+    window.open(`/api/radios/receipts/${docId}/pdf`, '_blank');
+}
+
+function renderDocumentPreviewModal(doc) {
+    const badge = document.getElementById('doc-preview-badge');
+    const folioEl = document.getElementById('doc-preview-folio');
+    const sheet = document.getElementById('doc-preview-landscape-sheet');
+
+    if (badge) {
+        badge.innerText = doc.doc_type;
+        badge.className = doc.doc_type === 'RESGUARDO' ? 'badge bg-primary' : 'badge bg-secondary';
+    }
+    if (folioEl) folioEl.innerText = doc.folio;
+
+    if (!sheet) return;
+
+    let logoHtml = `<span style="font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase;">${escapeHtml(doc.property_name || 'LOGO DE LA PROPIEDAD')}</span>`;
+    const hotelObj = (userProperties || []).find(p => p.id === doc.hotel_id);
+    if (hotelObj && hotelObj.logo) {
+        logoHtml = `<img src="${hotelObj.logo}" style="max-height: 50px; max-width: 220px; object-fit: contain;">`;
+    }
+
+    const itemsRows = (doc.items || []).map((it, idx) => {
+        let accHtml = '';
+        if (it.accessories_delivered) {
+            try {
+                let accs = typeof it.accessories_delivered === 'string' ? JSON.parse(it.accessories_delivered) : it.accessories_delivered;
+                if (accs && accs.length > 0) {
+                    accHtml = `<br/><span style="font-size: 9px; color: #475569; font-weight: 600;">Accesorios: ${escapeHtml(accs.join(', '))}</span>`;
+                }
+            } catch (e) {}
+        }
+        const colabNum = it.collaborator_id || doc.collaborator_id || '';
+
+        return `
+        <tr>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${idx + 1}</td>
+            <td style="border: 1px solid #000; padding: 6px; font-size: 11px;">${escapeHtml(it.description || 'RADIO MOTOROLA')}${accHtml}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${escapeHtml(it.model || '')}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px; font-weight: bold;">${escapeHtml(it.serial_number)}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${escapeHtml(it.department_name || '')}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${escapeHtml(it.subdepartment_name || '')}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${escapeHtml(colabNum)}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${it.quantity}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${Number(it.cost_usd).toFixed(2)}</td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">
+                ${it.is_new ? 'X &nbsp;|&nbsp; &nbsp;' : '&nbsp; &nbsp;|&nbsp; X'}
+            </td>
+            <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px;">${Number(it.total_usd).toFixed(2)}</td>
+        </tr>
+    `;
+    }).join('');
+
+    const legalText = doc.doc_type === 'RESGUARDO' ? 
+        `Hago constar que los artículos antes mencionados los recibo nuevo o usado y me obligo en términos de mi contrato laboral a conservarlos en buen estado y a utilizarlos en forma razonable para lo que están designados, en razón del desempeño de mis labores en esta empresa y a restituirlos cuando me sean canjeados o me los requieran o se de por terminada la relacion de trabajo.<br/><br/>En caso de destruccion o desaparicion de los mismos, pagaré el importe de dichos artículos en efectivo o por descuento por nómina o finiquito.` :
+        `Hago constar que en esta fecha hago entrega y devolución del equipo de comunicación anteriormente descrito, el cual se encontraba bajo mi responsabilidad, quedando registrado en el sistema de inventario de la empresa.<br/><br/>Declaro que realizo la entrega del equipo junto con los accesorios que me fueron asignados, en las condiciones en que se encuentra al momento de la devolución. La persona responsable de recibir el equipo realizará la verificación correspondiente de su estado físico y funcionamiento.<br/><br/>A partir de la recepción y verificación del equipo por parte de la empresa, queda registrada la devolución del mismo y finaliza mi asignación y responsabilidad operativa sobre dicho equipo, sin perjuicio de cualquier situación, daño o faltante que sea identificado durante el proceso de revisión y que corresponda ser documentado de acuerdo con las políticas de la empresa.`;
+
+    sheet.innerHTML = `
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #000000; width: 220px;">
+                    ${doc.doc_type}
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    ${logoHtml}
+                </div>
+                <div style="text-align: right; width: 220px; font-size: 12px; color: #000000;">
+                    FOLIO: <u style="font-weight: 900; font-size: 14px; font-family: monospace;">&nbsp;&nbsp;${escapeHtml(doc.folio)}&nbsp;&nbsp;</u>
+                    <div style="font-size: 9px; color: #64748b; margin-top: 2px;">No. de secuencia automática</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px; margin-bottom: 25px; font-size: 13px; color: #000000;">
+                <div style="font-weight: bold;">FECHA:</div>
+                <div style="border-bottom: 1px solid #000; padding-bottom: 2px;">${escapeHtml(doc.doc_date)}</div>
+                
+                <div style="font-weight: bold;">NOMBRE:</div>
+                <div style="border-bottom: 1px solid #000; padding-bottom: 2px; font-weight: bold;">${escapeHtml(doc.collaborator_name)}</div>
+                
+                <div style="font-weight: bold;">CARGO:</div>
+                <div style="border-bottom: 1px solid #000; padding-bottom: 2px;">${escapeHtml(doc.collaborator_position || '')}</div>
+                
+                <div style="font-weight: bold;">NO. COLABORADOR:</div>
+                <div style="border-bottom: 1px solid #000; padding-bottom: 2px; font-weight: bold;">${escapeHtml(doc.collaborator_id || '')}</div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+                <thead>
+                    <tr style="background: #f8fafc; font-size: 10px; font-weight: bold;">
+                        <th style="border: 1px solid #000; padding: 6px; width: 30px;">NO.</th>
+                        <th style="border: 1px solid #000; padding: 6px;">DESCRIPCION</th>
+                        <th style="border: 1px solid #000; padding: 6px;">MODELO</th>
+                        <th style="border: 1px solid #000; padding: 6px;">NO. DE SERIE</th>
+                        <th style="border: 1px solid #000; padding: 6px;">DEPARTAMENTO</th>
+                        <th style="border: 1px solid #000; padding: 6px;">SUB-DEPARTAMENTO</th>
+                        <th style="border: 1px solid #000; padding: 6px;">No. COLABORADOR</th>
+                        <th style="border: 1px solid #000; padding: 6px;">CANTIDAD</th>
+                        <th style="border: 1px solid #000; padding: 6px;">COSTO USD$</th>
+                        <th style="border: 1px solid #000; padding: 6px; line-height: 1.1;">NUEVO<br/><span style="font-weight: normal; font-size: 9px;">SI &nbsp;|&nbsp; NO</span></th>
+                        <th style="border: 1px solid #000; padding: 6px;">IMPORTE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsRows}
+                </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: flex-end; gap: 40px; margin-bottom: 30px; font-size: 12px; font-weight: bold;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span>TOTAL UND</span>
+                    <span style="border-bottom: 1px solid #000; min-width: 40px; text-align: center; padding-bottom: 2px;">${doc.total_units}</span>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span>TOTAL USDS</span>
+                    <span style="border-bottom: 1px solid #000; min-width: 70px; text-align: right; padding-bottom: 2px;">${Number(doc.total_usd).toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div style="font-size: 10.5px; line-height: 1.4; color: #1e293b; text-align: justify; margin-bottom: 40px;">
+                ${legalText}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; text-align: center; font-size: 11px; color: #000000;">
+            <div>
+                <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto 6px auto;"></div>
+                <strong>Firma responsable<br/>equipo asignado</strong>
+            </div>
+            <div>
+                <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto 6px auto;"></div>
+                <strong>Firma entregado por:<br/>Caja General</strong>
+            </div>
+            <div>
+                <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto 6px auto;"></div>
+                <strong>Firma revision<br/>Depto. Costos</strong>
+            </div>
+        </div>
+    `;
+}
+
+function previewCurrentResguardo() {
+    const hotelId = parseInt(document.getElementById('res-form-hotel').value);
+    const empId = document.getElementById('res-form-emp-id').value.trim();
+    const empName = document.getElementById('res-form-emp-name').value.trim();
+    const empPosition = document.getElementById('res-form-emp-position').value.trim();
+    const docDate = document.getElementById('res-form-date').value.trim();
+    const folio = document.getElementById('res-form-folio-preview').innerText;
+
+    if (currentResguardoItems.length === 0) {
+        alert('Agrega al menos una radio para previsualizar el documento.');
+        return;
+    }
+
+    const hotelObj = (userProperties || []).find(p => p.id === hotelId);
+
+    const docMock = {
+        id: 0,
+        doc_type: 'RESGUARDO',
+        folio: folio,
+        hotel_id: hotelId,
+        property_name: hotelObj ? hotelObj.name : '',
+        doc_date: docDate,
+        collaborator_name: empName || '________________',
+        collaborator_id: empId || '____',
+        collaborator_position: empPosition || '________________',
+        total_units: currentResguardoItems.length,
+        total_usd: currentResguardoItems.reduce((acc, i) => acc + (parseFloat(i.cost_usd) || 0), 0),
+        items: currentResguardoItems.map(i => ({
+            description: `RADIO ${i.brand.toUpperCase()}`,
+            model: i.model,
+            serial_number: i.serial_number,
+            department_name: i.department_name,
+            subdepartment_name: i.subdepartment_name,
+            collaborator_id: empId,
+            quantity: 1,
+            cost_usd: i.cost_usd,
+            is_new: i.is_new,
+            total_usd: i.cost_usd
+        }))
+    };
+
+    currentActiveDocument = docMock;
+    renderDocumentPreviewModal(docMock);
+    openModal('modal-view-document');
+}
+
+function previewCurrentDescargo() {
+    const hotelId = parseInt(document.getElementById('desc-form-hotel').value);
+    const empId = document.getElementById('desc-form-emp-id').value.trim();
+    const empName = document.getElementById('desc-form-emp-name').value.trim();
+    const empPosition = document.getElementById('desc-form-emp-position').value.trim();
+    const docDate = document.getElementById('desc-form-date').value.trim();
+    const folio = document.getElementById('desc-form-folio-preview').innerText;
+
+    const selectedRadios = currentDescargoItems.filter(i => i.selected_for_descargo);
+
+    if (selectedRadios.length === 0) {
+        alert('Selecciona al menos una radio para previsualizar el descargo.');
+        return;
+    }
+
+    const hotelObj = (userProperties || []).find(p => p.id === hotelId);
+
+    const docMock = {
+        id: 0,
+        doc_type: 'DESCARGO',
+        folio: folio,
+        hotel_id: hotelId,
+        property_name: hotelObj ? hotelObj.name : '',
+        doc_date: docDate,
+        collaborator_name: empName || '________________',
+        collaborator_id: empId || '____',
+        collaborator_position: empPosition || '________________',
+        total_units: selectedRadios.length,
+        total_usd: selectedRadios.reduce((acc, i) => acc + (parseFloat(i.cost_usd) || 0), 0),
+        items: selectedRadios.map(i => ({
+            description: `RADIO MOTOROLA`,
+            model: i.model,
+            serial_number: i.serial_number,
+            department_name: i.department_name,
+            subdepartment_name: i.subdepartment_name,
+            collaborator_id: empId,
+            quantity: 1,
+            cost_usd: i.cost_usd,
+            is_new: i.is_new,
+            total_usd: i.cost_usd
+        }))
+    };
+
+    currentActiveDocument = docMock;
+    renderDocumentPreviewModal(docMock);
+    openModal('modal-view-document');
+}
+
+function triggerDocumentPdfDownload() {
+    if (!currentActiveDocument || !currentActiveDocument.id) {
+        alert('Debes confirmar y generar el documento antes de descargar su PDF oficial.');
+        return;
+    }
+    window.open(`/api/radios/receipts/${currentActiveDocument.id}/pdf`, '_blank');
+}
+
+function triggerDocumentPrint() {
+    if (!currentActiveDocument) return;
+    if (currentActiveDocument.id) {
+        window.open(`/api/radios/receipts/${currentActiveDocument.id}/pdf`, '_blank');
+    } else {
+        const content = document.getElementById('doc-preview-landscape-sheet').innerHTML;
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html>
+            <head>
+                <title>${currentActiveDocument.folio}</title>
+                <style>
+                    @page { size: landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; padding: 20px; color: #000; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #000; padding: 5px; text-align: center; }
+                </style>
+            </head>
+            <body onload="window.print();window.close();">
+                ${content}
+            </body>
+            </html>
+        `);
+        win.document.close();
+    }
+}
+
+// Vincular a objeto window para acceso desde HTML inline handlers
+window.loadRadioReceipts = loadRadioReceipts;
+window.filterReceiptsTab = filterReceiptsTab;
+window.onReceiptsSearchChange = onReceiptsSearchChange;
+window.openNewResguardoModal = openNewResguardoModal;
+window.onResguardoHotelChange = onResguardoHotelChange;
+window.autoSearchCollaboratorInfo = autoSearchCollaboratorInfo;
+window.searchAndLoadCollaboratorRadiosForResguardo = searchAndLoadCollaboratorRadiosForResguardo;
+window.toggleSelectAllColabRadios = toggleSelectAllColabRadios;
+window.updateSelectedColabRadiosCount = updateSelectedColabRadiosCount;
+window.addSelectedCollaboratorRadiosToResguardo = addSelectedCollaboratorRadiosToResguardo;
+window.searchAndAddRadioToResguardo = searchAndAddRadioToResguardo;
+window.removeRadioFromResguardo = removeRadioFromResguardo;
+window.updateResguardoItemCost = updateResguardoItemCost;
+window.updateResguardoItemNew = updateResguardoItemNew;
+window.toggleResguardoItemAccessory = toggleResguardoItemAccessory;
+window.previewCurrentResguardo = previewCurrentResguardo;
+window.submitResguardoForm = submitResguardoForm;
+window.selectDescargoMode = selectDescargoMode;
+window.openNewDescargoModal = openNewDescargoModal;
+window.searchCollaboratorResguardosForDescargo = searchCollaboratorResguardosForDescargo;
+window.loadResguardoItemsIntoDescargo = loadResguardoItemsIntoDescargo;
+window.toggleDescargoItemSelection = toggleDescargoItemSelection;
+window.toggleDescargoReturnedAccessory = toggleDescargoReturnedAccessory;
+window.previewCurrentDescargo = previewCurrentDescargo;
+window.submitDescargoForm = submitDescargoForm;
+window.viewReceiptDocument = viewReceiptDocument;
+window.downloadReceiptPdf = downloadReceiptPdf;
+window.triggerDocumentPdfDownload = triggerDocumentPdfDownload;
+window.triggerDocumentPrint = triggerDocumentPrint;
 
 // Auto-ejecución inmediata
 if (document.readyState === 'loading') {
