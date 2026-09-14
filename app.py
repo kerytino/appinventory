@@ -962,6 +962,53 @@ class RadioDocumentItem(db.Model):
             'discharged_by_doc_id': self.discharged_by_doc_id
         }
 
+class RadioDecommissionRecord(db.Model):
+    __tablename__ = 'radio_decommission_record'
+    id = db.Column(db.Integer, primary_key=True)
+    folio = db.Column(db.String(100), nullable=False, index=True)
+    hotel_id = db.Column(db.Integer, db.ForeignKey('hotel.id'), nullable=False, index=True)
+    department = db.Column(db.String(100), nullable=True, default='')
+    subdepartment = db.Column(db.String(100), nullable=True, default='')
+    decommission_type = db.Column(db.String(100), nullable=True, default='BAJA DE EQUIPO')
+    applicant = db.Column(db.String(150), nullable=True, default='')
+    reason = db.Column(db.Text, nullable=True, default='')
+    other_notes = db.Column(db.Text, nullable=True, default='')
+    radios_data = db.Column(db.Text, nullable=True, default='[]')
+    pdf_params = db.Column(db.Text, nullable=True, default='{}')
+    status = db.Column(db.String(20), nullable=False, default='activo')
+    created_by_username = db.Column(db.String(100), nullable=False, default='')
+    archived_by_username = db.Column(db.String(100), nullable=True, default='')
+    archived_at = db.Column(db.String(50), nullable=True, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    hotel = db.relationship('Hotel')
+
+    def to_dict(self):
+        try:
+            r_list = json.loads(self.radios_data) if self.radios_data else []
+        except Exception:
+            r_list = []
+        return {
+            'id': self.id,
+            'folio': self.folio or f"DEC-{self.id}",
+            'hotel_id': self.hotel_id,
+            'property_name': self.hotel.name if self.hotel else '',
+            'property_sigla': self.hotel.sigla if self.hotel else '',
+            'department': self.department or '',
+            'subdepartment': self.subdepartment or '',
+            'decommission_type': self.decommission_type or 'BAJA DE EQUIPO',
+            'applicant': self.applicant or '',
+            'reason': self.reason or '',
+            'other_notes': self.other_notes or '',
+            'radios_count': len(r_list),
+            'radios_data': r_list,
+            'status': self.status,
+            'created_by_username': self.created_by_username or '',
+            'archived_by_username': self.archived_by_username or '',
+            'archived_at': self.archived_at or '',
+            'created_at': self.created_at.strftime('%d/%m/%Y %H:%M') if self.created_at else ''
+        }
+
 def ensure_radio_tables():
     with app.app_context():
         try:
@@ -3501,12 +3548,17 @@ def create_decommission_pdf_buffer(data_list, params):
     
     # 2. DATOS GENERALES
     dept = params.get('department', 'SISTEMAS')
+    subdept = params.get('subdepartment', '')
+    if subdept and subdept.strip():
+        dept_display = f"{dept} / {subdept.strip()}"
+    else:
+        dept_display = dept
     location = params.get('location', 'EXCELLENCE PUNTA CANA')
     date_str = params.get('date_str') or format_spanish_date()
     applicant = params.get('applicant', '')
     
     meta_data = [
-        [Paragraph("<b>Departamento:</b>", label_style), Paragraph(dept, val_style)],
+        [Paragraph("<b>Departamento:</b>", label_style), Paragraph(dept_display, val_style)],
         [Paragraph("<b>Ubicación:</b>", label_style), Paragraph(location, val_style)],
         [Paragraph("<b>Fecha:</b>", label_style), Paragraph(date_str, val_style)],
         [Paragraph("<b>Nombre que solicita:</b>", label_style), Paragraph(applicant, val_style)]
@@ -5599,6 +5651,7 @@ def get_radio_dashboard():
             'perdido': sum(1 for r in radios if r.status == 'perdido'),
             'fuera_servicio': sum(1 for r in radios if r.status == 'fuera_servicio'),
             'disponible': sum(1 for r in radios if r.status in ['disponible', 'en_almacen']),
+            'archivado': sum(1 for r in radios if r.status == 'archivado'),
             'en_almacen': sum(1 for r in radios if r.status == 'en_almacen'),
             'assigned': sum(1 for r in radios if bool(r.assigned_person_name or r.assigned_employee_id)),
             'unassigned': sum(1 for r in radios if not (r.assigned_person_name or r.assigned_employee_id))
@@ -6759,6 +6812,25 @@ def get_radio_departments():
     else:
         depts = RadioDepartment.query.filter(RadioDepartment.hotel_id.in_(allowed_ids)).order_by(RadioDepartment.name).all() if allowed_ids else []
         
+    is_admin = (user.role or '').strip().lower() == 'admin'
+    perms = user.get_permissions()
+    radio_role = 'viewer'
+    for p in perms:
+        if p.startswith('tec-radios:role:'):
+            radio_role = p.split(':', 2)[2]
+            break
+
+    if not (is_admin or radio_role == 'admin'):
+        user_accesses = RadioUserDepartmentAccess.query.filter_by(user_id=user.id).all()
+        allowed_dept_ids = {a.department_id for a in user_accesses if a.department_id}
+        allowed_subdept_ids = {a.subdepartment_id for a in user_accesses if a.subdepartment_id}
+        if allowed_dept_ids or allowed_subdept_ids:
+            for sub_id in list(allowed_subdept_ids):
+                sub = db.session.get(RadioDepartment, sub_id)
+                if sub and sub.parent_department_id:
+                    allowed_dept_ids.add(sub.parent_department_id)
+            depts = [d for d in depts if d.id in allowed_dept_ids or d.id in allowed_subdept_ids]
+
     res = []
     for d in depts:
         d_dict = d.to_dict()
@@ -7315,28 +7387,20 @@ def get_radio_decommissions():
     if not user:
         return jsonify({'error': 'No autenticado'}), 401
         
-    allowed_ids = get_user_radio_allowed_hotel_ids(user)
     hotel_id = request.args.get('hotel_id')
-    
-    query = RadioItem.query.filter(RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio']))
-    if hotel_id and hotel_id != 'all':
-        try:
-            h_id = int(hotel_id)
-            if h_id not in allowed_ids:
-                return jsonify({'error': 'No autorizado'}), 403
-            query = query.filter(RadioItem.hotel_id == h_id)
-        except ValueError:
-            query = query.filter(RadioItem.hotel_id.in_(allowed_ids))
-    else:
-        query = query.filter(RadioItem.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(db.false())
+    query = filter_radios_for_user(
+        RadioItem.query.filter(RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio', 'decomisado'])),
+        user,
+        selected_hotel_id=hotel_id
+    )
         
     radios = query.order_by(RadioItem.created_at.desc()).all()
     res = []
     for r in radios:
         d = r.to_dict()
-        d['decommission_reason'] = r.notes or 'Fuera de operación / Baja'
-        d['decommission_date'] = r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''
-        d['decommission_user'] = r.assigned_by or 'Sistema'
+        d['decommission_reason'] = r.decommission_reason or r.notes or 'Fuera de operación / Baja'
+        d['decommission_date'] = r.decommission_date or (r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else '')
+        d['decommission_user'] = r.decommission_user or r.assigned_by or 'Sistema'
         res.append(d)
     return jsonify(res)
 
@@ -7368,12 +7432,12 @@ def preview_radio_decommission_number():
     if hotel_obj:
         count_existing = RadioItem.query.filter(
             RadioItem.hotel_id == hotel_obj.id,
-            RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio'])
+            RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio', 'decomisado'])
         ).count()
         seq = count_existing + 1
     else:
         count_existing = RadioItem.query.filter(
-            RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio'])
+            RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio', 'decomisado'])
         ).count()
         seq = count_existing + 1
 
@@ -7403,17 +7467,29 @@ def export_radio_decommission_pdf():
                 if not hotel_obj:
                     hotel_obj = Hotel.query.filter(db.func.lower(Hotel.sigla) == str(hotel_param).lower()).first()
 
-        allowed_ids = get_user_radio_allowed_hotel_ids(user)
-        query = RadioItem.query.filter(RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio']))
+        selected_ids = params.get('radio_ids') or params.get('selected_radio_ids')
+        if selected_ids:
+            if isinstance(selected_ids, str):
+                selected_ids = [int(i.strip()) for i in selected_ids.split(',') if i.strip().isdigit()]
+            elif isinstance(selected_ids, list):
+                selected_ids = [int(i) for i in selected_ids if str(i).isdigit()]
 
-        if hotel_obj:
-            if hotel_obj.id not in allowed_ids:
-                return jsonify({'error': 'No autorizado para esta propiedad'}), 403
-            query = query.filter(RadioItem.hotel_id == hotel_obj.id)
-        else:
-            query = query.filter(RadioItem.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(db.false())
+        if not selected_ids:
+            return jsonify({'error': 'Debes seleccionar al menos una radio para exportar la hoja de decomiso.'}), 400
+
+        query = filter_radios_for_user(
+            RadioItem.query.filter(RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio', 'decomisado'])),
+            user,
+            selected_hotel_id=None
+        ).filter(RadioItem.id.in_(selected_ids))
 
         radios = query.order_by(RadioItem.created_at.desc()).all()
+
+        if not radios:
+            return jsonify({'error': 'No se encontraron radios válidas seleccionadas para la hoja de decomiso.'}), 400
+
+        if not hotel_obj and radios and radios[0].hotel:
+            hotel_obj = radios[0].hotel
 
         if hotel_obj:
             params['hotel_name']  = hotel_obj.name
@@ -7421,11 +7497,26 @@ def export_radio_decommission_pdf():
             params['hotel_logo']  = hotel_obj.logo  or ''
             loc_display           = hotel_obj.name.upper()
         else:
-            params['hotel_name']  = "TODAS LAS PROPIEDADES (RADIOS)"
-            loc_display           = "TODAS LAS PROPIEDADES (RADIOS)"
+            params['hotel_name']  = "PROPIEDADES ASIGNADAS (RADIOS)"
+            loc_display           = "PROPIEDADES ASIGNADAS (RADIOS)"
 
         data_list = []
+        now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
         for r in radios:
+            if r.status in ['danado', 'perdido', 'fuera_servicio']:
+                r.status = 'decomisado'
+                r.decommission_date = now_str
+                r.decommission_user = user.username
+                h_ev = RadioHistory(
+                    radio_id=r.id,
+                    hotel_id=r.hotel_id,
+                    event_type='DECOMISO',
+                    detail=f"Radio #{r.radio_code or r.serial_number} decomisada vía exportación PDF por {user.username}.",
+                    user_id=user.id,
+                    user_name=user.username
+                )
+                db.session.add(h_ev)
+
             desc = f"Radio #{r.radio_code or r.id}"
             if r.brand:
                 desc += f" - {r.brand}"
@@ -7444,14 +7535,40 @@ def export_radio_decommission_pdf():
                     val = 0.0
 
             data_list.append({
+                'id': r.id,
+                'radio_code': r.radio_code or r.id,
                 'quantity': 1,
                 'value': val,
                 'serial_number': r.serial_number or f"RAD-{r.radio_code or r.id}",
                 'name': desc,
                 'brand': r.brand or '',
                 'model': r.model or '',
-                'reason': r.notes or 'Fuera de operación / Baja'
+                'department_name': dept_name,
+                'reason': r.decommission_reason or r.notes or 'Fuera de operación / Baja'
             })
+
+        folio_no = params.get('no_control') or f"DEC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        decom_rec = RadioDecommissionRecord(
+            folio=folio_no,
+            hotel_id=hotel_obj.id if hotel_obj else radios[0].hotel_id,
+            department=params.get('department', ''),
+            subdepartment=params.get('subdepartment', ''),
+            decommission_type=params.get('decommission_type', 'BAJA DE EQUIPO'),
+            applicant=params.get('applicant', ''),
+            reason=params.get('reason', ''),
+            other_notes=params.get('other_notes', ''),
+            radios_data=json.dumps(data_list),
+            pdf_params=json.dumps(params),
+            status='activo',
+            created_by_username=user.username
+        )
+        db.session.add(decom_rec)
+
+        try:
+            db.session.commit()
+        except Exception as e_comm:
+            db.session.rollback()
+            print(f"[EXPORT DECOMMISSION COMMIT WARNING]: {e_comm}")
 
         if not params.get('location'):
             params['location'] = loc_display
@@ -7462,7 +7579,7 @@ def export_radio_decommission_pdf():
 
         sigla = hotel_obj.sigla if hotel_obj and hotel_obj.sigla else 'radios'
         clean_name = sigla.replace(' ', '_').lower()
-        filename = f"Hoja_Decomiso_Radios_{clean_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        filename = f"Hoja_Decomiso_{folio_no}_{clean_name}.pdf"
 
         return send_file(
             pdf_buffer,
@@ -7474,7 +7591,224 @@ def export_radio_decommission_pdf():
         print(f"[ERROR EXPORT RADIO DECOMMISSION PDF]: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': f"Error al generar PDF: {str(e)}"}), 500
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/radios/decomiso-multiple', methods=['POST'])
+def decommission_multiple_radios():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    data = request.json or {}
+    radio_ids = data.get('radio_ids', [])
+    reason = (data.get('reason') or '').strip()
+
+    if not radio_ids or not isinstance(radio_ids, list):
+        return jsonify({'error': 'Debes seleccionar al menos una radio para decomisar.'}), 400
+
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+    updated_count = 0
+    for r_id in radio_ids:
+        try:
+            r_id_int = int(r_id)
+            radio = RadioItem.query.get(r_id_int)
+            if radio and radio.hotel_id in allowed_ids:
+                radio.status = 'decomisado'
+                radio.decommission_date = now_str
+                radio.decommission_user = user.username
+                if reason:
+                    radio.decommission_reason = reason
+                
+                h_ev = RadioHistory(
+                    radio_id=radio.id,
+                    hotel_id=radio.hotel_id,
+                    event_type='DECOMISO',
+                    detail=f"Radio #{radio.radio_code or radio.serial_number} decomisada por {user.username}. Motivo: {reason or radio.notes or 'Baja de equipo'}",
+                    user_id=user.id,
+                    user_name=user.username
+                )
+                db.session.add(h_ev)
+                updated_count += 1
+        except Exception as ex:
+            print(f"[DECOMISO MULTIPLE ITEM ERROR]: {ex}")
+
+    try:
+        db.session.commit()
+        log_activity(user.username, 'Módulo Radios', f"Decomisó {updated_count} radios de comunicación")
+        return jsonify({'message': f'{updated_count} radio(s) decomisada(s) exitosamente.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al procesar decomisos: {str(e)}'}), 500
+
+@app.route('/api/radios/<int:radio_id>/archive', methods=['POST'])
+def archive_radio_decommission(radio_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    radio = RadioItem.query.get_or_404(radio_id)
+
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if radio.hotel_id not in allowed_ids:
+        return jsonify({'error': 'No autorizado para gestionar este equipo'}), 403
+
+    if radio.status != 'decomisado':
+        return jsonify({'error': 'Solo se pueden archivar equipos que hayan sido previamente decomisados'}), 400
+
+    radio.status = 'archivado'
+    if not radio.decommission_date:
+        radio.decommission_date = datetime.now().strftime('%d/%m/%Y %H:%M')
+    if not radio.decommission_user:
+        radio.decommission_user = user.username
+
+    h_ev = RadioHistory(
+        radio_id=radio.id,
+        hotel_id=radio.hotel_id,
+        event_type='ARCHIVADO',
+        detail=f"Radio #{radio.radio_code or radio.serial_number} movido a Archivo Histórico por {user.username}",
+        user_id=user.id,
+        user_name=user.username
+    )
+    db.session.add(h_ev)
+
+    try:
+        db.session.commit()
+        log_activity(user.username, 'Módulo Radios', f"Archivó radio #{radio.radio_code or radio.serial_number}")
+        return jsonify({'message': 'Radio archivada exitosamente', 'radio': radio.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al archivar radio: {str(e)}'}), 500
+
+@app.route('/api/radios/decommission-records', methods=['GET'])
+def get_radio_decommission_records():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    hotel_param = request.args.get('hotel_id')
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    
+    query = RadioDecommissionRecord.query.filter_by(status='activo')
+    if hotel_param and hotel_param != 'all':
+        try:
+            h_id = int(hotel_param)
+            if h_id in allowed_ids:
+                query = query.filter_by(hotel_id=h_id)
+            else:
+                return jsonify([]), 200
+        except ValueError:
+            pass
+    else:
+        query = query.filter(RadioDecommissionRecord.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(RadioDecommissionRecord.id == -1)
+        
+    records = query.order_by(RadioDecommissionRecord.created_at.desc()).all()
+    return jsonify([r.to_dict() for r in records]), 200
+
+@app.route('/api/radios/decommission-records/<int:rec_id>/archive', methods=['POST'])
+def archive_radio_decommission_record(rec_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    
+    rec = db.session.get(RadioDecommissionRecord, rec_id)
+    if not rec:
+        return jsonify({'error': 'Registro de decomiso no encontrado'}), 404
+        
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if rec.hotel_id not in allowed_ids:
+        return jsonify({'error': 'No autorizado para esta propiedad'}), 403
+        
+    rec.status = 'archivado'
+    rec.archived_by_username = user.username
+    rec.archived_at = datetime.now().strftime('%d/%m/%Y %H:%M')
+    
+    try:
+        r_list = json.loads(rec.radios_data) if rec.radios_data else []
+        for item in r_list:
+            if 'id' in item:
+                radio = db.session.get(RadioItem, item['id'])
+                if radio:
+                    radio.status = 'archivado'
+                    h_ev = RadioHistory(
+                        radio_id=radio.id,
+                        hotel_id=rec.hotel_id,
+                        event_type='DECOMISO_ARCHIVADO',
+                        detail=f"Decomiso N° {rec.folio} archivado por {user.username}.",
+                        user_id=user.id,
+                        user_name=user.username
+                    )
+                    db.session.add(h_ev)
+    except Exception as e:
+        print(f"[ARCHIVE DECOMMISSION RECORD ITEM ERROR]: {e}")
+        
+    db.session.commit()
+    
+    return jsonify({'message': f'Decomiso N° {rec.folio} archivado exitosamente.'}), 200
+
+@app.route('/api/radios/decommission-records/<int:rec_id>/pdf', methods=['GET'])
+def get_radio_decommission_record_pdf(rec_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    rec = db.session.get(RadioDecommissionRecord, rec_id)
+    if not rec:
+        return jsonify({'error': 'Registro de decomiso no encontrado'}), 404
+        
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    if rec.hotel_id not in allowed_ids:
+        return jsonify({'error': 'No autorizado para esta propiedad'}), 403
+        
+    try:
+        data_list = json.loads(rec.radios_data) if rec.radios_data else []
+        params = json.loads(rec.pdf_params) if rec.pdf_params else {}
+    except Exception:
+        data_list = []
+        params = {}
+        
+    hotel_obj = rec.hotel
+    if hotel_obj:
+        params['hotel_name']  = hotel_obj.name
+        params['hotel_sigla'] = hotel_obj.sigla or ''
+        params['hotel_logo']  = hotel_obj.logo  or ''
+        params['location']    = hotel_obj.name.upper()
+        
+    pdf_buffer = create_decommission_pdf_buffer(data_list, params)
+    sigla = hotel_obj.sigla if hotel_obj and hotel_obj.sigla else 'radios'
+    clean_name = sigla.replace(' ', '_').lower()
+    filename = f"Hoja_Decomiso_{rec.folio}_{clean_name}.pdf"
+    
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=filename
+    )
+
+@app.route('/api/radios/archives', methods=['GET'])
+def get_archived_decommissions():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    hotel_param = request.args.get('hotel_id')
+    allowed_ids = get_user_radio_allowed_hotel_ids(user)
+    
+    query = RadioDecommissionRecord.query.filter_by(status='archivado')
+    if hotel_param and hotel_param != 'all':
+        try:
+            h_id = int(hotel_param)
+            if h_id in allowed_ids:
+                query = query.filter_by(hotel_id=h_id)
+            else:
+                return jsonify([]), 200
+        except ValueError:
+            pass
+    else:
+        query = query.filter(RadioDecommissionRecord.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(RadioDecommissionRecord.id == -1)
+        
+    records = query.order_by(RadioDecommissionRecord.created_at.desc()).all()
+    return jsonify([r.to_dict() for r in records]), 200
 
 # ==============================================================================
 # --- MÓDULO DE RESGUARDOS Y DESCARGOS DE RADIOS (RUTAS API Y PDF) ---

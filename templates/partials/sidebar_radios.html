@@ -39,6 +39,18 @@
             <span>Reportar Incidencia</span>
         </button>
 
+        <!-- 5. Bajas y Decomisos (Todos) -->
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-decommissions" id="rad-nav-decommissions" onclick="switchRadioTab('tab-decommissions')">
+            <i class="fa-solid fa-ban"></i>
+            <span>Bajas y Decomisos</span>
+        </button>
+
+        <!-- 6. Archivo (Todos) -->
+        <button type="button" class="nav-item radio-sidebar-nav-item" data-tab="tab-archives" id="rad-nav-archives" onclick="switchRadioTab('tab-archives')">
+            <i class="fa-solid fa-box-archive"></i>
+            <span>Archivo</span>
+        </button>
+
         {% if not is_query_user %}
         <!-- Módulos Exclusivos de Administrador de Radios -->
         <button type="button" class="nav-item radio-sidebar-nav-item rad-admin-only-tab" data-tab="tab-formal-inv" id="rad-nav-formal-inv" onclick="switchRadioTab('tab-formal-inv')">
@@ -64,11 +76,6 @@
         <button type="button" class="nav-item radio-sidebar-nav-item rad-admin-only-tab" data-tab="tab-reports" id="rad-nav-reports" onclick="switchRadioTab('tab-reports')">
             <i class="fa-solid fa-chart-pie"></i>
             <span>Reportes</span>
-        </button>
-
-        <button type="button" class="nav-item radio-sidebar-nav-item rad-admin-only-tab" data-tab="tab-decommissions" id="rad-nav-decommissions" onclick="switchRadioTab('tab-decommissions')">
-            <i class="fa-solid fa-ban"></i>
-            <span>Bajas y Decomisos</span>
         </button>
 
         <button type="button" class="nav-item radio-sidebar-nav-item rad-admin-only-tab" data-tab="tab-depts" id="rad-nav-depts" onclick="switchRadioTab('tab-depts')">

@@ -17,7 +17,9 @@ const STATUS_MAP = {
     perdido: { label: 'No Localizado / Perdido', class: 'badge-dark', icon: 'fa-circle-question' },
     fuera_servicio: { label: 'Fuera de Servicio', class: 'badge-info', icon: 'fa-ban' },
     disponible: { label: 'Disponible', class: 'badge-secondary', icon: 'fa-warehouse' },
-    en_almacen: { label: 'En Almacén', class: 'badge-secondary', icon: 'fa-boxes-stacked' }
+    en_almacen: { label: 'En Almacén', class: 'badge-secondary', icon: 'fa-boxes-stacked' },
+    archivado: { label: 'Archivado', class: 'badge-dark', icon: 'fa-box-archive' },
+    decomisado: { label: 'Decomisado', class: 'badge-danger', icon: 'fa-ban' }
 };
 
 function escapeHtml(str) {
@@ -189,12 +191,13 @@ window.switchRadioTab = function (targetTab) {
         'tab-inventory': isRadioQueryUser ? 'Mis Radios' : 'Radios de Comunicación',
         'tab-search': 'Consultar Radio',
         'tab-incidents': 'Reportar Incidencia',
+        'tab-decommissions': 'Bajas y Decomisos',
+        'tab-archives': 'Archivo',
         'tab-formal-inv': 'Inventario de Radios',
         'tab-my-inv': 'Mi Inventario',
         'tab-assignments': 'Asignaciones',
         'tab-receipts': 'Resguardos y Descargos',
         'tab-reports': 'Reportes',
-        'tab-decommissions': 'Bajas y Decomisos',
         'tab-depts': 'Configuración'
     };
     const pageTitleEl = document.querySelector('.page-title') || document.getElementById('page-title');
@@ -202,8 +205,8 @@ window.switchRadioTab = function (targetTab) {
         pageTitleEl.textContent = TAB_TITLES[targetTab];
     }
 
-    // Bloqueo de seguridad Frontend para usuarios de consulta
-    const adminOnlyTabs = ['tab-formal-inv', 'tab-my-inv', 'tab-assignments', 'tab-receipts', 'tab-reports', 'tab-decommissions', 'tab-depts'];
+    // Bloqueo de seguridad Frontend para usuarios de consulta (Bajas/Decomisos y Archivo sí están disponibles)
+    const adminOnlyTabs = ['tab-formal-inv', 'tab-my-inv', 'tab-assignments', 'tab-receipts', 'tab-reports', 'tab-depts'];
     if (isRadioQueryUser && adminOnlyTabs.includes(targetTab)) {
         if (window.showToast) showToast('Acceso denegado. Módulo administrativo no disponible para tu perfil.', 'error');
         else alert('Acceso denegado. Módulo administrativo no disponible para tu perfil de consulta.');
@@ -245,6 +248,12 @@ window.switchRadioTab = function (targetTab) {
         case 'tab-incidents':
             loadIncidentsTab();
             break;
+        case 'tab-decommissions':
+            loadDecommissions();
+            break;
+        case 'tab-archives':
+            loadArchivedRadios();
+            break;
         case 'tab-formal-inv':
             loadFormalInventories();
             break;
@@ -259,9 +268,6 @@ window.switchRadioTab = function (targetTab) {
             break;
         case 'tab-reports':
             loadReports();
-            break;
-        case 'tab-decommissions':
-            loadDecommissions();
             break;
         case 'tab-depts':
             loadDepartmentsForForms();
@@ -494,11 +500,14 @@ async function renderQueryDashboardData(data) {
         subdeptSel.innerHTML = subOpts;
     }
 
-    // 5. 4 Cards de Indicadores KPIs
+    // 5. 7 Cards de Indicadores KPIs
     const total = data.total || 0;
     const operativos = data.operativo || 0;
+    const disponibles = data.disponible || 0;
+    const revision = data.requiere_revision || 0;
     const reparacion = data.en_reparacion || 0;
-    const fuera = (data.fuera_servicio || 0) + (data.danado || 0);
+    const fuera = (data.fuera_servicio || 0) + (data.danado || 0) + (data.perdido || 0);
+    const archivados = data.archivado || 0;
 
     const calcPct = (val) => (total > 0 ? Math.round((val / total) * 100) : 0) + '%';
 
@@ -508,13 +517,23 @@ async function renderQueryDashboardData(data) {
     const elSubProps = document.getElementById('rad-qstat-sub-props');
     if (elSubProps) {
         const pCount = querySelectedProp === 'all' ? queryUserProperties.length : 1;
-        elSubProps.innerText = `en ${pCount} ${pCount === 1 ? 'propiedad' : 'propiedades'}`;
+        elSubProps.innerText = `en ${pCount} ${pCount === 1 ? 'prop.' : 'prop.'}`;
     }
 
     const elOp = document.getElementById('rad-qstat-operativos');
     if (elOp) elOp.innerText = operativos;
     const elOpPct = document.getElementById('rad-qstat-operativos-pct');
     if (elOpPct) elOpPct.innerText = calcPct(operativos);
+
+    const elDisp = document.getElementById('rad-qstat-disponibles');
+    if (elDisp) elDisp.innerText = disponibles;
+    const elDispPct = document.getElementById('rad-qstat-disponibles-pct');
+    if (elDispPct) elDispPct.innerText = calcPct(disponibles);
+
+    const elRev = document.getElementById('rad-qstat-revision');
+    if (elRev) elRev.innerText = revision;
+    const elRevPct = document.getElementById('rad-qstat-revision-pct');
+    if (elRevPct) elRevPct.innerText = calcPct(revision);
 
     const elRep = document.getElementById('rad-qstat-reparacion');
     if (elRep) elRep.innerText = reparacion;
@@ -525,6 +544,11 @@ async function renderQueryDashboardData(data) {
     if (elFue) elFue.innerText = fuera;
     const elFuePct = document.getElementById('rad-qstat-fuera-pct');
     if (elFuePct) elFuePct.innerText = calcPct(fuera);
+
+    const elArch = document.getElementById('rad-qstat-archivados');
+    if (elArch) elArch.innerText = archivados;
+    const elArchPct = document.getElementById('rad-qstat-archivados-pct');
+    if (elArchPct) elArchPct.innerText = calcPct(archivados);
 
     // 6. Gráfico / Barras: Radios por Propiedad
     const propBarsContainer = document.getElementById('rad-qprop-bars-list');
@@ -550,7 +574,7 @@ async function renderQueryDashboardData(data) {
     }
 
     // 7. Gráfico Donut Chart.js: Estado de los Radios con total central
-    renderQueryStatusDonutChart(total, operativos, reparacion, fuera);
+    renderQueryStatusDonutChart(total, operativos, disponibles, revision, reparacion, fuera, archivados);
 
     // 8. Barras: Radios por Subdepartamento
     const subdeptBarsContainer = document.getElementById('rad-qsubdept-bars-list');
@@ -628,7 +652,7 @@ async function renderQueryDashboardData(data) {
 // -------------------------------------------------------------------------
 // DONUT CHART PARA EL DASHBOARD DE CONSULTA
 // -------------------------------------------------------------------------
-function renderQueryStatusDonutChart(total, op, rep, fuera) {
+function renderQueryStatusDonutChart(total, op, disp, rev, rep, fuera, arch) {
     const centerTotalEl = document.getElementById('rad-qdonut-center-total');
     if (centerTotalEl) {
         centerTotalEl.textContent = total;
@@ -638,10 +662,16 @@ function renderQueryStatusDonutChart(total, op, rep, fuera) {
 
     const elLegOp = document.getElementById('rad-qleg-op');
     if (elLegOp) elLegOp.innerText = calcPctStr(op);
+    const elLegDisp = document.getElementById('rad-qleg-disp');
+    if (elLegDisp) elLegDisp.innerText = calcPctStr(disp);
+    const elLegRev = document.getElementById('rad-qleg-rev');
+    if (elLegRev) elLegRev.innerText = calcPctStr(rev);
     const elLegRep = document.getElementById('rad-qleg-rep');
     if (elLegRep) elLegRep.innerText = calcPctStr(rep);
     const elLegFu = document.getElementById('rad-qleg-fuera');
     if (elLegFu) elLegFu.innerText = calcPctStr(fuera);
+    const elLegArch = document.getElementById('rad-qleg-arch');
+    if (elLegArch) elLegArch.innerText = calcPctStr(arch);
 
     const canvas = document.getElementById('rad-qstatus-donut-chart');
     if (!canvas) return;
@@ -656,10 +686,10 @@ function renderQueryStatusDonutChart(total, op, rep, fuera) {
         queryStatusDonutInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Operativo', 'En Reparación', 'Fuera de Servicio'],
+                labels: ['Operativo', 'Disponible', 'Requiere Revisión', 'En Reparación', 'Fuera de Servicio', 'Archivado'],
                 datasets: [{
-                    data: total > 0 ? [op, rep, fuera] : [1, 0, 0],
-                    backgroundColor: total > 0 ? ['#10b981', '#f59e0b', '#ef4444'] : ['#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                    data: total > 0 ? [op, disp, rev, rep, fuera, arch] : [1, 0, 0, 0, 0, 0],
+                    backgroundColor: total > 0 ? ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#64748b'] : ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
                     borderWidth: 3,
                     borderColor: '#ffffff'
                 }]
@@ -667,7 +697,7 @@ function renderQueryStatusDonutChart(total, op, rep, fuera) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '76%',
+                cutout: '74%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -2473,44 +2503,229 @@ async function loadReports() {
 }
 
 // -------------------------------------------------------------------------
-// 8. TAB BAJAS Y DECOMISOS
+// 8. TAB BAJAS Y DECOMISOS Y ARCHIVO
 // -------------------------------------------------------------------------
 async function loadDecommissions() {
     initRadioDecommissionPdfModal();
     const tbody = document.getElementById('rad-decommissions-tbody');
-    if (!tbody) return;
+    const recTbody = document.getElementById('rad-decom-records-tbody');
 
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-text-muted); padding: 16px;"><i class="fa-solid fa-spinner fa-spin me-2"></i> Cargando bajas y decomisos...</td></tr>';
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--color-text-muted); padding: 16px;"><i class="fa-solid fa-spinner fa-spin me-2"></i> Cargando radios dados de baja...</td></tr>';
+    }
+    if (recTbody) {
+        recTbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-text-muted); padding: 16px;"><i class="fa-solid fa-spinner fa-spin me-2"></i> Cargando hojas de decomiso generadas...</td></tr>';
+    }
 
     try {
         const res = await fetch(`/api/radios/decommissions?hotel_id=${currentPropertyId}`);
+        if (res.ok && tbody) {
+            const data = await res.json();
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--color-text-secondary); padding: 16px;">No hay radios en estado de decomiso o baja en esta propiedad.</td></tr>';
+            } else {
+                tbody.innerHTML = data.map(item => {
+                    let statusBadge = `<span class="badge badge-danger">Decomisado</span>`;
+                    let isDecomisado = false;
+                    if (item.status === 'danado') {
+                        statusBadge = `<span class="badge badge-danger">Dañado</span>`;
+                    } else if (item.status === 'perdido') {
+                        statusBadge = `<span class="badge badge-danger">Perdido</span>`;
+                    } else if (item.status === 'fuera_servicio') {
+                        statusBadge = `<span class="badge badge-warning">Fuera de Servicio</span>`;
+                    } else if (item.status === 'decomisado') {
+                        statusBadge = `<span class="badge badge-danger" style="font-weight: 700; background: #ef4444; color: #fff;">● Decomisado</span>`;
+                        isDecomisado = true;
+                    }
+
+                    const disabledAttr = isDecomisado ? 'disabled title="Esta radio ya se encuentra decomisada"' : '';
+                    const cursorStyle = isDecomisado ? 'cursor: not-allowed; opacity: 0.6;' : 'cursor: pointer; transform: scale(1.1);';
+                    const rowStyle = isDecomisado ? 'style="opacity: 0.75;"' : '';
+
+                    return `
+                        <tr ${rowStyle}>
+                            <td style="text-align: center;"><input type="checkbox" class="chk-decom-item" value="${item.id}" ${disabledAttr} style="${cursorStyle}"></td>
+                            <td><strong>${escapeHtml(item.property_sigla || '')}</strong></td>
+                            <td><span class="badge badge-secondary" style="font-family: monospace;">#${escapeHtml(item.radio_code || item.id)}</span></td>
+                            <td><code>${escapeHtml(item.serial_number || '-')}</code></td>
+                            <td>${escapeHtml(item.brand || '')} ${escapeHtml(item.model || '-')}</td>
+                            <td>${escapeHtml(item.department_name || '-')}</td>
+                            <td>${statusBadge}</td>
+                            <td><small style="color: var(--color-text-secondary);">${escapeHtml(item.decommission_reason || 'Sin razón especificada')}</small></td>
+                            <td><small>${escapeHtml(item.decommission_date || '-')}</small></td>
+                            <td><small style="font-weight: 600;">${escapeHtml(item.decommission_user || '-')}</small></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Evento seleccionar todos
+        const chkAll = document.getElementById('chk-decom-select-all');
+        if (chkAll) {
+            chkAll.checked = false;
+            chkAll.onclick = function() {
+                document.querySelectorAll('#rad-decommissions-tbody .chk-decom-item:not(:disabled)').forEach(cb => {
+                    cb.checked = chkAll.checked;
+                });
+            };
+        }
+
+        // Evento Decomisar Seleccionadas
+        const btnDecomiseSelected = document.getElementById('btn-mark-decommissioned-selected');
+        if (btnDecomiseSelected && !btnDecomiseSelected.dataset.hasListener) {
+            btnDecomiseSelected.dataset.hasListener = 'true';
+            btnDecomiseSelected.onclick = async function() {
+                const checkedBoxes = Array.from(document.querySelectorAll('#rad-decommissions-tbody .chk-decom-item:checked'));
+                if (checkedBoxes.length === 0) {
+                    if (typeof showToast === 'function') showToast('Debes seleccionar al menos una radio para decomisar', 'error');
+                    else alert('Debes seleccionar al menos una radio para decomisar.');
+                    return;
+                }
+
+                const ids = checkedBoxes.map(cb => cb.value);
+                if (!confirm(`¿Estás seguro de marcar como DECOMISADO las ${ids.length} radio(s) seleccionadas?`)) return;
+
+                try {
+                    const res = await fetch('/api/radios/decomiso-multiple', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ radio_ids: ids })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        if (typeof showToast === 'function') showToast(data.message || 'Radios decomisadas exitosamente', 'success');
+                        else alert(data.message || 'Radios decomisadas exitosamente.');
+                        loadDecommissions();
+                    } else {
+                        if (typeof showToast === 'function') showToast(data.error || 'Error al decomisar radios', 'error');
+                        else alert(data.error || 'Error al decomisar radios');
+                    }
+                } catch(err) {
+                    console.error('Error al decomisar radios:', err);
+                    if (typeof showToast === 'function') showToast('Error de conexión al decomisar radios', 'error');
+                }
+            };
+        }
+
+        // Cargar Registros / Hojas de Decomiso Generadas (Pendientes de Archivar)
+        if (recTbody) {
+            const recRes = await fetch(`/api/radios/decommission-records?hotel_id=${currentPropertyId}`);
+            if (recRes.ok) {
+                const recData = await recRes.json();
+                if (recData.length === 0) {
+                    recTbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-text-secondary); padding: 16px;">No hay hojas de decomiso generadas pendientes de archivar.</td></tr>';
+                } else {
+                    recTbody.innerHTML = recData.map(rec => `
+                        <tr>
+                            <td><strong style="color: var(--color-primary); font-family: monospace;">${escapeHtml(rec.folio)}</strong></td>
+                            <td><strong>${escapeHtml(rec.property_sigla || '')}</strong></td>
+                            <td>${escapeHtml(rec.department || '-')}${rec.subdepartment ? ' / ' + escapeHtml(rec.subdepartment) : ''}</td>
+                            <td><span class="badge badge-secondary">${escapeHtml(rec.decommission_type || 'BAJA DE EQUIPO')}</span></td>
+                            <td><span style="font-weight: 600;">${escapeHtml(rec.applicant || 'N/A')}</span></td>
+                            <td style="text-align: center;"><span class="badge badge-info" style="font-weight: 700;">${rec.radios_count} radio(s)</span></td>
+                            <td><small>${escapeHtml(rec.created_at || '-')}</small></td>
+                            <td><small style="font-weight: 600;">${escapeHtml(rec.created_by_username || '-')}</small></td>
+                            <td style="text-align: right;">
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-view-decom-pdf" data-id="${rec.id}" style="padding: 3px 8px; font-size: 11.5px; font-weight: 600; border-radius: 6px; margin-right: 4px;">
+                                    <i class="fa-solid fa-file-pdf me-1"></i> Ver PDF
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-archive-decom-rec" data-id="${rec.id}" style="padding: 3px 8px; font-size: 11.5px; font-weight: 700; border-radius: 6px;">
+                                    <i class="fa-solid fa-box-archive me-1"></i> Archivar
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    recTbody.querySelectorAll('.btn-view-decom-pdf').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const recId = btn.getAttribute('data-id');
+                            window.open(`/api/radios/decommission-records/${recId}/pdf`, '_blank');
+                        });
+                    });
+
+                    recTbody.querySelectorAll('.btn-archive-decom-rec').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const recId = btn.getAttribute('data-id');
+                            archiveDecommissionRecord(recId);
+                        });
+                    });
+                }
+            }
+        }
+
+    } catch(err) {
+        console.error('Error cargando decomisos:', err);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--color-danger); padding: 16px;">Error de conexión al cargar decomisos</td></tr>';
+    }
+}
+
+async function archiveDecommissionRecord(recId) {
+    if (!confirm('¿Deseas archivar esta hoja de decomiso? Se moverá a la sección de Archivo.')) return;
+    try {
+        const res = await fetch(`/api/radios/decommission-records/${recId}/archive`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            if (typeof showToast === 'function') showToast(data.message || 'Decomiso archivado exitosamente', 'success');
+            else alert(data.message || 'Decomiso archivado exitosamente.');
+            loadDecommissions();
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Error al archivar decomiso', 'error');
+            else alert(data.error || 'Error al archivar decomiso');
+        }
+    } catch(err) {
+        console.error('Error al archivar decomiso:', err);
+        if (typeof showToast === 'function') showToast('Error de conexión al archivar decomiso', 'error');
+    }
+}
+
+async function loadArchivedRadios() {
+    const tbody = document.getElementById('rad-archives-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-text-muted); padding: 16px;"><i class="fa-solid fa-spinner fa-spin me-2"></i> Cargando decomisos archivados...</td></tr>';
+
+    try {
+        const res = await fetch(`/api/radios/archives?hotel_id=${currentPropertyId}`);
         if (!res.ok) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-danger); padding: 16px;">Error al cargar decomisos</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-danger); padding: 16px;">Error al cargar decomisos archivados</td></tr>';
             return;
         }
 
         const data = await res.json();
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-text-secondary); padding: 16px;">No hay radios en estado de decomiso o baja en esta propiedad.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-text-secondary); padding: 16px;">No hay documentos de decomiso en el archivo histórico.</td></tr>';
             return;
         }
 
         tbody.innerHTML = data.map(item => `
             <tr>
+                <td><strong style="color: var(--color-primary); font-family: monospace;">${escapeHtml(item.folio)}</strong></td>
                 <td><strong>${escapeHtml(item.property_sigla || '')}</strong></td>
-                <td><span class="badge badge-secondary" style="font-family: monospace;">#${escapeHtml(item.radio_code || item.id)}</span></td>
-                <td><code>${escapeHtml(item.serial_number || '-')}</code></td>
-                <td>${escapeHtml(item.brand || '')} ${escapeHtml(item.model || '-')}</td>
-                <td>${escapeHtml(item.department_name || '-')}</td>
-                <td><span class="badge badge-danger">${escapeHtml(item.status || 'Decomisado')}</span></td>
-                <td><small style="color: var(--color-text-secondary);">${escapeHtml(item.decommission_reason || 'Sin razón especificada')}</small></td>
-                <td><small>${escapeHtml(item.decommission_date || '-')}</small></td>
-                <td><small style="font-weight: 600;">${escapeHtml(item.decommission_user || '-')}</small></td>
+                <td>${escapeHtml(item.department || '-')}${item.subdepartment ? ' / ' + escapeHtml(item.subdepartment) : ''}</td>
+                <td><span class="badge badge-secondary">${escapeHtml(item.decommission_type || 'BAJA DE EQUIPO')}</span></td>
+                <td><span style="font-weight: 600;">${escapeHtml(item.applicant || 'N/A')}</span></td>
+                <td style="text-align: center;"><span class="badge badge-info" style="font-weight: 700;">${item.radios_count} radio(s)</span></td>
+                <td><small>${escapeHtml(item.archived_at || item.created_at || '-')}</small></td>
+                <td><small style="font-weight: 600;">${escapeHtml(item.archived_by_username || item.created_by_username || '-')}</small></td>
+                <td style="text-align: right;">
+                    <button type="button" class="btn btn-sm btn-primary btn-view-decom-pdf" data-id="${item.id}" style="padding: 4px 12px; font-size: 12px; font-weight: 700; border-radius: 6px;">
+                        <i class="fa-solid fa-eye me-1"></i> Ver
+                    </button>
+                </td>
             </tr>
         `).join('');
+
+        tbody.querySelectorAll('.btn-view-decom-pdf').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const recId = btn.getAttribute('data-id');
+                window.open(`/api/radios/decommission-records/${recId}/pdf`, '_blank');
+            });
+        });
+
     } catch(err) {
-        console.error('Error cargando decomisos:', err);
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-danger); padding: 16px;">Error de conexión al cargar decomisos</td></tr>';
+        console.error('Error cargando archivo de decomisos:', err);
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-danger); padding: 16px;">Error de conexión al cargar el archivo de decomisos</td></tr>';
     }
 }
 
@@ -5251,6 +5466,52 @@ window.triggerDocumentPrint = triggerDocumentPrint;
 // -------------------------------------------------------------------------
 // EXPORTACIÓN DE HOJA DE DECOMISO EN PDF PARA TEC-RADIOS
 // -------------------------------------------------------------------------
+async function updateRadioPdfModalDepartments() {
+    const selProperty = document.getElementById('rad-pdf-hotel-select');
+    const deptSel = document.getElementById('rad-pdf-department');
+    const subdeptSel = document.getElementById('rad-pdf-subdepartment');
+    if (!selProperty || !deptSel) return;
+
+    const propId = selProperty.value;
+    if (!propId) {
+        deptSel.innerHTML = '<option value="">Seleccionar Departamento Principal...</option>';
+        if (subdeptSel) subdeptSel.innerHTML = '<option value="">-- Todos / Sin Subdepartamento --</option>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/radios/departments?hotel_id=${propId}`);
+        if (!res.ok) return;
+        const depts = await res.json();
+        const mainDepts = depts.filter(d => !d.parent_department_id);
+
+        deptSel.innerHTML = '<option value="">-- Seleccionar Departamento Principal --</option>' +
+            mainDepts.map(d => `<option value="${escapeHtml(d.name)}" data-id="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+
+        if (mainDepts.length > 0) {
+            deptSel.selectedIndex = 1;
+        }
+
+        const updateSubdepts = () => {
+            if (!subdeptSel) return;
+            const selectedOpt = deptSel.options[deptSel.selectedIndex];
+            const mainId = selectedOpt ? selectedOpt.getAttribute('data-id') : null;
+            if (!mainId) {
+                subdeptSel.innerHTML = '<option value="">-- Todos / Sin Subdepartamento --</option>';
+                return;
+            }
+            const subDepts = depts.filter(d => String(d.parent_department_id) === String(mainId));
+            subdeptSel.innerHTML = '<option value="">-- Todos / Sin Subdepartamento --</option>' +
+                subDepts.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+        };
+
+        deptSel.onchange = updateSubdepts;
+        updateSubdepts();
+    } catch(err) {
+        console.error('Error cargando departamentos para modal PDF:', err);
+    }
+}
+
 function initRadioDecommissionPdfModal() {
     const modal = document.getElementById('radio-decommission-pdf-modal');
     const btnOpen = document.getElementById('btn-export-radios-decommission-pdf');
@@ -5264,6 +5525,13 @@ function initRadioDecommissionPdfModal() {
     if (!btnOpen.dataset.hasPdfListener) {
         btnOpen.dataset.hasPdfListener = 'true';
         btnOpen.addEventListener('click', async () => {
+            const checkedBoxes = Array.from(document.querySelectorAll('#rad-decommissions-tbody .chk-decom-item:checked'));
+            if (checkedBoxes.length === 0) {
+                if (typeof showToast === 'function') showToast('Debes seleccionar al menos una radio para exportar la hoja de decomiso', 'error');
+                else alert('Debes seleccionar al menos una radio para exportar la hoja de decomiso.');
+                return;
+            }
+
             if (selProperty) {
                 if (!userProperties || userProperties.length === 0) {
                     try {
@@ -5287,6 +5555,7 @@ function initRadioDecommissionPdfModal() {
 
                 updateRadioPdfModalHotelPreview();
                 await updateRadioPdfDecommissionControlNumber();
+                await updateRadioPdfModalDepartments();
             }
             modal.classList.add('active');
         });
@@ -5307,6 +5576,7 @@ function initRadioDecommissionPdfModal() {
         selProperty.addEventListener('change', async () => {
             updateRadioPdfModalHotelPreview();
             await updateRadioPdfDecommissionControlNumber();
+            await updateRadioPdfModalDepartments();
         });
     }
 
@@ -5320,6 +5590,13 @@ function initRadioDecommissionPdfModal() {
                 return;
             }
 
+            const checkedRadios = Array.from(document.querySelectorAll('#rad-decommissions-tbody .chk-decom-item:checked')).map(cb => cb.value);
+            if (checkedRadios.length === 0) {
+                if (typeof showToast === 'function') showToast('Debes seleccionar al menos una radio para exportar la hoja de decomiso', 'error');
+                else alert('Debes seleccionar al menos una radio para exportar la hoja de decomiso.');
+                return;
+            }
+
             const btnSubmit = document.getElementById('btn-generate-radio-pdf');
             if (btnSubmit) {
                 btnSubmit.disabled = true;
@@ -5327,14 +5604,18 @@ function initRadioDecommissionPdfModal() {
             }
 
             try {
+                const checkedRadios = Array.from(document.querySelectorAll('#rad-decommissions-tbody .chk-decom-item:checked')).map(cb => cb.value);
+
                 const payload = {
                     hotel_id: hotelId,
                     no_control: document.getElementById('rad-pdf-no-control')?.value || '',
                     department: document.getElementById('rad-pdf-department')?.value || 'TELECOMUNICACIONES',
+                    subdepartment: document.getElementById('rad-pdf-subdepartment')?.value || '',
                     decommission_type: document.getElementById('rad-pdf-type')?.value || 'BAJA DE EQUIPO',
                     applicant: document.getElementById('rad-pdf-applicant')?.value || '',
                     reason: document.getElementById('rad-pdf-reason')?.value || '',
-                    other_notes: document.getElementById('rad-pdf-other-notes')?.value || ''
+                    other_notes: document.getElementById('rad-pdf-other-notes')?.value || '',
+                    selected_radio_ids: checkedRadios
                 };
 
                 const res = await fetch('/api/radios/decommission/export/pdf', {
@@ -5362,6 +5643,7 @@ function initRadioDecommissionPdfModal() {
 
                 if (typeof showToast === 'function') showToast('Hoja de decomiso PDF generada exitosamente', 'success');
                 closeModalFunc();
+                loadDecommissions();
             } catch(err) {
                 console.error('Error generando PDF decomiso radios:', err);
                 if (typeof showToast === 'function') showToast(err.message || 'Error al generar PDF', 'error');
