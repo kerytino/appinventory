@@ -18,7 +18,7 @@
                     <i class="fa-solid fa-boxes-stacked"></i>
                     <span>Inventario General</span>
                 </a>
-                <button type="button" class="btn-toggle-submenu" id="btn-toggle-inventory-submenu" onclick="toggleSidebarSubmenu(event)" title="Mostrar/Ocultar Almacenes" style="background: none; border: none; color: inherit; cursor: pointer; padding: 4px 8px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                <button type="button" class="btn-toggle-submenu" id="btn-toggle-inventory-submenu" title="Mostrar/Ocultar Almacenes" style="background: none; border: none; color: inherit; cursor: pointer; padding: 4px 8px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
                     <i class="fa-solid fa-chevron-down submenu-chevron" style="font-size: 11px; width: auto; transition: transform 0.25s ease;"></i>
                 </button>
             </div>
@@ -113,9 +113,14 @@ function toggleSidebarSubmenu(e) {
 
 (function() {
     try {
+        var grp = document.getElementById('nav-group-inventory');
         if (localStorage.getItem('sidebar_warehouses_collapsed') === 'true') {
-            var grp = document.getElementById('nav-group-inventory');
             if (grp) grp.classList.add('collapsed');
+        }
+        var btn = document.getElementById('btn-toggle-inventory-submenu');
+        if (btn && !btn.dataset.hasListener) {
+            btn.dataset.hasListener = 'true';
+            btn.addEventListener('click', toggleSidebarSubmenu);
         }
     } catch(err) {}
 })();

@@ -12,6 +12,26 @@
     <!-- CONTENIDO PRINCIPAL DE TEC-RADIOS -->
     <div style="padding: 24px;">
 
+        <!-- BARRA DE FILTRO DE PROPIEDAD / HOTEL GLOBAL -->
+        {% if not is_query_user %}
+        <div class="radios-card-box radios-header-property mb-4" style="padding: 14px 20px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                    <i class="fa-solid fa-hotel"></i>
+                </div>
+                <div>
+                    <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: block;">Propiedad / Hotel</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #1e293b;">Selecciona un hotel para filtrar métricas, inventarios y configuraciones</span>
+                </div>
+            </div>
+            <div style="min-width: 260px;">
+                <select id="radio-property-selector" class="form-control" style="height: 40px; font-size: 13.5px; font-weight: 700; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; cursor: pointer;">
+                    <option value="all">Todas las Propiedades</option>
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 1. TAB INICIO / DASHBOARD -->
         <div id="tab-dashboard" class="radio-tab-content active">
 
@@ -254,6 +274,7 @@
                         <span style="font-size: 0.9rem; font-weight: 700; color: #0f172a;" id="rad-dash-current-date">5 de septiembre de 2026</span>
                     </div>
                 </div>
+
 
                 <!-- GRID 8 KPIS COMPACTAS (CLICABLES) -->
                 <div class="radios-kpi-grid">
@@ -620,7 +641,6 @@
                     <table class="radios-table-compact">
                         <thead>
                             <tr>
-                                <th style="width: 40px; text-align: center;">Verificado</th>
                                 <th style="width: 70px;">ID</th>
                                 <th style="width: 110px;">Serial</th>
                                 <th style="width: 130px;">Equipo (Marca/Mod)</th>
@@ -629,7 +649,8 @@
                                 <th style="width: 110px;">Estado Actual</th>
                                 <th style="width: 140px;">Estado Inventario</th>
                                 <th style="width: 110px; text-align: center;">Acciones</th>
-                                <th>Observaciones</th>
+                                <th style="min-width: 220px;">Observaciones</th>
+                                <th style="width: 110px; text-align: center;">Verificado</th>
                             </tr>
                         </thead>
                         <tbody id="rad-formal-inv-table-tbody"></tbody>
@@ -701,6 +722,11 @@
                     <div>
                         <span class="radios-card-title"><i class="fa-solid fa-ban text-danger me-2"></i> Radios en Decomiso y Bajas Definitivas</span>
                         <p class="text-secondary mb-0" style="font-size: 0.85rem;">Historial completo de equipos fuera de servicio, perdidos, decomisados o dados de baja sin eliminación física.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-export-radios-decommission-pdf" style="padding: 8px 16px; font-weight: 600;">
+                            <i class="fa-solid fa-file-pdf me-1"></i> Exportar Hoja PDF
+                        </button>
                     </div>
                 </div>
                 <div class="table-responsive" style="margin-top: 16px;">
@@ -876,30 +902,48 @@
         </form>
     </div>
 </div>
-            <!-- Importación Masiva de Radios (Excel) integrada en Configuración -->
+
+
+            <!-- Copia de Seguridad y Restauración Exclusiva TEC-RADIOS -->
             <div class="radios-card-box mb-4">
                 <div class="radios-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
-                        <span class="radios-card-title"><i class="fa-solid fa-file-excel text-success me-2"></i> Importación Masiva de Radios (Excel / CSV)</span>
-                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Carga lotes completos de radios asignando propiedad y datos técnicos automáticamente.</p>
+                        <span class="radios-card-title"><i class="fa-solid fa-database text-primary me-2"></i> Copia de Seguridad y Restauración TEC-RADIOS</span>
+                        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Genera respaldos completos o únicamente de radios registradas, e importa/restaura copias de seguridad.</p>
                     </div>
                 </div>
-                <form id="form-radio-import" style="max-width: 650px; margin-top: 14px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
-                        <div>
-                            <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Propiedad Destino: <span class="text-danger">*</span></label>
-                            <select id="rad-import-property" class="form-control" required style="height: 38px;"></select>
-                        </div>
-                        <div>
-                            <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Archivo Excel (.xlsx / .csv): <span class="text-danger">*</span></label>
-                            <input type="file" id="rad-import-file" class="form-control" accept=".xlsx, .csv" required style="height: 38px;">
-                        </div>
+                
+                <!-- Sección Generar Respaldos -->
+                <div style="margin-top: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+                    <strong style="color: #0f172a; font-size: 0.95rem; display: block; margin-bottom: 4px;">
+                        <i class="fa-solid fa-download text-primary me-1"></i> Exportar Respaldos (.JSON)
+                    </strong>
+                    <p style="font-size: 0.83rem; color: #64748b; margin-bottom: 12px;">Selecciona el tipo de respaldo que deseas descargar a tu equipo.</p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button type="button" id="btn-export-radios-backup" class="btn btn-primary" style="font-weight: 700; padding: 9px 18px; background: #2563eb;">
+                            <i class="fa-solid fa-file-export me-2"></i> Backup Completo TEC-RADIOS
+                        </button>
+                        <button type="button" id="btn-export-radios-only-backup" class="btn btn-outline-primary" style="font-weight: 700; padding: 9px 18px;">
+                            <i class="fa-solid fa-walkie-talkie me-2"></i> Backup Solo Radios Registradas
+                        </button>
                     </div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 700;"><i class="fa-solid fa-file-excel me-1"></i> Cargar Datos Masivos</button>
-                        <span id="import-excel-status" style="font-size: 12px; color: var(--color-text-secondary);"></span>
-                    </div>
-                </form>
+                </div>
+
+                <!-- Sección Restaurar / Cargar Respaldos -->
+                <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px;">
+                    <strong style="color: #0f172a; font-size: 0.95rem; display: block; margin-bottom: 4px;">
+                        <i class="fa-solid fa-upload text-success me-1"></i> Cargar y Restaurar Radios (.JSON)
+                    </strong>
+                    <p style="font-size: 0.83rem; color: #64748b; margin-bottom: 12px;">Carga un archivo de respaldo previo en formato JSON para restaurar o actualizar las radios registradas.</p>
+                    
+                    <form id="form-restore-radios-backup" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                        <input type="file" id="restore-radios-file" class="form-control" accept=".json" required style="max-width: 380px; height: 38px;">
+                        <button type="submit" id="btn-restore-radios-backup" class="btn btn-success" style="font-weight: 700; padding: 9px 20px;">
+                            <i class="fa-solid fa-cloud-arrow-up me-2"></i> Cargar y Restaurar Radios
+                        </button>
+                        <span id="restore-radios-status" style="font-size: 12.5px; font-weight: 600;"></span>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -1475,10 +1519,15 @@
 
             <!-- Datos del Colaborador en Descargo -->
             <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px;">
-                <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 180px 1fr 1fr; gap: 12px; align-items: flex-end;">
                     <div>
                         <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">No. Colaborador <span class="text-danger">*</span></label>
-                        <input type="text" id="desc-form-emp-id" class="form-control" required style="height: 38px; font-size: 13px; font-weight: 700;">
+                        <div style="display: flex; gap: 4px;">
+                            <input type="text" id="desc-form-emp-id" class="form-control" placeholder="Ej: 17056" required style="height: 38px; font-size: 13px; font-weight: 700;" onkeypress="if(event.key==='Enter'){event.preventDefault();searchCollaboratorForDescargoManual();}" onchange="searchCollaboratorForDescargoManual();">
+                            <button type="button" class="btn btn-primary" onclick="searchCollaboratorForDescargoManual()" title="Buscar colaborador y radios asignadas" style="height: 38px; padding: 0 12px;">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">Nombre Completo <span class="text-danger">*</span></label>
@@ -1489,6 +1538,8 @@
                         <input type="text" id="desc-form-emp-position" class="form-control" style="height: 38px; font-size: 13px;">
                     </div>
                 </div>
+                <!-- Mensaje de Alerta / Estado del Colaborador -->
+                <div id="desc-colab-status-msg" style="display: none; margin-top: 10px;"></div>
             </div>
 
             <!-- Radios a Descargar -->
@@ -1500,8 +1551,20 @@
 
                 <div id="desc-items-container" style="display: flex; flex-direction: column; gap: 12px; min-height: 80px;">
                     <div style="text-align: center; color: #94a3b8; padding: 24px; font-size: 13px; border: 2px dashed #e2e8f0; border-radius: 8px;">
-                        Selecciona un resguardo o radios a descargar para ver el desglose.
+                        Selecciona un resguardo o escribe el No. de Colaborador para consultar sus radios a descargar.
                     </div>
+                </div>
+
+                <!-- Buscador de Radio Individual Manual para Descargo desde Cero -->
+                <div id="desc-manual-radio-search-box" style="display: none; margin-top: 14px; padding-top: 12px; border-top: 1px dashed #cbd5e1;">
+                    <label style="display: block; font-size: 11.5px; font-weight: 700; color: #475569; margin-bottom: 6px;">¿Deseas agregar otra radio manualmente? Busca por ID o Serial:</label>
+                    <div style="display: flex; gap: 8px; max-width: 480px;">
+                        <input type="text" id="desc-manual-radio-search-input" class="form-control" placeholder="Ingresa ID o Serial (ej: 301, TCM6X39284)..." style="height: 36px; font-size: 12.5px;" onkeypress="if(event.key==='Enter'){event.preventDefault();searchAndAddSingleRadioToDescargoManual();}">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="searchAndAddSingleRadioToDescargoManual()" style="font-weight: 700; white-space: nowrap;">
+                            <i class="fa-solid fa-plus me-1"></i> Agregar Radio
+                        </button>
+                    </div>
+                    <div id="desc-manual-radio-msg" style="display: none; font-size: 12px; margin-top: 6px;"></div>
                 </div>
             </div>
 
@@ -1554,6 +1617,108 @@
                 <!-- Contenido Dinámico Renderizado -->
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Modal para Exportar Hoja de Decomiso de Radios PDF -->
+<div class="modal-overlay" id="radio-decommission-pdf-modal">
+    <div class="modal-content" style="max-width: 900px; width: 95%; padding: 24px;">
+        <div class="modal-header">
+            <div>
+                <h3 style="margin:0; font-size: 1.25rem;">Generar Hoja de Decomiso de Radios</h3>
+                <p class="text-secondary" style="margin:4px 0 0; font-size:0.85rem;">Complete la información para generar el documento PDF oficial para TEC-RADIOS</p>
+            </div>
+            <button class="btn-close" id="btn-close-radio-pdf-modal" type="button"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="radio-decommission-pdf-form" style="display:flex; flex-direction:column; gap:0; padding-top:12px;">
+
+            <!-- Grid Horizontal de 2 Columnas -->
+            <div class="decomiso-modal-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+                
+                <!-- Columna Izquierda: Propiedad y Motivo -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Sección 1: Selección de propiedad -->
+                    <div style="padding-bottom: 16px; border-bottom: 1px solid var(--color-border);">
+                        <p class="form-label" style="font-weight:700; color:var(--color-text); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">
+                            <i class="fa-solid fa-hotel" style="color:var(--color-primary); margin-right:6px;"></i>Propiedad
+                        </p>
+                        <select id="rad-pdf-hotel-select" class="form-control" required>
+                            <option value="">Seleccionar propiedad...</option>
+                        </select>
+
+                        <!-- Preview de la propiedad seleccionada -->
+                        <div id="rad-pdf-hotel-preview" style="display:none; margin-top:12px; padding:12px 16px; background:var(--color-surface-2); border-radius:var(--radius-md); border:1px solid var(--color-border); align-items:center; gap:14px;">
+                            <div id="rad-pdf-hotel-logo-preview" style="flex-shrink:0; width:52px; height:52px; display:flex; align-items:center; justify-content:center; background:var(--color-surface); border-radius:var(--radius-md); border:1px solid var(--color-border); overflow:hidden;"></div>
+                            <div>
+                                <div id="rad-pdf-hotel-name-preview" style="font-weight:700; font-size:1rem; color:var(--color-text);"></div>
+                                <div id="rad-pdf-hotel-sigla-preview" style="font-family:monospace; font-size:0.85rem; color:var(--color-primary); margin-top:2px; font-weight:600; letter-spacing:1px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección 3: Motivo y observaciones -->
+                    <div>
+                        <p class="form-label" style="font-weight:700; color:var(--color-text); margin-bottom:10px; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">
+                            <i class="fa-solid fa-comment-dots" style="color:var(--color-primary); margin-right:6px;"></i>Motivo y Observaciones
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <div>
+                                <label class="form-label" for="rad-pdf-reason">Motivo de Baja</label>
+                                <textarea id="rad-pdf-reason" class="form-control" rows="3" placeholder="Ej: Radios dados de baja por término de vida útil, avería irreparable o pérdida">Radios dados de baja por término de vida útil, avería irreparable o pérdida</textarea>
+                            </div>
+                            <div>
+                                <label class="form-label" for="rad-pdf-other-notes">Observaciones adicionales</label>
+                                <input type="text" id="rad-pdf-other-notes" class="form-control" placeholder="Notas u observaciones opcionales para radios">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Información del Documento -->
+                <div style="display: flex; flex-direction: column; gap: 16px; background: var(--color-surface-2); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <p class="form-label" style="font-weight:700; color:var(--color-text); margin-bottom:4px; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">
+                        <i class="fa-solid fa-file-lines" style="color:var(--color-primary); margin-right:6px;"></i>Información del Documento
+                    </p>
+                    
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        <div>
+                            <label class="form-label" for="rad-pdf-no-control">N° de Decomiso</label>
+                            <input type="text" id="rad-pdf-no-control" class="form-control" readonly
+                                   style="font-family:monospace; font-weight:700; background:var(--color-surface); cursor:default; color:var(--color-primary);">
+                            <small class="text-secondary" style="display:block; margin-top:2px; font-size:0.78rem;">Generado automáticamente por propiedad</small>
+                        </div>
+                        <div>
+                            <label class="form-label" for="rad-pdf-department">Departamento</label>
+                            <input type="text" id="rad-pdf-department" class="form-control" value="TELECOMUNICACIONES / SISTEMAS">
+                        </div>
+                        <div>
+                            <label class="form-label" for="rad-pdf-type">Tipo de Movimiento</label>
+                            <select id="rad-pdf-type" class="form-control">
+                                <option value="BAJA DE EQUIPO" selected>BAJA DE EQUIPO</option>
+                                <option value="BAJA DE PRODUCTO">BAJA DE PRODUCTO</option>
+                                <option value="BAJA DE ACTIVO">BAJA DE ACTIVO</option>
+                                <option value="DEVOLUCIÓN DE MERCANCIA AL PROVEEDOR">DEVOLUCIÓN DE MERCANCÍA AL PROVEEDOR</option>
+                                <option value="RESGUARDO DE EQUIPO">RESGUARDO DE EQUIPO</option>
+                                <option value="OTROS">OTROS</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="rad-pdf-applicant">Nombre que Solicita</label>
+                            <input type="text" id="rad-pdf-applicant" class="form-control" placeholder="Nombre del solicitante">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="display:flex; justify-content:flex-end; gap:12px; padding-top:16px; border-top:1px solid var(--color-border); margin-top:20px;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-radio-pdf-modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-generate-radio-pdf" style="padding: 10px 20px;">
+                    <i class="fa-solid fa-file-pdf me-1"></i> Generar PDF
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

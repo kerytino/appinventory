@@ -696,6 +696,7 @@ class RadioFormalInventory(db.Model):
     items = db.relationship('RadioFormalInventoryItem', backref='inventory', cascade='all, delete-orphan', lazy=True)
 
     def to_dict(self):
+        confirmed_cnt = sum(1 for i in self.items if i.confirmed)
         return {
             'id': str(self.id),
             'inventory_code': self.inventory_code or f"INV-{self.id}",
@@ -714,6 +715,8 @@ class RadioFormalInventory(db.Model):
             'createdBy': self.created_by,
             'status': self.status,
             'totalExpected': self.total_expected,
+            'confirmedCount': confirmed_cnt,
+            'confirmed_count': confirmed_cnt,
             'completedAt': self.completed_at.strftime('%Y-%m-%d %H:%M:%S') if self.completed_at else None,
             'items': [i.to_dict() for i in self.items]
         }
@@ -3187,43 +3190,21 @@ def get_decommissions():
 
 def generate_decommission_number(hotel_name, date=None):
     """
-    Genera el numero de decomiso con formato: [SIGLA]-[ANIO]-[MES]-[SEQ]
-    El secuencial reinicia en 001 cada mes por propiedad.
-    La operacion es segura ante accesos concurrentes gracias al UNIQUE en BD.
+    Genera el numero de decomiso con formato: [SIGLA]-[FECHA (DD/MM/YY)]-[NO. SECUENCIAL (0001)]
     """
     if not date:
-        date = datetime.utcnow()
+        date = datetime.now()
     
-    year  = date.strftime('%Y')
-    month = date.strftime('%m')
-    
-    # Obtener sigla del hotel; si no tiene, usar las 3 primeras letras en mayusculas
     hotel = Hotel.query.filter_by(name=hotel_name).first()
-    if hotel and hotel.sigla:
-        sigla = hotel.sigla.upper().strip()
-    else:
-        sigla = (hotel_name[:3] if hotel_name else 'DEC').upper().replace(' ', '')
+    if not hotel and hotel_name:
+        hotel = Hotel.query.filter(db.func.lower(Hotel.sigla) == hotel_name.lower()).first()
     
-    prefix = f"{sigla}-{year}-{month}-"
+    sigla = (hotel.sigla if hotel and hotel.sigla else (hotel_name[:3] if hotel_name else 'DEC')).upper().strip()
+    date_str = date.strftime('%d/%m/%y')
     
-    # Buscar el ultimo numero secuencial para esta propiedad/mes
-    last = (
-        Decommission.query
-        .filter(Decommission.decommission_number.like(f"{prefix}%"))
-        .order_by(Decommission.decommission_number.desc())
-        .first()
-    )
-    
-    if last and last.decommission_number:
-        try:
-            last_seq = int(last.decommission_number.split('-')[-1])
-        except (ValueError, IndexError):
-            last_seq = 0
-    else:
-        last_seq = 0
-    
-    next_seq = last_seq + 1
-    return f"{prefix}{str(next_seq).zfill(3)}"
+    count_existing = Decommission.query.filter_by(hotel=hotel_name).count() if hotel_name else Decommission.query.count()
+    seq = count_existing + 1
+    return f"{sigla}-{date_str}-{seq:04d}"
 
 
 @app.route('/api/decommissions/preview-number', methods=['GET'])
@@ -5550,7 +5531,25 @@ def save_user_radio_department_access(user_id):
         return jsonify({'message': 'Accesos guardados correctamente', 'radio_role': radio_role})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+def sync_radio_status_with_custodian(radio):
+    """
+    Regla de Negocio de TEC-RADIOS:
+    - Una radio SIN CUSTODIO no puede estar en estado 'operativo'. Si no tiene custodio y su estado es 'operativo', pasa a 'disponible'.
+    - Si se le asigna custodio a una radio cuyo estado es 'disponible' o 'en_almacen', pasa a 'operativo'.
+    - Si la radio está en un estado crítico (dañado, perdido, fuera de servicio, en reparación, requiere revisión, decomisado), se respeta ese estado.
+    """
+    if not radio:
+        return
+    has_custodian = bool((radio.assigned_person_name or '').strip() or (radio.assigned_employee_id or '').strip())
+    critical_statuses = ['danado', 'perdido', 'fuera_servicio', 'en_reparacion', 'requiere_revision', 'decomisado']
+    
+    if not has_custodian:
+        if radio.status not in critical_statuses:
+            radio.status = 'disponible'
+    else:
+        if radio.status in ['disponible', 'en_almacen', '', None]:
+            radio.status = 'operativo'
+
 
 # API: Dashboard Metrics (Soporta vistas de Admin y de Consulta)
 @app.route('/api/radios/dashboard', methods=['GET'])
@@ -5599,8 +5598,8 @@ def get_radio_dashboard():
             'danado': sum(1 for r in radios if r.status == 'danado'),
             'perdido': sum(1 for r in radios if r.status == 'perdido'),
             'fuera_servicio': sum(1 for r in radios if r.status == 'fuera_servicio'),
-            'disponible': sum(1 for r in radios if r.status in ['disponible', 'en_almacen'] or not (r.assigned_person_name or r.assigned_employee_id)),
-            'en_almacen': sum(1 for r in radios if r.status == 'en_almacen' or not (r.assigned_person_name or r.assigned_employee_id)),
+            'disponible': sum(1 for r in radios if r.status in ['disponible', 'en_almacen']),
+            'en_almacen': sum(1 for r in radios if r.status == 'en_almacen'),
             'assigned': sum(1 for r in radios if bool(r.assigned_person_name or r.assigned_employee_id)),
             'unassigned': sum(1 for r in radios if not (r.assigned_person_name or r.assigned_employee_id))
         }
@@ -5986,7 +5985,10 @@ def get_radios_list():
     if area_id:
         query = query.filter(RadioItem.area_id == int(area_id))
     if status:
-        query = query.filter(RadioItem.status == status)
+        if status in ['disponible', 'en_almacen']:
+            query = query.filter(RadioItem.status.in_(['disponible', 'en_almacen']))
+        else:
+            query = query.filter(RadioItem.status == status)
     if search:
         st = f"%{search.strip()}%"
         query = query.filter(
@@ -6064,6 +6066,7 @@ def create_radio():
         image_url=data.get('image_url') or data.get('imageUrl') or ''
     )
     
+    sync_radio_status_with_custodian(new_radio)
     db.session.add(new_radio)
     db.session.flush()
     
@@ -6160,6 +6163,7 @@ def update_radio(radio_id):
             )
             db.session.add(h_ev)
 
+    sync_radio_status_with_custodian(radio)
     db.session.commit()
     log_activity(user.username, 'Módulo Radios', f"Actualizó equipo #{radio.id} ({radio.serial_number})")
     return jsonify(radio.to_dict())
@@ -6213,6 +6217,7 @@ def assign_radio(radio_id):
             user_name=user.username
         )
         db.session.add(h_ev)
+        sync_radio_status_with_custodian(radio)
         db.session.commit()
         log_activity(user.username, 'Módulo Radios', f"Devolución de radio #{radio.id} de {prev_person}")
         return jsonify(radio.to_dict())
@@ -6233,6 +6238,7 @@ def assign_radio(radio_id):
         radio.assigned_by = user.username
         
         new_info = f"{name} ({emp_id or 'Sin ID'}) - {pos}"
+        sync_radio_status_with_custodian(radio)
         h_ev = RadioHistory(
             radio_id=radio.id,
             hotel_id=radio.hotel_id,
@@ -6323,6 +6329,7 @@ def transfer_radio(radio_id):
         user_name=user.username
     )
     db.session.add(history_entry)
+    sync_radio_status_with_custodian(radio)
     db.session.commit()
 
     log_activity(user.username, 'Módulo Radios', f"Transferió/Reasignó radio #{radio.radio_code} ({radio.serial_number})")
@@ -6356,7 +6363,12 @@ def get_formal_inventories():
         query = query.filter(RadioFormalInventory.hotel_id.in_(allowed_ids))
         
     invs = query.order_by(RadioFormalInventory.created_at.desc()).all()
-    return jsonify([i.to_dict() for i in invs])
+    res = []
+    for i in invs:
+        d = i.to_dict()
+        d['can_manage'] = can_user_access_radio_hotel(user, i.hotel_id, need_manage=True)
+        res.append(d)
+    return jsonify(res)
 
 @app.route('/api/radios/inventories', methods=['POST'])
 def create_formal_inventory():
@@ -6419,7 +6431,9 @@ def create_formal_inventory():
         
     db.session.commit()
     log_activity(user.username, 'Módulo Radios', f"Creó inventario formal '{title}' (#{inv.id}) en propiedad #{h_id}")
-    return jsonify(inv.to_dict()), 201
+    d = inv.to_dict()
+    d['can_manage'] = True
+    return jsonify(d), 201
 
 @app.route('/api/radios/inventories/<int:inv_id>', methods=['GET'])
 def get_formal_inventory_detail(inv_id):
@@ -6431,7 +6445,9 @@ def get_formal_inventory_detail(inv_id):
     if not can_user_access_radio_hotel(user, inv.hotel_id):
         return jsonify({'error': 'No autorizado para ver este inventario'}), 403
         
-    return jsonify(inv.to_dict())
+    d = inv.to_dict()
+    d['can_manage'] = can_user_access_radio_hotel(user, inv.hotel_id, need_manage=True)
+    return jsonify(d)
 
 @app.route('/api/radios/inventories/<int:inv_id>', methods=['PUT', 'DELETE'])
 def update_formal_inventory(inv_id):
@@ -6507,6 +6523,74 @@ def update_formal_inventory(inv_id):
     log_activity(user.username, 'Módulo Radios', f"Actualizó inventario formal #{inv.id} a estado '{inv.status}'")
     return jsonify(inv.to_dict())
 
+# API: Generar y Descargar Copia de Seguridad (Backup) exclusiva de TEC-RADIOS
+@app.route('/api/radios/backup', methods=['GET'])
+def download_radios_backup():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autenticado'}), 401
+    
+    is_admin = (user.role or '').strip().lower() == 'admin'
+    perms = user.get_permissions() if hasattr(user, 'get_permissions') else []
+    if not is_admin and ('tec-radios' not in perms and 'radios' not in perms):
+        return jsonify({'error': 'No autorizado para generar copia de seguridad de TEC-RADIOS'}), 403
+
+    backup_type = request.args.get('type', 'full')  # 'full' o 'radios_only'
+    now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    filename_date = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+
+    if backup_type == 'radios_only':
+        radios_list = [r.to_dict() for r in RadioItem.query.all()]
+        backup_data = {
+            'system': 'TEC-RADIOS',
+            'module': 'Gestión e Inventario de Radios de Comunicación',
+            'backup_type': 'radios_only',
+            'version': '2.0',
+            'created_at': now_str,
+            'created_by': user.username,
+            'total_radios': len(radios_list),
+            'radios': radios_list
+        }
+        download_filename = f'backup_radios_only_{filename_date}.json'
+    else:
+        backup_data = {
+            'system': 'TEC-RADIOS',
+            'module': 'Gestión e Inventario de Radios de Comunicación',
+            'backup_type': 'full',
+            'version': '2.0',
+            'created_at': now_str,
+            'created_by': user.username,
+            'departments': [d.to_dict() for d in RadioDepartment.query.all()],
+            'areas': [a.to_dict() for a in RadioArea.query.all()],
+            'id_ranges': [r.to_dict() for r in RadioIdRange.query.all()],
+            'radios': [r.to_dict() for r in RadioItem.query.all()],
+            'history': [
+                {
+                    'id': h.id,
+                    'radio_id': h.radio_id,
+                    'hotel_id': h.hotel_id,
+                    'event_type': h.event_type,
+                    'detail': h.detail,
+                    'previous_info': h.previous_info,
+                    'new_info': h.new_info,
+                    'user_name': h.user_name,
+                    'timestamp': h.timestamp.strftime('%Y-%m-%d %H:%M:%S') if h.timestamp else ''
+                } for h in RadioHistory.query.all()
+            ],
+            'formal_inventories': [inv.to_dict() for inv in RadioFormalInventory.query.all()],
+            'incidents': [inc.to_dict() for inc in RadioIncident.query.all()],
+            'documents': [doc.to_dict() for doc in RadioDocument.query.all()]
+        }
+        download_filename = f'backup_tec_radios_{filename_date}.json'
+
+    response_body = json.dumps(backup_data, ensure_ascii=False, indent=2)
+    response = make_response(response_body)
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename={download_filename}'
+    
+    log_activity(user.username, 'Módulo Radios', f"Generó y descargó copia de seguridad ({backup_type}) del módulo TEC-RADIOS")
+    return response
+
 # API: Importación Excel / Masiva
 @app.route('/api/radios/import-excel', methods=['POST'])
 def import_radios_excel():
@@ -6557,6 +6641,7 @@ def import_radios_excel():
             existing.status = status
             if notes:
                 existing.notes = notes
+            sync_radio_status_with_custodian(existing)
             updated_count += 1
             
             h_ev = RadioHistory(
@@ -6578,6 +6663,7 @@ def import_radios_excel():
                 status=status,
                 notes=notes
             )
+            sync_radio_status_with_custodian(new_r)
             db.session.add(new_r)
             db.session.flush()
             
@@ -7253,6 +7339,142 @@ def get_radio_decommissions():
         d['decommission_user'] = r.assigned_by or 'Sistema'
         res.append(d)
     return jsonify(res)
+
+@app.route('/api/radios/decommissions/preview-number', methods=['GET'])
+def preview_radio_decommission_number():
+    hotel_param = request.args.get('hotel_id') or request.args.get('hotel') or ''
+    hotel_obj = None
+    if hotel_param and hotel_param != 'all':
+        try:
+            hotel_obj = db.session.get(Hotel, int(hotel_param))
+        except (ValueError, TypeError):
+            hotel_obj = Hotel.query.filter(db.func.lower(Hotel.name) == str(hotel_param).lower()).first()
+            if not hotel_obj:
+                hotel_obj = Hotel.query.filter(db.func.lower(Hotel.sigla) == str(hotel_param).lower()).first()
+
+    if not hotel_obj:
+        hotel_obj = Hotel.query.first()
+
+    sigla = 'XPC'
+    if hotel_obj:
+        if hotel_obj.sigla:
+            sigla = hotel_obj.sigla.upper().strip()
+        elif hotel_obj.name:
+            sigla = hotel_obj.name[:3].upper().strip()
+
+    date_str = datetime.now().strftime('%d/%m/%y')
+
+    seq = 1
+    if hotel_obj:
+        count_existing = RadioItem.query.filter(
+            RadioItem.hotel_id == hotel_obj.id,
+            RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio'])
+        ).count()
+        seq = count_existing + 1
+    else:
+        count_existing = RadioItem.query.filter(
+            RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio'])
+        ).count()
+        seq = count_existing + 1
+
+    no_control = f"{sigla}-{date_str}-{seq:04d}"
+    return jsonify({'no_control': no_control, 'decommission_number': no_control})
+
+@app.route('/api/radios/decommission/export/pdf', methods=['POST', 'GET'])
+def export_radio_decommission_pdf():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'No autenticado'}), 401
+
+        if request.method == 'POST':
+            params = request.json or {}
+        else:
+            params = request.args.to_dict()
+
+        hotel_param = params.get('hotel_id') or params.get('hotel')
+        hotel_obj = None
+
+        if hotel_param and hotel_param != 'all':
+            try:
+                hotel_obj = db.session.get(Hotel, int(hotel_param))
+            except (ValueError, TypeError):
+                hotel_obj = Hotel.query.filter(db.func.lower(Hotel.name) == str(hotel_param).lower()).first()
+                if not hotel_obj:
+                    hotel_obj = Hotel.query.filter(db.func.lower(Hotel.sigla) == str(hotel_param).lower()).first()
+
+        allowed_ids = get_user_radio_allowed_hotel_ids(user)
+        query = RadioItem.query.filter(RadioItem.status.in_(['danado', 'perdido', 'fuera_servicio']))
+
+        if hotel_obj:
+            if hotel_obj.id not in allowed_ids:
+                return jsonify({'error': 'No autorizado para esta propiedad'}), 403
+            query = query.filter(RadioItem.hotel_id == hotel_obj.id)
+        else:
+            query = query.filter(RadioItem.hotel_id.in_(allowed_ids)) if allowed_ids else query.filter(db.false())
+
+        radios = query.order_by(RadioItem.created_at.desc()).all()
+
+        if hotel_obj:
+            params['hotel_name']  = hotel_obj.name
+            params['hotel_sigla'] = hotel_obj.sigla or ''
+            params['hotel_logo']  = hotel_obj.logo  or ''
+            loc_display           = hotel_obj.name.upper()
+        else:
+            params['hotel_name']  = "TODAS LAS PROPIEDADES (RADIOS)"
+            loc_display           = "TODAS LAS PROPIEDADES (RADIOS)"
+
+        data_list = []
+        for r in radios:
+            desc = f"Radio #{r.radio_code or r.id}"
+            if r.brand:
+                desc += f" - {r.brand}"
+            if r.model:
+                desc += f" {r.model}"
+            dept_name = r.department.name if (hasattr(r, 'department') and r.department and hasattr(r.department, 'name')) else ''
+            if dept_name:
+                desc += f" ({dept_name})"
+
+            val = 0.0
+            price_attr = getattr(r, 'price', None)
+            if price_attr is not None:
+                try:
+                    val = float(price_attr)
+                except (ValueError, TypeError):
+                    val = 0.0
+
+            data_list.append({
+                'quantity': 1,
+                'value': val,
+                'serial_number': r.serial_number or f"RAD-{r.radio_code or r.id}",
+                'name': desc,
+                'brand': r.brand or '',
+                'model': r.model or '',
+                'reason': r.notes or 'Fuera de operación / Baja'
+            })
+
+        if not params.get('location'):
+            params['location'] = loc_display
+        if not params.get('date_str'):
+            params['date_str'] = format_spanish_date()
+
+        pdf_buffer = create_decommission_pdf_buffer(data_list, params)
+
+        sigla = hotel_obj.sigla if hotel_obj and hotel_obj.sigla else 'radios'
+        clean_name = sigla.replace(' ', '_').lower()
+        filename = f"Hoja_Decomiso_Radios_{clean_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        print(f"[ERROR EXPORT RADIO DECOMMISSION PDF]: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f"Error al generar PDF: {str(e)}"}), 500
 
 # ==============================================================================
 # --- MÓDULO DE RESGUARDOS Y DESCARGOS DE RADIOS (RUTAS API Y PDF) ---
@@ -7986,6 +8208,106 @@ def create_radio_item_alias():
 @app.route('/api/radios/formal-inventories', methods=['GET'])
 def get_formal_inventories_alias():
     return get_formal_inventories()
+
+
+# --- ENDPOINTS DE RESTAURACIÓN TEC-RADIOS ---
+@app.route('/api/radios/restore-backup', methods=['POST'])
+def restore_radios_backup():
+    user = get_current_user()
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Solo los administradores pueden restaurar respaldos'}), 403
+
+    payload = None
+    if 'file' in request.files:
+        file = request.files['file']
+        try:
+            content = file.read().decode('utf-8')
+            payload = json.loads(content)
+        except Exception as e:
+            return jsonify({'error': f'El archivo subido no es un JSON válido: {str(e)}'}), 400
+    elif request.json:
+        payload = request.json
+
+    if not payload:
+        return jsonify({'error': 'No se proporcionó ningún archivo de respaldo o payload JSON válido'}), 400
+
+    try:
+        backup_type = payload.get('backup_type') or request.args.get('type') or 'radios_only'
+        created = 0
+        updated = 0
+        errors = []
+
+        radios_data = payload.get('radios', [])
+        if not isinstance(radios_data, list):
+            return jsonify({'error': 'El formato de radios en el archivo de respaldo no es una lista válida'}), 400
+
+        for item_data in radios_data:
+            try:
+                s_num = (item_data.get('serial_number') or '').strip()
+                r_code = (item_data.get('radio_code') or '').strip()
+                r_id = item_data.get('id')
+
+                existing = None
+                if r_id:
+                    existing = RadioItem.query.get(r_id)
+                if not existing and s_num:
+                    existing = RadioItem.query.filter_by(serial_number=s_num).first()
+                if not existing and r_code:
+                    existing = RadioItem.query.filter_by(radio_code=r_code).first()
+
+                if existing:
+                    existing.hotel_id = item_data.get('hotel_id', existing.hotel_id)
+                    existing.department_id = item_data.get('department_id', existing.department_id)
+                    existing.subdepartment_id = item_data.get('subdepartment_id', existing.subdepartment_id)
+                    existing.brand = item_data.get('brand', existing.brand)
+                    existing.model = item_data.get('model', existing.model)
+                    existing.serial_number = s_num or existing.serial_number
+                    existing.radio_code = r_code or existing.radio_code
+                    existing.status = item_data.get('status', existing.status)
+                    existing.assigned_person_name = item_data.get('assigned_person_name', existing.assigned_person_name)
+                    existing.assigned_employee_id = item_data.get('assigned_employee_id', existing.assigned_employee_id)
+                    existing.assigned_position = item_data.get('assigned_position', existing.assigned_position)
+                    existing.assigned_date = item_data.get('assigned_date', existing.assigned_date)
+                    existing.notes = item_data.get('notes', existing.notes)
+                    sync_radio_status_with_custodian(existing)
+                    updated += 1
+                else:
+                    new_r = RadioItem(
+                        hotel_id=item_data.get('hotel_id', 1),
+                        department_id=item_data.get('department_id'),
+                        subdepartment_id=item_data.get('subdepartment_id'),
+                        brand=item_data.get('brand', 'Motorola'),
+                        model=item_data.get('model', ''),
+                        serial_number=s_num or f"SN-RESTORE-{datetime.now().strftime('%M%S')}",
+                        radio_code=r_code,
+                        status=item_data.get('status', 'disponible'),
+                        assigned_person_name=item_data.get('assigned_person_name', ''),
+                        assigned_employee_id=item_data.get('assigned_employee_id', ''),
+                        assigned_position=item_data.get('assigned_position', ''),
+                        assigned_date=item_data.get('assigned_date', ''),
+                        notes=item_data.get('notes', '')
+                    )
+                    sync_radio_status_with_custodian(new_r)
+                    db.session.add(new_r)
+                    created += 1
+            except Exception as ex:
+                errors.append(f"Error procesando radio {item_data.get('serial_number') or item_data.get('radio_code')}: {str(ex)}")
+
+        db.session.commit()
+        log_activity(user.username, 'Restauración de Respaldo Radios', f"Respaldo cargado: {created} creadas, {updated} actualizadas en TEC-RADIOS.")
+
+        return jsonify({
+            'message': f'Restauración completada con éxito. Registros creados: {created}, actualizados: {updated}.',
+            'created': created,
+            'updated': updated,
+            'errors': errors
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al procesar la restauración del respaldo: {str(e)}'}), 500
+
+
 
 
 

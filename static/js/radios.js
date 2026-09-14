@@ -58,6 +58,32 @@ window.closeModal = function (modalId) {
     if (m) m.classList.remove('active');
 };
 
+window.updateRadioConditionCards = function () {
+    const radioNuevo = document.getElementById('rad-cond-nuevo');
+    const cardNew = document.getElementById('rad-cond-new-card');
+    const cardUsed = document.getElementById('rad-cond-used-card');
+
+    if (cardNew && cardUsed && radioNuevo) {
+        if (radioNuevo.checked) {
+            cardNew.style.border = '2px solid #2563eb';
+            cardNew.style.background = '#eff6ff';
+            cardNew.style.color = '#1e40af';
+
+            cardUsed.style.border = '1px solid #cbd5e1';
+            cardUsed.style.background = '#ffffff';
+            cardUsed.style.color = '#64748b';
+        } else {
+            cardUsed.style.border = '2px solid #475569';
+            cardUsed.style.background = '#f8fafc';
+            cardUsed.style.color = '#0f172a';
+
+            cardNew.style.border = '1px solid #cbd5e1';
+            cardNew.style.background = '#ffffff';
+            cardNew.style.color = '#64748b';
+        }
+    }
+};
+
 window.openNewRadioModal = async function () {
     const modal = document.getElementById('modal-radio-item');
     if (modal) {
@@ -65,6 +91,15 @@ window.openNewRadioModal = async function () {
         const idField = document.getElementById('rad-form-id');
         if (idField) idField.value = '';
         
+        // Inicializar Condición y Accesorios por defecto
+        const radioNuevo = document.getElementById('rad-cond-nuevo');
+        if (radioNuevo) radioNuevo.checked = true;
+        if (typeof updateRadioConditionCards === 'function') updateRadioConditionCards();
+
+        document.querySelectorAll('.rad-form-acc-check').forEach(cb => {
+            cb.checked = ['Antena', 'Cargador', 'Batería'].includes(cb.value);
+        });
+
         const urlInp = document.getElementById('rad-form-image-url');
         if (urlInp) urlInp.value = '';
         const previewImg = document.getElementById('rad-form-img-preview');
@@ -179,7 +214,7 @@ window.switchRadioTab = function (targetTab) {
     // 2. Control de visibilidad del filtro de propiedad en el header
     const propContainer = document.querySelector('.radios-header-property');
     if (propContainer) {
-        if (isRadioQueryUser || targetTab === 'tab-formal-inv' || targetTab === 'tab-search' || targetTab === 'tab-incidents') {
+        if (isRadioQueryUser || targetTab === 'tab-search' || targetTab === 'tab-incidents') {
             propContainer.style.display = 'none';
         } else {
             propContainer.style.display = 'flex';
@@ -202,7 +237,7 @@ window.switchRadioTab = function (targetTab) {
             loadDashboard();
             break;
         case 'tab-inventory':
-            loadRadiosList();
+            loadRadiosList(window.currentRadiosStatusFilter || 'all');
             break;
         case 'tab-search':
             initSearchTab();
@@ -1276,19 +1311,21 @@ async function loadRadioNotifications() {
         });
         window._hasInitialNotifCheck = true;
 
-        // Actualizar campana en header si existe indicador
+        // Actualizar campana en header con badge numérico dinámico
         const bellIconBtn = document.getElementById('btn-notifications-icon');
         if (bellIconBtn) {
-            let dot = bellIconBtn.querySelector('.rad-notif-dot');
+            let badge = bellIconBtn.querySelector('.rad-notif-badge, .rad-notif-dot');
             if (unreadCount > 0) {
-                if (!dot) {
-                    dot = document.createElement('span');
-                    dot.className = 'rad-notif-dot';
-                    dot.style.cssText = 'position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 6px #ef4444;';
-                    bellIconBtn.appendChild(dot);
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'rad-notif-badge';
+                    badge.style.cssText = 'position: absolute; top: -2px; right: -4px; background: #dc2626; color: #ffffff; font-size: 0.65rem; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 16px; text-align: center; border: 1.5px solid #ffffff; box-shadow: 0 2px 5px rgba(220, 38, 38, 0.4); line-height: 1.2;';
+                    bellIconBtn.appendChild(badge);
                 }
-            } else if (dot) {
-                dot.remove();
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'inline-block';
+            } else if (badge) {
+                badge.remove();
             }
         }
 
@@ -1381,7 +1418,39 @@ window.openEditRadioModal = async function (rId) {
         document.getElementById('rad-form-brand').value = r.brand || 'Motorola';
         document.getElementById('rad-form-model').value = r.model || 'R7';
         document.getElementById('rad-form-status').value = r.status || 'operativo';
-        document.getElementById('rad-form-notes').value = r.notes || '';
+
+        // Parsear Condición y Accesorios desde r.notes
+        const rawNotes = r.notes || '';
+        let cleanNotes = rawNotes;
+
+        const radNuevo = document.getElementById('rad-cond-nuevo');
+        const radUsado = document.getElementById('rad-cond-usado');
+        if (rawNotes.toLowerCase().includes('condición: usado') || rawNotes.toLowerCase().includes('condicion: usado')) {
+            if (radUsado) radUsado.checked = true;
+        } else if (rawNotes.toLowerCase().includes('condición: nuevo') || rawNotes.toLowerCase().includes('condicion: nuevo')) {
+            if (radNuevo) radNuevo.checked = true;
+        } else {
+            if (radNuevo) radNuevo.checked = true;
+        }
+        if (typeof updateRadioConditionCards === 'function') updateRadioConditionCards();
+
+        const accCheckboxes = document.querySelectorAll('.rad-form-acc-check');
+        if (rawNotes.includes('Accesorios:')) {
+            const accMatch = rawNotes.match(/Accesorios:\s*([^|]+)/i);
+            const accStr = accMatch ? accMatch[1] : '';
+            accCheckboxes.forEach(cb => {
+                cb.checked = accStr.toLowerCase().includes(cb.value.toLowerCase());
+            });
+
+            const obsMatch = rawNotes.match(/Obs:\s*(.*)/i);
+            cleanNotes = obsMatch ? obsMatch[1].trim() : '';
+        } else {
+            accCheckboxes.forEach(cb => {
+                cb.checked = rawNotes.toLowerCase().includes(cb.value.toLowerCase());
+            });
+        }
+
+        document.getElementById('rad-form-notes').value = cleanNotes;
 
         const imgUrl = r.image_url || r.imageUrl || '';
         const urlInp = document.getElementById('rad-form-image-url');
@@ -1478,12 +1547,15 @@ window.openAssignRadioModal = async function (rId) {
 window.currentRadiosStatusFilter = 'all';
 
 window.filterRadiosByDashboardStatus = function (statusKey) {
-    window.currentRadiosStatusFilter = statusKey || 'all';
-    switchRadioTab('tab-inventory');
+    const targetStatus = statusKey || 'all';
+    window.currentRadiosStatusFilter = targetStatus;
+    
     const sel = document.getElementById('rad-filter-status-select');
-    if (sel) sel.value = window.currentRadiosStatusFilter;
-    updateActiveFilterBadge(window.currentRadiosStatusFilter);
-    loadRadiosList(window.currentRadiosStatusFilter);
+    if (sel) sel.value = targetStatus;
+
+    updateActiveFilterBadge(targetStatus);
+    switchRadioTab('tab-inventory');
+    loadRadiosList(targetStatus);
 };
 
 function updateActiveFilterBadge(statusKey) {
@@ -1694,6 +1766,55 @@ function openFormalInventory(inventory) {
     renderFormalInventoryItems();
 }
 
+window.addObsFromSelect = function(sel) {
+    const val = sel.value;
+    if (!val) return;
+    const row = sel.closest('tr');
+    if (!row) return;
+    const inp = row.querySelector('.rad-inv-notes-inp');
+    if (!inp) return;
+    
+    if (val === '__CLEAR__') {
+        inp.value = '';
+        sel.value = '';
+        return;
+    }
+
+    let currentVal = inp.value.trim();
+    let tags = currentVal ? currentVal.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    if (!tags.includes(val)) {
+        tags.push(val);
+    }
+    inp.value = tags.join(', ');
+    sel.value = '';
+};
+
+window.updateRowLocatedBadge = function(chk) {
+    const row = chk.closest('tr');
+    if (!row) return;
+    const badge = row.querySelector('.located-status-badge');
+    if (badge) {
+        if (chk.checked) {
+            badge.className = 'badge bg-success located-status-badge';
+            badge.innerHTML = '<i class="fa-solid fa-check me-1"></i> Localizado';
+        } else {
+            badge.className = 'badge bg-secondary located-status-badge';
+            badge.innerHTML = 'No Localizado';
+        }
+    }
+    if (activeFormalInventory) {
+        const itemId = row.dataset.itemId;
+        const item = activeFormalInventory.items.find(i => String(i.id) === String(itemId));
+        if (item) item.confirmed = chk.checked;
+        const confirmed = activeFormalInventory.items.filter(i => i.confirmed).length;
+        const progressEl = document.getElementById('rad-formal-progress');
+        if (progressEl) {
+            progressEl.textContent = `${confirmed} verificados · ${activeFormalInventory.items.length - confirmed} pendientes`;
+        }
+    }
+};
+
 function renderFormalInventoryItems() {
     if (!activeFormalInventory) return;
     const term = (document.getElementById('rad-formal-search')?.value || '').toLowerCase().trim();
@@ -1713,13 +1834,25 @@ function renderFormalInventoryItems() {
     const confirmed = activeFormalInventory.items.filter(i => i.confirmed).length;
     document.getElementById('rad-formal-progress').textContent = `${confirmed} verificados · ${activeFormalInventory.items.length - confirmed} pendientes`;
     
+    const presetObs = [
+        { val: 'Sin Antena', label: '📻 Sin Antena' },
+        { val: 'Sin Cargador', label: '⚡ Sin Cargador' },
+        { val: 'Batería Mala', label: '🔋 Batería Mala / Agotada' },
+        { val: 'Sin Clip', label: '📎 Sin Clip / Funda' },
+        { val: 'Carcasa Dañada', label: '🔨 Carcasa Dañada' },
+        { val: 'Pantalla Rota', label: '📱 Pantalla Rota' },
+        { val: 'Equipo OK', label: '👍 Equipo 100% OK' }
+    ];
+
     tbody.innerHTML = items.map(i => {
         const person = i.assignedPerson || {};
         const brandModel = `${escapeHtml(i.radio_brand || 'Motorola')} ${escapeHtml(i.radio_model || '')}`.trim();
         const locBadge = escapeHtml(i.full_location || 'Sin Asignar');
+        const currentNotes = i.notes || '';
+
+        const selectOptionsHtml = presetObs.map(opt => `<option value="${opt.val}">${opt.label}</option>`).join('');
 
         return `<tr data-item-id="${i.id}" data-radio-id="${i.radioId}">
-          <td style="text-align: center;"><input type="checkbox" class="chk-formal-item" ${i.confirmed ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;"></td>
           <td><strong style="color:#2563eb;">#${escapeHtml(i.radio_code)}</strong></td>
           <td><code style="font-size: 0.85rem; font-weight: 700;">${escapeHtml(i.serialNumber)}</code></td>
           <td><span style="font-size: 0.83rem; font-weight: 600; color: #334155;">${brandModel}</span></td>
@@ -1738,7 +1871,20 @@ function renderFormalInventoryItems() {
                 <i class="fa-solid fa-right-left me-1"></i> Transferir
             </button>
           </td>
-          <td><input class="form-control form-control-sm rad-inv-notes-inp" value="${escapeHtml(i.notes || '')}" placeholder="Condición, ubicación u observación"></td>
+          <td>
+            <select class="form-control form-control-sm mb-1" style="font-weight: 600; color: #3b82f6;" onchange="addObsFromSelect(this)">
+                <option value="">+ Seleccionar Sugerencia...</option>
+                ${selectOptionsHtml}
+                <option value="__CLEAR__">❌ Limpiar Observaciones</option>
+            </select>
+            <input class="form-control form-control-sm rad-inv-notes-inp" id="rad-inv-notes-${i.id}" value="${escapeHtml(currentNotes)}" placeholder="Condición, ubicación u observación...">
+          </td>
+          <td style="text-align: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+              <input type="checkbox" class="chk-formal-item" ${i.confirmed ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;" onchange="updateRowLocatedBadge(this)">
+              <span class="badge ${i.confirmed ? 'bg-success' : 'bg-secondary'} located-status-badge" style="font-size: 0.68rem; padding: 2px 5px;">${i.confirmed ? '<i class="fa-solid fa-check me-1"></i> Localizado' : 'No Localizado'}</span>
+            </div>
+          </td>
         </tr>`;
     }).join('') || '<tr><td colspan="10" class="text-center p-4 text-secondary">No hay coincidencias.</td></tr>';
 }
@@ -1928,32 +2074,127 @@ function initTransferRadioModalListener() {
 
 async function finishFormalInventory() {
     if (!activeFormalInventory) return;
+    
+    // 1. Sincronizar filas de la tabla con el objeto en memoria
     const rows = [...document.querySelectorAll('#rad-formal-inv-table-tbody tr[data-item-id]')];
     rows.forEach(row => {
         const item = activeFormalInventory.items.find(i => String(i.id) === row.dataset.itemId);
-        item.confirmed = row.querySelector('.chk-formal-item').checked;
-        item.verifiedStatus = row.querySelector('.rad-inv-status-sel').value;
-        item.notes = row.querySelector('.rad-inv-notes-inp').value;
-        item.assignedPerson = { 
-            name: row.querySelector('.inv-person').value, 
-            employeeId: row.querySelector('.inv-employee').value, 
-            position: row.querySelector('.inv-position')?.value || '' 
-        };
+        if (item) {
+            item.confirmed = row.querySelector('.chk-formal-item').checked;
+            item.verifiedStatus = row.querySelector('.rad-inv-status-sel').value;
+            item.notes = row.querySelector('.rad-inv-notes-inp').value;
+            item.assignedPerson = { 
+                name: row.querySelector('.inv-person').value, 
+                employeeId: row.querySelector('.inv-employee').value, 
+                position: row.querySelector('.inv-position')?.value || '' 
+            };
+        }
     });
-    const pending = activeFormalInventory.items.filter(i => !i.confirmed).length;
-    if (!confirm(`Finalizar inventario: ${pending} radio(s) quedarán pendientes por inventariar. Podrás continuarlo después.`)) return;
-    const res = await fetch(`/api/radios/inventories/${activeFormalInventory.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'completado', items:activeFormalInventory.items})});
-    const data = await res.json();
-    if (!res.ok) return alert(data.error || 'No se pudo finalizar el inventario.');
-    activeFormalInventory = null;
-    alert(`Inventario finalizado con éxito.`);
-    document.getElementById('rad-formal-start').style.display = 'block';
-    document.getElementById('rad-formal-workspace').style.display = 'none';
-    document.getElementById('btn-start-formal-inv').style.display = 'inline-block';
-    document.getElementById('btn-finish-formal-inv').style.display = 'none';
-    const btnCancel = document.getElementById('btn-cancel-formal-inv');
-    if (btnCancel) btnCancel.style.display = 'none';
-    loadDashboard();
+
+    // 2. Métricas y estadísticas
+    const total = activeFormalInventory.items.length;
+    const foundItems = activeFormalInventory.items.filter(i => i.confirmed);
+    const missingItems = activeFormalInventory.items.filter(i => !i.confirmed);
+    
+    const issuesItems = activeFormalInventory.items.filter(i => 
+        i.verifiedStatus === 'danado' || 
+        i.verifiedStatus === 'requiere_revision' || 
+        i.verifiedStatus === 'fuera_servicio' || 
+        i.verifiedStatus === 'perdido' ||
+        (i.notes && i.notes.trim() !== '' && !i.notes.toLowerCase().includes('equipo ok'))
+    );
+
+    // 3. Poblar tarjetas del modal
+    document.getElementById('inv-sum-total').textContent = total;
+    document.getElementById('inv-sum-found').textContent = foundItems.length;
+    document.getElementById('inv-sum-missing').textContent = missingItems.length;
+    document.getElementById('inv-sum-issues').textContent = issuesItems.length;
+
+    // Desglose de observaciones de condición/accesorios
+    const obsCounts = {};
+    activeFormalInventory.items.forEach(i => {
+        if (i.notes) {
+            const parts = i.notes.split(',').map(s => s.trim()).filter(Boolean);
+            parts.forEach(p => {
+                obsCounts[p] = (obsCounts[p] || 0) + 1;
+            });
+        }
+    });
+
+    const obsContainer = document.getElementById('inv-sum-obs-badges');
+    if (obsContainer) {
+        const entries = Object.entries(obsCounts);
+        if (entries.length === 0) {
+            obsContainer.innerHTML = '<span class="text-secondary" style="font-size: 0.85rem;">No se registraron observaciones específicas.</span>';
+        } else {
+            obsContainer.innerHTML = entries.map(([tag, count]) => 
+                `<span class="badge bg-light text-dark border p-2" style="font-size: 0.83rem;">
+                    <strong>${escapeHtml(tag)}:</strong> ${count} radio(s)
+                </span>`
+            ).join('');
+        }
+    }
+
+    // Tabla de Radios No Localizadas
+    const missingCountEl = document.getElementById('inv-sum-missing-count');
+    if (missingCountEl) missingCountEl.textContent = missingItems.length;
+
+    const missingTbody = document.getElementById('inv-sum-missing-tbody');
+    if (missingTbody) {
+        if (missingItems.length === 0) {
+            missingTbody.innerHTML = '<tr><td colspan="5" class="text-center p-3 text-success font-weight-bold"><i class="fa-solid fa-circle-check me-1"></i> ¡Excelente! Todas las radios fueron localizadas.</td></tr>';
+        } else {
+            missingTbody.innerHTML = missingItems.map(i => {
+                const person = i.assignedPerson || {};
+                const personStr = person.name ? `${escapeHtml(person.name)} (${escapeHtml(person.employeeId || 's/f')})` : 'Sin Asignar';
+                return `<tr>
+                    <td><strong style="color:#dc2626;">#${escapeHtml(i.radio_code)}</strong></td>
+                    <td><code>${escapeHtml(i.serialNumber)}</code></td>
+                    <td>${escapeHtml(i.radio_brand || 'Motorola')} ${escapeHtml(i.radio_model || '')}</td>
+                    <td><span class="badge bg-light text-dark border">${escapeHtml(i.full_location || 'Sin Asignar')}</span></td>
+                    <td><span style="font-weight:600;">${personStr}</span></td>
+                </tr>`;
+            }).join('');
+        }
+    }
+
+    // Listener del botón de confirmación en el modal
+    const btnConfirm = document.getElementById('btn-confirm-finish-inventory');
+    if (btnConfirm) {
+        btnConfirm.onclick = async function() {
+            try {
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...';
+                
+                const res = await fetch(`/api/radios/inventories/${activeFormalInventory.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'completado', items: activeFormalInventory.items })
+                });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'No se pudo finalizar el inventario.');
+                
+                closeModal('modal-finish-inventory-summary');
+                activeFormalInventory = null;
+                alert(`Inventario finalizado y guardado con éxito.`);
+                document.getElementById('rad-formal-start').style.display = 'block';
+                document.getElementById('rad-formal-workspace').style.display = 'none';
+                document.getElementById('btn-start-formal-inv').style.display = 'inline-block';
+                document.getElementById('btn-finish-formal-inv').style.display = 'none';
+                const btnCancel = document.getElementById('btn-cancel-formal-inv');
+                if (btnCancel) btnCancel.style.display = 'none';
+                loadDashboard();
+            } catch(err) {
+                console.error('Error al finalizar inventario:', err);
+                alert('Error de conexión al guardar el inventario.');
+            } finally {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = '<i class="fa-solid fa-check-double me-1"></i> Confirmar y Guardar Inventario';
+            }
+        };
+    }
+
+    openModal('modal-finish-inventory-summary');
 }
 
 async function cancelFormalInventory() {
@@ -1981,8 +2222,148 @@ async function cancelFormalInventory() {
 }
 
 // -------------------------------------------------------------------------
-// 5. TAB MI INVENTARIO
-// -------------------------------------------------------------------------
+window.printInventoryReport = async function(invArg) {
+    let inv = null;
+    if (typeof invArg === 'object' && invArg !== null) {
+        inv = invArg;
+    } else if (invArg) {
+        try {
+            const res = await fetch(`/api/radios/inventories/${invArg}`);
+            if (res.ok) inv = await res.json();
+        } catch(e) {
+            console.error('Error cargando inventario para imprimir:', e);
+        }
+    }
+    if (!inv) return alert('No se encontraron los datos del inventario para imprimir.');
+
+    const total = inv.totalExpected || (inv.items ? inv.items.length : 0);
+    const confirmed = (inv.confirmedCount !== undefined && inv.confirmedCount !== null) 
+                        ? inv.confirmedCount 
+                        : (inv.items ? inv.items.filter(i => i.confirmed).length : 0);
+    const missing = total - confirmed;
+    const missingItems = inv.items ? inv.items.filter(i => !i.confirmed) : [];
+
+    const obsCounts = {};
+    if (inv.items) {
+        inv.items.forEach(i => {
+            if (i.notes) {
+                const parts = i.notes.split(',').map(s => s.trim()).filter(Boolean);
+                parts.forEach(p => obsCounts[p] = (obsCounts[p] || 0) + 1);
+            }
+        });
+    }
+
+    const obsRowsHtml = Object.entries(obsCounts).map(([tag, cnt]) => `
+        <span style="display:inline-block; background:#f1f5f9; border:1px solid #cbd5e1; padding:4px 8px; border-radius:4px; margin:2px 4px; font-size:12px;">
+            <strong>${escapeHtml(tag)}:</strong> ${cnt} radio(s)
+        </span>
+    `).join('') || '<em>Sin observaciones particulares registradas.</em>';
+
+    const missingRowsHtml = missingItems.length > 0 ? missingItems.map((i, idx) => {
+        const p = i.assignedPerson || {};
+        const pStr = p.name ? `${escapeHtml(p.name)} (${escapeHtml(p.employeeId || 'S/N')})` : 'Sin Custodio';
+        return `
+        <tr>
+            <td style="text-align:center;">${idx + 1}</td>
+            <td><strong style="color:#b91c1c;">#${escapeHtml(i.radio_code)}</strong></td>
+            <td><code>${escapeHtml(i.serialNumber)}</code></td>
+            <td>${escapeHtml(i.radio_brand || 'Motorola')} ${escapeHtml(i.radio_model || '')}</td>
+            <td>${escapeHtml(i.full_location || 'Sin Asignar')}</td>
+            <td>${pStr}</td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="6" style="text-align:center; padding:12px; color:#047857; font-weight:bold;">¡Todas las radios de la propiedad fueron localizadas!</td></tr>`;
+
+    const printWin = window.open('', '_blank');
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Informe de Inventario - ${escapeHtml(inv.inventory_code)}</title>
+            <style>
+                @page { size: portrait; margin: 12mm; }
+                body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 15px; margin: 0; }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px; }
+                .title { font-size: 20px; font-weight: bold; color: #0f172a; margin: 0; }
+                .subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+                .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 6px; font-size: 12px; }
+                .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; text-align: center; }
+                .metric-card { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; }
+                .metric-card.total { background: #f1f5f9; }
+                .metric-card.found { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+                .metric-card.missing { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+                .metric-val { font-size: 22px; font-weight: bold; margin-top: 4px; }
+                .section-title { font-size: 13px; font-weight: bold; color: #0f172a; margin: 16px 0 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; text-transform: uppercase; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+                th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+                td { border: 1px solid #e2e8f0; padding: 6px 8px; }
+                .signatures { display: flex; justify-content: space-around; margin-top: 50px; page-break-inside: avoid; }
+                .sig-box { text-align: center; width: 220px; border-top: 1px solid #000; padding-top: 6px; font-size: 11px; font-weight: bold; }
+            </style>
+        </head>
+        <body onload="window.print();">
+            <div class="header">
+                <div>
+                    <h1 class="title">REPORTE FORMAL DE INVENTARIO DE RADIOS</h1>
+                    <div class="subtitle">THE EXCELLENCE COLLECTION · TEC-RADIOS</div>
+                </div>
+                <div style="text-align: right;">
+                    <strong style="font-size: 16px; color: #2563eb;">${escapeHtml(inv.inventory_code)}</strong><br>
+                    <span style="font-size: 11px; color: #64748b;">Estado: ${escapeHtml((inv.status || '').toUpperCase())}</span>
+                </div>
+            </div>
+
+            <div class="meta-grid">
+                <div><strong>Propiedad:</strong><br>${escapeHtml(inv.property_name || 'N/A')}</div>
+                <div><strong>Fecha de Creación:</strong><br>${escapeHtml(inv.createdAt || 'N/A')}</div>
+                <div><strong>Completado en:</strong><br>${escapeHtml(inv.completedAt || 'En curso')}</div>
+                <div><strong>Auditor / Creador:</strong><br>${escapeHtml(inv.createdBy || 'Sistema')}</div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card total">
+                    <div>TOTAL ESPERADO</div>
+                    <div class="metric-val">${total}</div>
+                </div>
+                <div class="metric-card found">
+                    <div>RADIOS LOCALIZADAS</div>
+                    <div class="metric-val">${confirmed}</div>
+                </div>
+                <div class="metric-card missing">
+                    <div>NO LOCALIZADAS / PENDIENTES</div>
+                    <div class="metric-val">${missing}</div>
+                </div>
+            </div>
+
+            <div class="section-title">Resumen de Condiciones y Observaciones Registradas</div>
+            <div style="margin-bottom: 12px;">${obsRowsHtml}</div>
+
+            <div class="section-title">Detalle de Radios No Localizadas (${missing})</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 30px; text-align:center;">#</th>
+                        <th style="width: 70px;">ID Radio</th>
+                        <th style="width: 100px;">Nº Serial</th>
+                        <th>Marca / Modelo</th>
+                        <th>Ubicación / Departamento</th>
+                        <th>Custodio Registrado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${missingRowsHtml}
+                </tbody>
+            </table>
+
+            <div class="signatures">
+                <div class="sig-box">Auditor / Responsable de Inventario</div>
+                <div class="sig-box">Gerencia / Visto Bueno</div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+};
+
 async function loadMyInventory() {
     try {
         const suffix = currentPropertyId !== 'all' ? `?hotel_id=${currentPropertyId}` : '';
@@ -1998,19 +2379,26 @@ async function loadMyInventory() {
         }
         const now = Date.now();
         tbody.innerHTML = inventories.map(inv => {
-            const old = inv.createdAt && (now - new Date(inv.createdAt).getTime()) >= 240 * 86400000;
+            const canDelete = inv.can_manage !== false;
+            const confirmed = (inv.confirmedCount !== undefined && inv.confirmedCount !== null) ? inv.confirmedCount : (inv.items ? inv.items.filter(i => i.confirmed).length : 0);
             return `
             <tr>
                 <td><strong>${escapeHtml(inv.inventory_code)}</strong></td><td>${escapeHtml(inv.property_name)}</td>
-                <td>${escapeHtml(inv.createdAt)}</td><td>${inv.confirmedCount || 0} / ${inv.totalExpected}</td>
+                <td>${escapeHtml(inv.createdAt)}</td><td><span class="badge ${inv.status === 'completado' ? 'bg-success' : 'bg-primary'}" style="font-size: 0.82rem; font-weight: 700;">${confirmed} / ${inv.totalExpected}</span></td>
                 <td>${escapeHtml(inv.status || '')}</td>
-                <td><button class="btn btn-sm btn-outline btn-open-formal" data-id="${inv.id}">Ver / completar</button>
-                ${old ? `<button class="btn btn-sm btn-danger-soft btn-delete-formal" data-id="${inv.id}">Eliminar</button>` : ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline btn-open-formal" data-id="${inv.id}">Ver / completar</button>
+                    <button class="btn btn-sm btn-outline-primary btn-print-formal ms-1" data-id="${inv.id}" title="Imprimir reporte de inventario"><i class="fa-solid fa-print me-1"></i> Imprimir</button>
+                    ${canDelete ? `<button class="btn btn-sm btn-danger-soft btn-delete-formal ms-1" data-id="${inv.id}" title="Eliminar este inventario histórico"><i class="fa-solid fa-trash me-1"></i> Eliminar</button>` : ''}
+                </td>
             </tr>`;
         }).join('');
         tbody.querySelectorAll('.btn-open-formal').forEach(btn => btn.onclick = async () => {
             const detail = await fetch(`/api/radios/inventories/${btn.dataset.id}`).then(r => r.json());
             openFormalInventory(detail); window.switchRadioTab('tab-formal-inv');
+        });
+        tbody.querySelectorAll('.btn-print-formal').forEach(btn => btn.onclick = () => {
+            printInventoryReport(btn.dataset.id);
         });
         tbody.querySelectorAll('.btn-delete-formal').forEach(btn => btn.onclick = async () => {
             if (!confirm('¿Eliminar este inventario histórico? Esta acción no se puede deshacer.')) return;
@@ -2088,6 +2476,7 @@ async function loadReports() {
 // 8. TAB BAJAS Y DECOMISOS
 // -------------------------------------------------------------------------
 async function loadDecommissions() {
+    initRadioDecommissionPdfModal();
     const tbody = document.getElementById('rad-decommissions-tbody');
     if (!tbody) return;
 
@@ -3096,6 +3485,24 @@ function initRadiosModule() {
         const subdeptEl = document.getElementById('rad-form-area');
         const subdeptId = (subdeptEl && !subdeptEl.disabled && subdeptEl.value) ? subdeptEl.value : null;
 
+        const condVal = document.querySelector('input[name="rad_form_condition"]:checked')?.value || 'nuevo';
+        const condText = condVal === 'nuevo' ? 'Nuevo' : 'Usado';
+
+        const selectedAccs = [];
+        document.querySelectorAll('.rad-form-acc-check:checked').forEach(cb => {
+            selectedAccs.push(cb.value);
+        });
+
+        const extraNotes = document.getElementById('rad-form-notes')?.value.trim() || '';
+
+        let fullNotes = `Condición: ${condText}`;
+        if (selectedAccs.length > 0) {
+            fullNotes += ` | Accesorios: ${selectedAccs.join(', ')}`;
+        }
+        if (extraNotes) {
+            fullNotes += ` | Obs: ${extraNotes}`;
+        }
+
         const payload = {
             hotel_id: document.getElementById('rad-form-property').value,
             serial_number: document.getElementById('rad-form-serial').value.trim(),
@@ -3104,7 +3511,7 @@ function initRadiosModule() {
             department_id: deptId ? parseInt(deptId) : null,
             subdepartment_id: subdeptId ? parseInt(subdeptId) : null,
             status: document.getElementById('rad-form-status').value,
-            notes: document.getElementById('rad-form-notes').value.trim(),
+            notes: fullNotes,
             image_url: document.getElementById('rad-form-image-url')?.value || '',
             assigned_person_name: document.getElementById('rad-form-assigned-name')?.value.trim() || '',
             assigned_employee_id: document.getElementById('rad-form-assigned-emp-id')?.value.trim() || '',
@@ -3345,12 +3752,110 @@ function initRadiosModule() {
         }
     });
 
+    // Listener del selector de filtro de estado en inventario de radios
+    document.getElementById('rad-filter-status-select')?.addEventListener('change', function () {
+        window.currentRadiosStatusFilter = this.value;
+        updateActiveFilterBadge(this.value);
+        loadRadiosList(this.value);
+    });
+
+    // Listener del botón limpiar filtro
+    document.getElementById('btn-clear-status-filter')?.addEventListener('click', function () {
+        window.currentRadiosStatusFilter = 'all';
+        const sel = document.getElementById('rad-filter-status-select');
+        if (sel) sel.value = 'all';
+        updateActiveFilterBadge('all');
+        loadRadiosList('all');
+    });
+
+    // Listener de búsqueda por texto en la tabla de radios
+    let searchDebounce = null;
+    document.getElementById('rad-inventory-search-input')?.addEventListener('input', function () {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+            loadRadiosList();
+        }, 300);
+    });
+
+    // Listeners para botones de Copia de Seguridad (Backup) TEC-RADIOS
+    document.getElementById('btn-export-radios-backup')?.addEventListener('click', function () {
+        window.open('/api/radios/backup?type=full', '_blank');
+    });
+
+    document.getElementById('btn-export-radios-only-backup')?.addEventListener('click', function () {
+        window.open('/api/radios/backup?type=radios_only', '_blank');
+    });
+
+    // Listener para Restaurar / Cargar Radios desde archivo JSON
+    document.getElementById('form-restore-radios-backup')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('restore-radios-file');
+        const statusSpan = document.getElementById('restore-radios-status');
+        const btnSubmit = document.getElementById('btn-restore-radios-backup');
+
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            alert('Por favor selecciona un archivo de respaldo JSON.');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        if (!file.name.endsWith('.json')) {
+            alert('El archivo debe tener extensión .json');
+            return;
+        }
+
+        if (statusSpan) {
+            statusSpan.style.color = '#2563eb';
+            statusSpan.textContent = 'Procesando restauración...';
+        }
+        if (btnSubmit) btnSubmit.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/radios/restore-backup', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                if (statusSpan) {
+                    statusSpan.style.color = '#166534';
+                    statusSpan.textContent = data.message || 'Restauración completada.';
+                }
+                alert(`¡Restauración Exitosa!\n${data.message || ''}`);
+                document.getElementById('form-restore-radios-backup').reset();
+                if (typeof loadDashboard === 'function') loadDashboard();
+                if (typeof loadRadiosList === 'function') loadRadiosList();
+            } else {
+                if (statusSpan) {
+                    statusSpan.style.color = '#dc2626';
+                    statusSpan.textContent = data.error || 'Error al restaurar.';
+                }
+                alert('Error al restaurar respaldo: ' + (data.error || 'Error desconocido'));
+            }
+        } catch (err) {
+            console.error('Error restaurando respaldo:', err);
+            if (statusSpan) {
+                statusSpan.style.color = '#dc2626';
+                statusSpan.textContent = 'Error de red al procesar el archivo.';
+            }
+            alert('Error de conexión al subir el respaldo.');
+        } finally {
+            if (btnSubmit) btnSubmit.disabled = false;
+        }
+    });
+
     // Inicializar listener del modal de transferencia en inventario
     if (typeof initTransferRadioModalListener === 'function') {
         initTransferRadioModalListener();
     }
 
     // Cargas iniciales
+    loadAuthorizedProperties();
+    loadCurrentUser();
     loadDashboard();
     loadRadioNotifications();
 }
@@ -3935,15 +4440,18 @@ function selectDescargoMode(mode) {
     const cardRes = document.getElementById('desc-mode-resguardo-card');
     const cardMan = document.getElementById('desc-mode-manual-card');
     const flowPanel = document.getElementById('desc-panel-resguardo-flow');
+    const manualSearchBox = document.getElementById('desc-manual-radio-search-box');
 
     if (mode === 'resguardo') {
         if (cardRes) { cardRes.style.border = '2px solid #2563eb'; cardRes.style.background = '#eff6ff'; }
         if (cardMan) { cardMan.style.border = '1px solid #cbd5e1'; cardMan.style.background = '#ffffff'; }
         if (flowPanel) flowPanel.style.display = 'block';
+        if (manualSearchBox) manualSearchBox.style.display = 'none';
     } else {
         if (cardRes) { cardRes.style.border = '1px solid #cbd5e1'; cardRes.style.background = '#ffffff'; }
         if (cardMan) { cardMan.style.border = '2px solid #475569'; cardMan.style.background = '#f8fafc'; }
         if (flowPanel) flowPanel.style.display = 'none';
+        if (manualSearchBox) manualSearchBox.style.display = 'block';
     }
 }
 
@@ -3951,6 +4459,11 @@ async function openNewDescargoModal() {
     currentDescargoItems = [];
     document.getElementById('form-create-descargo')?.reset();
     selectDescargoMode('resguardo');
+
+    const msgBox = document.getElementById('desc-colab-status-msg');
+    if (msgBox) msgBox.style.display = 'none';
+    const manualMsg = document.getElementById('desc-manual-radio-msg');
+    if (manualMsg) manualMsg.style.display = 'none';
 
     const hotelSel = document.getElementById('desc-form-hotel');
     if (hotelSel) {
@@ -3980,6 +4493,201 @@ async function openNewDescargoModal() {
 
     renderDescargoItemsList();
     openModal('modal-create-descargo');
+}
+
+async function searchCollaboratorForDescargoManual() {
+    const empInput = document.getElementById('desc-form-emp-id');
+    const nameInput = document.getElementById('desc-form-emp-name');
+    const posInput = document.getElementById('desc-form-emp-position');
+    const msgBox = document.getElementById('desc-colab-status-msg');
+    const hotelSel = document.getElementById('desc-form-hotel');
+
+    if (!empInput || !empInput.value.trim()) return;
+
+    const empId = empInput.value.trim();
+    const targetHotelId = hotelSel ? hotelSel.value : currentPropertyId;
+
+    if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.className = 'alert alert-info';
+        msgBox.style.background = '#eff6ff';
+        msgBox.style.color = '#1d4ed8';
+        msgBox.style.border = '1px solid #bfdbfe';
+        msgBox.style.borderRadius = '8px';
+        msgBox.style.padding = '10px 14px';
+        msgBox.style.fontSize = '12.5px';
+        msgBox.style.fontWeight = '600';
+        msgBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Consultando colaborador e inventario de radios asignadas...';
+    }
+
+    try {
+        let radios = [];
+        const res = await fetch(`/api/radios/by-collaborator/${encodeURIComponent(empId)}?hotel_id=${targetHotelId}`);
+        if (res.ok) {
+            radios = await res.json();
+        }
+
+        let colabName = nameInput ? nameInput.value.trim() : '';
+        let colabPos = posInput ? posInput.value.trim() : '';
+
+        if (!colabName) {
+            try {
+                const recRes = await fetch(`/api/radios/receipts/collaborator/${encodeURIComponent(empId)}`);
+                if (recRes.ok) {
+                    const docs = await recRes.json();
+                    if (docs && docs.length > 0) {
+                        const lastDoc = docs[0];
+                        if (lastDoc.collaborator_name) colabName = lastDoc.collaborator_name;
+                        if (lastDoc.collaborator_position) colabPos = lastDoc.collaborator_position;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        if (radios && radios.length > 0) {
+            for (const r of radios) {
+                const info = getCollaboratorInfoFromRadio(r);
+                if (info.name && !colabName) colabName = info.name;
+                if (info.position && !colabPos) colabPos = info.position;
+            }
+        }
+
+        if (nameInput && colabName) nameInput.value = colabName;
+        if (posInput && colabPos) posInput.value = colabPos;
+
+        if (!radios || radios.length === 0) {
+            currentDescargoItems = [];
+            renderDescargoItemsList();
+
+            if (msgBox) {
+                msgBox.style.display = 'block';
+                msgBox.className = 'alert alert-warning';
+                msgBox.style.background = '#fef3c7';
+                msgBox.style.color = '#92400e';
+                msgBox.style.border = '1px solid #fde68a';
+                msgBox.style.borderRadius = '8px';
+                msgBox.style.padding = '10px 14px';
+                msgBox.style.fontSize = '12.5px';
+                msgBox.style.fontWeight = '700';
+                msgBox.innerHTML = `<i class="fa-solid fa-circle-exclamation me-2" style="font-size: 15px; color: #d97706;"></i> El colaborador No. <strong>${escapeHtml(empId)}</strong> (${escapeHtml(colabName || 'Sin Nombre')}) no tiene ninguna radio asignada actualmente.`;
+            }
+
+            if (window.showToast) {
+                showToast(`El colaborador No. ${empId} no tiene radios asignadas actualmente.`, 'warning');
+            }
+        } else {
+            currentDescargoItems = radios.map(r => ({
+                original_item_id: null,
+                radio_id: parseInt(r.id),
+                radio_code: r.radio_code || r.id.toString(),
+                serial_number: r.serial_number,
+                model: r.model || '',
+                department_name: r.department_name || (r.department ? r.department.name : ''),
+                subdepartment_name: r.subdepartment_name || (r.subdepartment ? r.subdepartment.name : ''),
+                cost_usd: r.cost_usd || 500.00,
+                is_new: false,
+                accessories_delivered: ['Antena', 'Cargador', 'Pila'],
+                accessories_returned: ['Antena', 'Cargador', 'Pila'],
+                selected_for_descargo: true
+            }));
+
+            renderDescargoItemsList();
+
+            if (msgBox) {
+                msgBox.style.display = 'block';
+                msgBox.className = 'alert alert-success';
+                msgBox.style.background = '#dcfce7';
+                msgBox.style.color = '#166534';
+                msgBox.style.border = '1px solid #bbf7d0';
+                msgBox.style.borderRadius = '8px';
+                msgBox.style.padding = '10px 14px';
+                msgBox.style.fontSize = '12.5px';
+                msgBox.style.fontWeight = '700';
+                msgBox.innerHTML = `<i class="fa-solid fa-circle-check me-2" style="font-size: 15px; color: #16a34a;"></i> Se cargaron automáticamente <strong>${radios.length}</strong> radio(s) asignadas al colaborador <strong>${escapeHtml(colabName || empId)}</strong>.`;
+            }
+
+            if (window.showToast) {
+                showToast(`Se cargaron ${radios.length} radio(s) asignadas al colaborador ${empId}`, 'success');
+            }
+        }
+    } catch (err) {
+        console.error('Error buscando colaborador en descargo:', err);
+        if (msgBox) {
+            msgBox.style.display = 'block';
+            msgBox.className = 'alert alert-danger';
+            msgBox.innerText = 'Error al consultar datos del colaborador.';
+        }
+    }
+}
+
+async function searchAndAddSingleRadioToDescargoManual() {
+    const input = document.getElementById('desc-manual-radio-search-input');
+    const msgEl = document.getElementById('desc-manual-radio-msg');
+    const hotelSel = document.getElementById('desc-form-hotel');
+
+    if (!input || !input.value.trim()) return;
+
+    const query = input.value.trim().toLowerCase();
+    if (msgEl) msgEl.style.display = 'none';
+
+    if (currentDescargoItems.some(i => (i.radio_code && i.radio_code.toLowerCase() === query) || i.serial_number.toLowerCase() === query)) {
+        if (msgEl) {
+            msgEl.className = 'alert alert-danger';
+            msgEl.style.display = 'block';
+            msgEl.innerText = 'Esta radio ya fue agregada a la lista a descargar.';
+        }
+        return;
+    }
+
+    const targetHotelId = hotelSel ? hotelSel.value : currentPropertyId;
+
+    try {
+        const res = await fetch(`/api/radios?hotel_id=${targetHotelId}`);
+        if (!res.ok) throw new Error('No se pudo consultar el inventario');
+        const radios = await res.json();
+
+        const match = radios.find(r => 
+            (r.radio_code && String(r.radio_code).toLowerCase() === query) ||
+            r.serial_number.toLowerCase() === query ||
+            r.id.toString() === query
+        );
+
+        if (!match) {
+            if (msgEl) {
+                msgEl.className = 'alert alert-danger';
+                msgEl.style.display = 'block';
+                msgEl.innerHTML = `<i class="fa-solid fa-circle-xmark me-1"></i> No se encontró ninguna radio con el ID o Serial '${escapeHtml(input.value)}' en esta propiedad.`;
+            }
+            return;
+        }
+
+        currentDescargoItems.push({
+            original_item_id: null,
+            radio_id: parseInt(match.id),
+            radio_code: match.radio_code || match.id.toString(),
+            serial_number: match.serial_number,
+            model: match.model || '',
+            department_name: match.department_name || '',
+            subdepartment_name: match.subdepartment_name || '',
+            cost_usd: 500.00,
+            is_new: false,
+            accessories_delivered: ['Antena', 'Cargador', 'Pila'],
+            accessories_returned: ['Antena', 'Cargador', 'Pila'],
+            selected_for_descargo: true
+        });
+
+        input.value = '';
+        renderDescargoItemsList();
+
+        if (window.showToast) showToast(`Radio #${match.radio_code || match.serial_number} agregada al descargo`, 'success');
+
+    } catch (err) {
+        if (msgEl) {
+            msgEl.className = 'alert alert-danger';
+            msgEl.style.display = 'block';
+            msgEl.innerText = err.message;
+        }
+    }
 }
 
 async function searchCollaboratorResguardosForDescargo() {
@@ -4533,10 +5241,193 @@ window.toggleDescargoItemSelection = toggleDescargoItemSelection;
 window.toggleDescargoReturnedAccessory = toggleDescargoReturnedAccessory;
 window.previewCurrentDescargo = previewCurrentDescargo;
 window.submitDescargoForm = submitDescargoForm;
+window.searchCollaboratorForDescargoManual = searchCollaboratorForDescargoManual;
+window.searchAndAddSingleRadioToDescargoManual = searchAndAddSingleRadioToDescargoManual;
 window.viewReceiptDocument = viewReceiptDocument;
 window.downloadReceiptPdf = downloadReceiptPdf;
 window.triggerDocumentPdfDownload = triggerDocumentPdfDownload;
 window.triggerDocumentPrint = triggerDocumentPrint;
+
+// -------------------------------------------------------------------------
+// EXPORTACIÓN DE HOJA DE DECOMISO EN PDF PARA TEC-RADIOS
+// -------------------------------------------------------------------------
+function initRadioDecommissionPdfModal() {
+    const modal = document.getElementById('radio-decommission-pdf-modal');
+    const btnOpen = document.getElementById('btn-export-radios-decommission-pdf');
+    const btnClose = document.getElementById('btn-close-radio-pdf-modal');
+    const btnCancel = document.getElementById('btn-cancel-radio-pdf-modal');
+    const form = document.getElementById('radio-decommission-pdf-form');
+    const selProperty = document.getElementById('rad-pdf-hotel-select');
+
+    if (!modal || !btnOpen) return;
+
+    if (!btnOpen.dataset.hasPdfListener) {
+        btnOpen.dataset.hasPdfListener = 'true';
+        btnOpen.addEventListener('click', async () => {
+            if (selProperty) {
+                if (!userProperties || userProperties.length === 0) {
+                    try {
+                        const pRes = await fetch('/api/radios/properties');
+                        if (pRes.ok) userProperties = await pRes.json();
+                    } catch(e) {}
+                }
+                
+                selProperty.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+                (userProperties || []).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = `${p.name} (${p.sigla || ''})`;
+                    if (String(p.id) === String(currentPropertyId)) opt.selected = true;
+                    selProperty.appendChild(opt);
+                });
+
+                if (!selProperty.value && userProperties && userProperties.length > 0) {
+                    selProperty.value = userProperties[0].id;
+                }
+
+                updateRadioPdfModalHotelPreview();
+                await updateRadioPdfDecommissionControlNumber();
+            }
+            modal.classList.add('active');
+        });
+    }
+
+    const closeModalFunc = () => modal.classList.remove('active');
+    if (btnClose && !btnClose.dataset.hasPdfListener) {
+        btnClose.dataset.hasPdfListener = 'true';
+        btnClose.addEventListener('click', closeModalFunc);
+    }
+    if (btnCancel && !btnCancel.dataset.hasPdfListener) {
+        btnCancel.dataset.hasPdfListener = 'true';
+        btnCancel.addEventListener('click', closeModalFunc);
+    }
+
+    if (selProperty && !selProperty.dataset.hasPdfListener) {
+        selProperty.dataset.hasPdfListener = 'true';
+        selProperty.addEventListener('change', async () => {
+            updateRadioPdfModalHotelPreview();
+            await updateRadioPdfDecommissionControlNumber();
+        });
+    }
+
+    if (form && !form.dataset.hasPdfListener) {
+        form.dataset.hasPdfListener = 'true';
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const hotelId = selProperty?.value;
+            if (!hotelId) {
+                if (typeof showToast === 'function') showToast('Por favor selecciona una propiedad para el decomiso', 'error');
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btn-generate-radio-pdf');
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Generando PDF...';
+            }
+
+            try {
+                const payload = {
+                    hotel_id: hotelId,
+                    no_control: document.getElementById('rad-pdf-no-control')?.value || '',
+                    department: document.getElementById('rad-pdf-department')?.value || 'TELECOMUNICACIONES',
+                    decommission_type: document.getElementById('rad-pdf-type')?.value || 'BAJA DE EQUIPO',
+                    applicant: document.getElementById('rad-pdf-applicant')?.value || '',
+                    reason: document.getElementById('rad-pdf-reason')?.value || '',
+                    other_notes: document.getElementById('rad-pdf-other-notes')?.value || ''
+                };
+
+                const res = await fetch('/api/radios/decommission/export/pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Error al generar el PDF de decomiso de radios');
+                }
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const propObj = (userProperties || []).find(p => String(p.id) === String(hotelId));
+                const sigla = propObj?.sigla || 'radios';
+                a.download = `Hoja_Decomiso_Radios_${sigla}_${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+                if (typeof showToast === 'function') showToast('Hoja de decomiso PDF generada exitosamente', 'success');
+                closeModalFunc();
+            } catch(err) {
+                console.error('Error generando PDF decomiso radios:', err);
+                if (typeof showToast === 'function') showToast(err.message || 'Error al generar PDF', 'error');
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '<i class="fa-solid fa-file-pdf me-1"></i> Generar PDF';
+                }
+            }
+        });
+    }
+}
+
+function updateRadioPdfModalHotelPreview() {
+    const selProperty = document.getElementById('rad-pdf-hotel-select');
+    const previewBox = document.getElementById('rad-pdf-hotel-preview');
+    const logoBox = document.getElementById('rad-pdf-hotel-logo-preview');
+    const nameEl = document.getElementById('rad-pdf-hotel-name-preview');
+    const siglaEl = document.getElementById('rad-pdf-hotel-sigla-preview');
+
+    if (!selProperty || !previewBox) return;
+
+    const propId = selProperty.value;
+    const propObj = (userProperties || []).find(p => String(p.id) === String(propId));
+
+    if (propObj) {
+        previewBox.style.display = 'flex';
+        if (nameEl) nameEl.textContent = propObj.name || '';
+        if (siglaEl) siglaEl.textContent = propObj.sigla ? `SIGLA: ${propObj.sigla}` : '';
+        if (logoBox) {
+            if (propObj.logo) {
+                logoBox.innerHTML = `<img src="${propObj.logo}" alt="${propObj.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+            } else {
+                logoBox.innerHTML = `<i class="fa-solid fa-hotel" style="font-size: 24px; color: var(--color-primary);"></i>`;
+            }
+        }
+    } else {
+        previewBox.style.display = 'none';
+    }
+}
+
+async function updateRadioPdfDecommissionControlNumber() {
+    const selProperty = document.getElementById('rad-pdf-hotel-select');
+    const noControlInput = document.getElementById('rad-pdf-no-control');
+    if (!selProperty || !noControlInput) return;
+
+    const propId = selProperty.value;
+    if (!propId) {
+        noControlInput.value = '';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/radios/decommissions/preview-number?hotel_id=${propId}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.no_control) {
+                noControlInput.value = data.no_control;
+            }
+        }
+    } catch(err) {
+        console.error('Error fetching radio decommission control number:', err);
+    }
+}
+
+window.initRadioDecommissionPdfModal = initRadioDecommissionPdfModal;
 
 // Auto-ejecución inmediata
 if (document.readyState === 'loading') {
@@ -4544,9 +5435,11 @@ if (document.readyState === 'loading') {
         initRadiosModule();
         loadDashboard();
         loadRadioNotifications();
+        initRadioDecommissionPdfModal();
     });
 } else {
     initRadiosModule();
     loadDashboard();
     loadRadioNotifications();
+    initRadioDecommissionPdfModal();
 }
